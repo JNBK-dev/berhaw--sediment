@@ -12,12 +12,6 @@ class App {
         this.homePlayerName = document.getElementById("homePlayerName");
         this.homePlayerKey = document.getElementById("homePlayerKey");
         
-        console.log("Home DOM elements:", {
-            homeView: this.homeView,
-            homePlayerName: this.homePlayerName,
-            homePlayerKey: this.homePlayerKey
-        });
-        
         // Tab navigation
         this.writeTab = document.getElementById("writeTab");
         this.playTab = document.getElementById("playTab");
@@ -353,8 +347,6 @@ class App {
     }
 
     showHomeView() {
-        console.log("showHomeView called", this.currentUser);
-        
         this.authView.classList.add("hidden");
         this.homeView.classList.remove("hidden");
         this.editorView.classList.add("hidden");
@@ -370,7 +362,6 @@ class App {
         }
         
         // Update UI
-        console.log("Setting name/key:", this.currentUser.name, this.currentUser.key);
         this.homePlayerName.textContent = this.currentUser.name;
         this.homePlayerKey.textContent = this.currentUser.key;
         
@@ -1254,23 +1245,40 @@ class App {
         const msgDiv = document.createElement("div");
         msgDiv.className = "chat-message";
 
-        const nameDiv = document.createElement("div");
-        nameDiv.className = "chat-message-name";
-        nameDiv.textContent = message.name;
+        // Check if this is from the same user as the last message
+        const lastMessage = this.chatMessages.lastElementChild;
+        const isSameUser = lastMessage && lastMessage.dataset.userId === message.userId;
+
+        // Store userId on the element
+        msgDiv.dataset.userId = message.userId;
+
+        if (isSameUser) {
+            // Grouped message - no name/timestamp
+            msgDiv.classList.add("grouped");
+        } else {
+            // New message group - show name and timestamp
+            const headerDiv = document.createElement("div");
+            headerDiv.className = "chat-message-header";
+
+            const nameDiv = document.createElement("div");
+            nameDiv.className = "chat-message-name";
+            nameDiv.textContent = message.name;
+
+            const timeDiv = document.createElement("div");
+            timeDiv.className = "chat-message-time";
+            const date = new Date(message.timestamp);
+            timeDiv.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            headerDiv.appendChild(nameDiv);
+            headerDiv.appendChild(timeDiv);
+            msgDiv.appendChild(headerDiv);
+        }
 
         const textDiv = document.createElement("div");
         textDiv.className = "chat-message-text";
         textDiv.textContent = message.text;
 
-        const timeDiv = document.createElement("div");
-        timeDiv.className = "chat-message-time";
-        const date = new Date(message.timestamp);
-        timeDiv.textContent = date.toLocaleTimeString();
-
-        msgDiv.appendChild(nameDiv);
         msgDiv.appendChild(textDiv);
-        msgDiv.appendChild(timeDiv);
-
         this.chatMessages.appendChild(msgDiv);
         
         // Scroll to bottom

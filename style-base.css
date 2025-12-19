@@ -14,6 +14,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    margin: 0;
 }
 
 .container {
@@ -21,6 +22,7 @@ body {
     width: 100%;
     margin: 0 auto;
     padding: 20px;
+    box-sizing: border-box;
 }
 
 .card {
@@ -29,8 +31,8 @@ body {
     padding: 32px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     animation: slideIn 0.3s ease-out;
-    height: 100dvh;
-    max-height: 100dvh;
+    height: calc(100vh - 40px);
+    max-height: calc(100vh - 40px);
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -540,7 +542,6 @@ button:active {
 
 .document-card:hover,
 .user-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-color: #3b82f6;
 }
@@ -951,7 +952,6 @@ textarea:focus {
 }
 
 .activity-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-color: #3b82f6;
 }
@@ -1052,7 +1052,7 @@ textarea:focus {
 .chat-messages {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 4px;
 }
 
 .chat-message {
@@ -1062,23 +1062,33 @@ textarea:focus {
     border-left: 3px solid #3b82f6;
 }
 
+.chat-message.grouped {
+    padding-top: 6px;
+    margin-top: -4px;
+}
+
+.chat-message-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
 .chat-message-name {
     font-size: 13px;
     font-weight: 700;
     color: #1e293b;
-    margin-bottom: 4px;
+}
+
+.chat-message-time {
+    font-size: 11px;
+    color: #94a3b8;
 }
 
 .chat-message-text {
     font-size: 14px;
     color: #475569;
     line-height: 1.5;
-}
-
-.chat-message-time {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-top: 4px;
 }
 
 .chat-input-container {
