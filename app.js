@@ -38,6 +38,8 @@ class App {
         this.settingsName = document.getElementById("settingsName");
         this.settingsKey = document.getElementById("settingsKey");
         this.settingsCreated = document.getElementById("settingsCreated");
+        this.soundToggle = document.getElementById("soundToggle");
+        this.volumeSlider = document.getElementById("volumeSlider");
         this.logoutBtn = document.getElementById("logoutBtn");
 
         // DOM elements - Profile View
@@ -173,6 +175,16 @@ class App {
         this.userSearch.addEventListener("input", () => {
             this.filterUsers(this.userSearch.value.trim().toLowerCase());
         });
+        
+        // Sound controls
+        this.soundToggle.addEventListener("change", () => {
+            soundManager.setEnabled(this.soundToggle.checked);
+        });
+        
+        this.volumeSlider.addEventListener("input", () => {
+            const volume = parseInt(this.volumeSlider.value) / 100;
+            soundManager.setVolume(volume);
+        });
 
         // Auto-login if session exists
         this.checkSession();
@@ -205,6 +217,7 @@ class App {
             const userSnap = await db.ref(`users/${sessionId}`).once("value");
             if (userSnap.exists()) {
                 this.currentUser = { id: sessionId, ...userSnap.val() };
+                soundManager.play('prompt');
                 this.showToast(`Welcome back, ${this.currentUser.name}!`, "success");
                 this.showHomeView();
                 return;
@@ -257,9 +270,11 @@ class App {
                 lastLogin: Date.now()
             });
             
+            soundManager.play('prompt');
             this.showToast(`Welcome back, ${foundUser.name}!`, "success");
             this.showHomeView();
         } else {
+            soundManager.play('alert');
             this.showToast("No account found with that name and key", "error");
         }
     }
@@ -281,10 +296,12 @@ class App {
             this.currentUser = { id: userId, ...newUser };
             localStorage.setItem("sessionUserId", userId);
             
+            soundManager.play('prompt');
             this.showToast(`Account created! Your key is: ${key}`, "success", 5000);
             this.showHomeView();
         } catch (err) {
             console.error("Failed to create user:", err);
+            soundManager.play('alert');
             this.showToast("Failed to create account. Please try again.", "error");
         }
     }
@@ -368,6 +385,10 @@ class App {
         // Populate settings
         this.settingsName.textContent = this.currentUser.name;
         this.settingsKey.textContent = this.currentUser.key;
+        
+        // Initialize sound controls from saved preferences
+        this.soundToggle.checked = soundManager.enabled;
+        this.volumeSlider.value = Math.round(soundManager.volume * 100);
         
         // Format creation date if available
         if (this.currentUser.createdAt) {
@@ -605,6 +626,7 @@ class App {
         // Load document
         const docSnap = await db.ref(`documents/${docId}`).once("value");
         if (!docSnap.exists()) {
+            soundManager.play('alert');
             this.showToast("Document not found", "error");
             return;
         }
@@ -639,6 +661,7 @@ class App {
             this.modeToggleBtn.style.display = 'inline-block';
         }
 
+        soundManager.play('creation');
         this.showEditorView();
     }
 
@@ -761,6 +784,7 @@ class App {
                 "metadata/lastEditedBy": this.currentUser.id
             });
 
+            soundManager.play('accepted');
             this.editorStatus.textContent = "Auto-saved";
             this.editorStatus.style.color = "#10b981";
             
@@ -995,6 +1019,7 @@ class App {
         this.gameView.classList.add("hidden");
         this.activityMenuView.classList.remove("hidden");
 
+        soundManager.play('bite');
         this.menuRoomCode.textContent = `Room: ${this.currentRoomCode}`;
 
         // Listen for players and activities
@@ -1252,6 +1277,11 @@ class App {
         // Store userId on the element
         msgDiv.dataset.userId = message.userId;
 
+        // Play sound for incoming messages from others
+        if (message.userId !== this.currentUser.id) {
+            soundManager.play('keyboard');
+        }
+
         if (isSameUser) {
             // Grouped message - no name/timestamp
             msgDiv.classList.add("grouped");
@@ -1299,6 +1329,7 @@ class App {
             timestamp: Date.now()
         });
 
+        soundManager.play('submitted');
         this.chatInput.value = "";
     }
 
