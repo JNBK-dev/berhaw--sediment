@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Game Lobby</title>
+    <link rel="stylesheet" href="style-base.css">
+</head>
+
+<body>
+    
+    <div class="container">
+        
+        <!-- Authentication View -->
+        <div id="authView" class="card">
+            <div class="header">
+                <h1 class="player-name">Welcome!</h1>
+                <p class="subtitle">Log in or create a new account</p>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label" for="authName">Player name:</label>
+                <input id="authName" placeholder="Enter your name">
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label" for="authKey">Registration key:</label>
+                <input id="authKey" placeholder="Your 3-character key" maxlength="3">
+                <div class="input-hint">Enter your key to log in, or leave blank to create new account</div>
+            </div>
+            
+            <button class="btn-create" id="loginBtn">Continue</button>
+            
+            <div class="divider"></div>
+            
+            <button class="btn-secondary" id="quickPlayBtn">Quick Play (No Account)</button>
+        </div>
+        
+        <!-- Room Activity Menu -->
+        <div id="activityMenuView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="menuRoomCode"></h1>
+                <div class="user-info">
+                    <span class="user-key">Room Activity Menu</span>
+                    <button class="btn-logout" id="leaveRoomFromMenuBtn">Leave Room</button>
+                </div>
+            </div>
+            
+            <div class="activity-menu-content">
+                <div class="section-header">
+                    <div class="section-title">Players in Room</div>
+                </div>
+                
+                <div class="player-chips" id="menuPlayerChips"></div>
+                
+                <div class="section-header" style="margin-top: 24px;">
+                    <div class="section-title">Activities</div>
+                    <button class="btn-create" id="newActivityBtn">Start New Activity</button>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="activities-grid" id="activitiesList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Activity Creator Modal -->
+        <div id="activityCreatorModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Start New Activity</h2>
+                <div class="activity-options">
+                    <button class="activity-option" data-type="chat">
+                        <div class="activity-option-name">Chat</div>
+                        <div class="activity-option-desc">Text conversation with everyone</div>
+                    </button>
+                    <button class="activity-option" data-type="quick_draw">
+                        <div class="activity-option-name">Quick Draw</div>
+                        <div class="activity-option-desc">Reaction time game</div>
+                    </button>
+                </div>
+                <button class="btn-secondary" id="cancelActivityBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
+            </div>
+        </div>
+        
+        <!-- Chat Activity View -->
+        <div id="chatView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Chat</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="chatRoomCode"></span>
+                    <button class="btn-logout" id="leaveChatBtn">Leave Activity</button>
+                </div>
+            </div>
+            
+            <div class="chat-content">
+                <div class="scrollable-list">
+                    <div class="chat-messages" id="chatMessages"></div>
+                </div>
+                
+                <div class="section-footer">
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" placeholder="Type a message...">
+                        <button class="btn-create" id="sendChatBtn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Game View -->
+        <div id="gameView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Quick Draw!</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="gameRoomCode"></span>
+                    <button class="btn-logout" id="leaveGameBtn">Leave Activity</button>
+                </div>
+            </div>
+            
+            <div class="game-content">
+                <div class="section-header">
+                    <div class="button-group">
+                        <button class="btn-watch" id="watchBtn">Watch</button>
+                        <button class="btn-play" id="playBtn">Play</button>
+                    </div>
+                    
+                    <div class="game-status" id="gameStatus">Waiting for next round...</div>
+                    
+                    <div class="game-area" id="gameArea">
+                        <div class="game-prompt" id="gamePrompt">Get Ready!</div>
+                        <button class="game-button" id="gameButton">DRAW!</button>
+                    </div>
+                    
+                    <div class="section-title" style="margin-top: 24px;">Scoreboard</div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="scoreboard" id="scoreboard"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Home View -->
+        <div id="homeView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="homePlayerName"></h1>
+                <div class="user-info">
+                    <span class="user-key">Key: <strong id="homePlayerKey"></strong></span>
+                </div>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab active" id="writeTab">Write</button>
+                <button class="tab" id="playTab">Play</button>
+                <button class="tab" id="peopleTab">People</button>
+                <button class="tab" id="settingsTab">Settings</button>
+            </div>
+            
+            <!-- Scrollable Content Area -->
+            <div class="tab-content">
+                
+                <!-- Write Section -->
+                <div id="writeSection" class="tab-section active">
+                    <div class="section-header">
+                        <div class="section-title">My Documents</div>
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="documents-grid" id="documentsList"></div>
+                    </div>
+                    <div class="section-footer">
+                        <button class="btn-create" id="createDocBtn">New Document</button>
+                    </div>
+                </div>
+                
+                <!-- Play Section -->
+                <div id="playSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">Rooms</div>
+                        <button class="btn-create" id="createRoomBtn">Create New Room</button>
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="rooms-grid" id="roomsList"></div>
+                    </div>
+                </div>
+                
+                <!-- People Section -->
+                <div id="peopleSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">People</div>
+                        <input type="text" id="userSearch" placeholder="Search users...">
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="users-grid" id="usersList"></div>
+                    </div>
+                </div>
+                
+                <!-- Settings Section -->
+                <div id="settingsSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">Profile</div>
+                    </div>
+                    
+                    <div class="scrollable-list">
+                        <div class="settings-group">
+                            <div class="setting-item">
+                                <div class="setting-label">Name</div>
+                                <div class="setting-value" id="settingsName"></div>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="setting-label">Registration Key</div>
+                                <div class="setting-value" id="settingsKey"></div>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="setting-label">Account Created</div>
+                                <div class="setting-value" id="settingsCreated"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="section-title" style="margin-top: 32px;">Account</div>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-leave" id="logoutBtn">Logout</button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Profile View -->
+        <div id="profileView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="profileName"></h1>
+                <div class="user-info">
+                    <span class="user-key">Key: <strong id="profileKey"></strong></span>
+                    <button class="btn-logout" id="backFromProfileBtn">Back</button>
+                </div>
+            </div>
+            
+            <div class="profile-content">
+                <div class="section-header">
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Member Since</span>
+                            <span class="stat-value" id="profileJoined"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Public Documents</span>
+                            <span class="stat-value" id="profileDocCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="section-title" style="margin-top: 24px;">Public Documents</div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="documents-grid" id="profileDocsList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Document Editor View -->
+        <div id="editorView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Document Editor</h1>
+                <div class="user-info">
+                    <span class="editor-status" id="editorStatus">Editing...</span>
+                    <button class="btn-mode-toggle" id="modeToggleBtn">Reader Mode</button>
+                    <button class="btn-logout" id="backToHomeBtn">Back to Home</button>
+                </div>
+            </div>
+            
+            <!-- Scrollable Editor Content -->
+            <div class="editor-content">
+                <!-- Edit Mode -->
+                <div id="editMode" class="editor-section">
+                    <div class="input-group">
+                        <label class="input-label" for="docTitle">Title:</label>
+                        <input id="docTitle" placeholder="Untitled Document">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="docPrivacy">Privacy:</label>
+                        <select id="docPrivacy" class="privacy-select">
+                            <option value="private">Private - Only you can see</option>
+                            <option value="public">Public - Anyone can view</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="docContent">Content (Markdown supported):</label>
+                        <textarea id="docContent" placeholder="Start writing..."></textarea>
+                    </div>
+                    
+                    <div class="markdown-hint">
+                        Markdown tips: # Heading, ## Subheading, **bold**, *italic*, [link](url), ![alt](image-url)
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-secondary" id="deleteDocBtn">Delete</button>
+                        <button class="btn-create" id="saveDocBtn">Save</button>
+                    </div>
+                </div>
+                
+                <!-- Reader Mode -->
+                <div id="readerMode" class="editor-section hidden">
+                    <h1 class="reader-title" id="readerTitle"></h1>
+                    <div class="reader-content" id="readerContent"></div>
+                    <button class="btn-secondary" id="deleteDocBtnReader" style="width: 100%; margin-top: 24px;">Delete</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    
+    <script src="firebaseConfig.js"></script>
+    <script src="app.js"></script>
+    
+</body>
+
+</html>
