@@ -373,6 +373,8 @@ class App {
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         
+        soundManager.play('bite');
+        
         if (!this.currentUser) {
             console.error("showHomeView called but currentUser is null!");
             this.showAuthView();
@@ -662,7 +664,7 @@ class App {
             this.modeToggleBtn.style.display = 'inline-block';
         }
 
-        soundManager.play('creation');
+        soundManager.play('chomp');
         this.showEditorView();
     }
 
@@ -674,6 +676,8 @@ class App {
         this.chatView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        
+        soundManager.play('bite');
         
         // Update back button text
         if (this.openedFromProfile) {
@@ -756,6 +760,7 @@ class App {
                 "metadata/lastEditedBy": this.currentUser.id
             });
 
+            soundManager.play('accepted');
             this.editorStatus.textContent = "Saved!";
             this.editorStatus.style.color = "#10b981";
             
@@ -785,7 +790,7 @@ class App {
                 "metadata/lastEditedBy": this.currentUser.id
             });
 
-            soundManager.play('accepted');
+            soundManager.play('reclick');
             this.editorStatus.textContent = "Auto-saved";
             this.editorStatus.style.color = "#10b981";
             
@@ -981,6 +986,8 @@ class App {
         this.chatView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.remove("hidden");
+        
+        soundManager.play('bite');
     }
 
     closeProfile() {
@@ -1248,6 +1255,7 @@ class App {
         this.gameView.classList.add("hidden");
         this.chatView.classList.remove("hidden");
 
+        soundManager.play('bite');
         this.chatRoomCode.textContent = this.currentRoomCode;
         this.chatMessages.innerHTML = "";
 
@@ -1365,6 +1373,7 @@ class App {
         this.chatView.classList.add("hidden");
         this.gameView.classList.remove("hidden");
 
+        soundManager.play('bite');
         this.gameRoomCode.textContent = this.currentRoomCode;
 
         // Listen for game updates

@@ -14,7 +14,9 @@ class SoundManager {
             notification: 'sounds/hawber--sound-006--attention-notification.wav',
             riffle: 'sounds/hawber--sound-007--pages-riffle.wav',
             keyboard: 'sounds/hawber--sound-008--keyboard-sent.wav',
-            bite: 'sounds/hawber--sound-009--receiving-bite.wav'
+            bite: 'sounds/hawber--sound-009--receiving-bite.wav',
+            chomp: 'sounds/hawber--sound-010--receiving-chomp.wav',
+            reclick: 'sounds/hawber--sound-011--pen-reclick.wav'
         };
         
         this.loadSounds();
