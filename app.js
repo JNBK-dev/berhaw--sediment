@@ -112,6 +112,7 @@ class App {
         this.usersListener = null;
         this.activitiesListener = null;
         this.chatListener = null;
+        this.chatInitialLoadComplete = false;
         this.roundStartTime = null;
 
         // Bind events
@@ -1181,6 +1182,7 @@ class App {
         if (this.chatListener) {
             activityRef.child("messages").off("child_added", this.chatListener);
             this.chatListener = null;
+            this.chatInitialLoadComplete = false;
         }
 
         if (this.gameListener) {
@@ -1260,13 +1262,32 @@ class App {
             messagesRef.off("child_added", this.chatListener);
         }
 
-        this.chatListener = messagesRef.limitToLast(100).on("child_added", snap => {
+        // Reset flag for new room
+        this.chatInitialLoadComplete = false;
+
+        // First, load existing messages silently
+        messagesRef.limitToLast(100).once("value", snap => {
+            // Render all existing messages without sound
+            snap.forEach(msgSnap => {
+                const message = msgSnap.val();
+                this.renderChatMessage(message, true); // true = silent (no sound)
+            });
+            
+            // Mark initial load as complete
+            this.chatInitialLoadComplete = true;
+        });
+
+        // Then listen for new messages
+        this.chatListener = messagesRef.limitToLast(1).on("child_added", snap => {
+            // Skip if this is part of initial load
+            if (!this.chatInitialLoadComplete) return;
+            
             const message = snap.val();
-            this.renderChatMessage(message);
+            this.renderChatMessage(message, false); // false = play sound
         });
     }
 
-    renderChatMessage(message) {
+    renderChatMessage(message, silent = false) {
         const msgDiv = document.createElement("div");
         msgDiv.className = "chat-message";
 
@@ -1277,8 +1298,8 @@ class App {
         // Store userId on the element
         msgDiv.dataset.userId = message.userId;
 
-        // Play sound for incoming messages from others
-        if (message.userId !== this.currentUser.id) {
+        // Play sound for incoming messages from others (only if not silent)
+        if (!silent && message.userId !== this.currentUser.id) {
             soundManager.play('keyboard');
         }
 
