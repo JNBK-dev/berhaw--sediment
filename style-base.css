@@ -1001,6 +1001,7 @@ textarea:focus {
 .activity-menu-content,
 .chat-content,
 .dice-content,
+.collab-doc-content,
 .lobby-content,
 .game-content {
     flex: 1;
@@ -1100,6 +1101,39 @@ textarea:focus {
 
 .dice-roll-fumble {
     color: #ef4444;
+}
+
+/* Collaborative Doc Styles */
+.collab-editors {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.collab-editors-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.collab-editors-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.collab-editor-chip {
+    background: #eff6ff;
+    color: #3b82f6;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.collab-doc-wrapper {
+    width: 100%;
 }
 
 .player-chips {

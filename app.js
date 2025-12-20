@@ -100,6 +100,20 @@ class App {
         this.rollD100Btn = document.getElementById("rollD100Btn");
         this.leaveDiceBtn = document.getElementById("leaveDiceBtn");
 
+        // DOM elements - Collaborative Doc View
+        this.collabDocView = document.getElementById("collabDocView");
+        this.collabDocRoomCode = document.getElementById("collabDocRoomCode");
+        this.collabEditorsList = document.getElementById("collabEditorsList");
+        this.collabDocTitle = document.getElementById("collabDocTitle");
+        this.collabDocContent = document.getElementById("collabDocContent");
+        this.collabEditorStatus = document.getElementById("collabEditorStatus");
+        this.collabModeToggleBtn = document.getElementById("collabModeToggleBtn");
+        this.collabEditMode = document.getElementById("collabEditMode");
+        this.collabReaderMode = document.getElementById("collabReaderMode");
+        this.collabReaderTitle = document.getElementById("collabReaderTitle");
+        this.collabReaderContent = document.getElementById("collabReaderContent");
+        this.leaveCollabDocBtn = document.getElementById("leaveCollabDocBtn");
+
         // DOM elements - Game View
         this.gameView = document.getElementById("gameView");
         this.gameRoomCode = document.getElementById("gameRoomCode");
@@ -128,6 +142,9 @@ class App {
         this.chatInitialLoadComplete = false;
         this.diceListener = null;
         this.diceInitialLoadComplete = false;
+        this.collabDocListener = null;
+        this.collabEditorsListener = null;
+        this.collabIsReaderMode = false;
         this.roundStartTime = null;
 
         // Bind events
@@ -177,6 +194,10 @@ class App {
         this.rollD20Btn.onclick = () => this.rollDice(20);
         this.rollD100Btn.onclick = () => this.rollDice(100);
         
+        // Collaborative Doc actions
+        this.leaveCollabDocBtn.onclick = () => this.leaveActivity();
+        this.collabModeToggleBtn.onclick = () => this.toggleCollabMode();
+        
         // Game actions
         this.watchBtn.onclick = () => this.setPlayerStatus("watching");
         this.playBtn.onclick = () => this.setPlayerStatus("playing");
@@ -195,6 +216,17 @@ class App {
         });
         this.docPrivacy.addEventListener("change", () => {
             this.autoSave();
+        });
+        
+        // Collaborative doc auto-save (debounced)
+        let collabSaveTimeout;
+        this.collabDocTitle.addEventListener("input", () => {
+            clearTimeout(collabSaveTimeout);
+            collabSaveTimeout = setTimeout(() => this.autoSaveCollabDoc(), 1000);
+        });
+        this.collabDocContent.addEventListener("input", () => {
+            clearTimeout(collabSaveTimeout);
+            collabSaveTimeout = setTimeout(() => this.autoSaveCollabDoc(), 1000);
         });
         
         // User search
@@ -383,6 +415,8 @@ class App {
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         
@@ -397,6 +431,8 @@ class App {
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         
@@ -702,6 +738,7 @@ class App {
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         
@@ -1013,6 +1050,7 @@ class App {
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.remove("hidden");
         
@@ -1054,6 +1092,7 @@ class App {
         this.profileView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.activityMenuView.classList.remove("hidden");
 
@@ -1122,7 +1161,8 @@ class App {
             name.className = "activity-name";
             name.textContent = activity.type === "chat" ? "Chat" : 
                               activity.type === "quick_draw" ? "Quick Draw" :
-                              activity.type === "dice" ? "Dice Roller" : "Activity";
+                              activity.type === "dice" ? "Dice Roller" :
+                              activity.type === "collab_doc" ? "Collaborative Doc" : "Activity";
 
             const count = document.createElement("div");
             count.className = "activity-count";
@@ -1206,6 +1246,8 @@ class App {
             this.showChatView();
         } else if (type === "dice") {
             this.showDiceView();
+        } else if (type === "collab_doc") {
+            this.showCollabDocView();
         } else if (type === "quick_draw") {
             this.showGameView();
         }
@@ -1229,6 +1271,16 @@ class App {
             activityRef.child("rolls").off("child_added", this.diceListener);
             this.diceListener = null;
             this.diceInitialLoadComplete = false;
+        }
+
+        if (this.collabDocListener) {
+            activityRef.child("document").off("value", this.collabDocListener);
+            this.collabDocListener = null;
+        }
+
+        if (this.collabEditorsListener) {
+            activityRef.child("activeUsers").off("value", this.collabEditorsListener);
+            this.collabEditorsListener = null;
         }
 
         if (this.gameListener) {
@@ -1292,6 +1344,7 @@ class App {
         this.profileView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.chatView.classList.remove("hidden");
 
@@ -1525,6 +1578,147 @@ class App {
         soundManager.play('submitted');
     }
 
+    // ===== COLLABORATIVE DOC METHODS =====
+
+    showCollabDocView() {
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.collabDocView.classList.remove("hidden");
+
+        soundManager.play('bite');
+        this.collabDocRoomCode.textContent = this.currentRoomCode;
+        
+        // Reset to edit mode
+        this.collabIsReaderMode = false;
+        this.collabEditMode.classList.remove("hidden");
+        this.collabReaderMode.classList.add("hidden");
+        this.collabModeToggleBtn.textContent = "Reader Mode";
+
+        // Listen for document updates and editors
+        this.listenToCollabDoc();
+        this.listenToCollabEditors();
+    }
+
+    listenToCollabDoc() {
+        const docRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/document`);
+        
+        if (this.collabDocListener) {
+            docRef.off("value", this.collabDocListener);
+        }
+
+        this.collabDocListener = docRef.on("value", snap => {
+            const doc = snap.val() || { title: "", content: "" };
+            
+            // Only update if not currently typing (to avoid cursor jumping)
+            if (document.activeElement !== this.collabDocTitle) {
+                this.collabDocTitle.value = doc.title || "";
+            }
+            if (document.activeElement !== this.collabDocContent) {
+                this.collabDocContent.value = doc.content || "";
+            }
+            
+            // Update reader mode if active
+            if (this.collabIsReaderMode) {
+                this.updateCollabReaderView();
+            }
+            
+            this.collabEditorStatus.textContent = "Synced";
+            this.collabEditorStatus.style.color = "#10b981";
+        });
+    }
+
+    listenToCollabEditors() {
+        const usersRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers`);
+        
+        if (this.collabEditorsListener) {
+            usersRef.off("value", this.collabEditorsListener);
+        }
+
+        this.collabEditorsListener = usersRef.on("value", snap => {
+            this.collabEditorsList.innerHTML = "";
+            
+            if (!snap.exists()) return;
+            
+            snap.forEach(userSnap => {
+                const user = userSnap.val();
+                const chip = document.createElement("div");
+                chip.className = "collab-editor-chip";
+                chip.textContent = user.name;
+                if (userSnap.key === this.currentUser.id) {
+                    chip.textContent += " (you)";
+                }
+                this.collabEditorsList.appendChild(chip);
+            });
+        });
+    }
+
+    async autoSaveCollabDoc() {
+        if (!this.currentActivityId) return;
+        
+        const title = this.collabDocTitle.value;
+        const content = this.collabDocContent.value;
+
+        try {
+            const docRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/document`);
+            await docRef.update({
+                title: title,
+                content: content,
+                updatedAt: Date.now(),
+                lastEditedBy: this.currentUser.name
+            });
+
+            soundManager.play('reclick');
+            this.collabEditorStatus.textContent = "Saved";
+            this.collabEditorStatus.style.color = "#10b981";
+            
+            setTimeout(() => {
+                this.collabEditorStatus.textContent = "Ready";
+                this.collabEditorStatus.style.color = "#64748b";
+            }, 1500);
+        } catch (err) {
+            console.error("Failed to save collab doc:", err);
+            this.collabEditorStatus.textContent = "Error saving";
+            this.collabEditorStatus.style.color = "#ef4444";
+        }
+    }
+
+    toggleCollabMode() {
+        this.collabIsReaderMode = !this.collabIsReaderMode;
+        
+        if (this.collabIsReaderMode) {
+            // Switch to Reader Mode
+            this.collabEditMode.classList.add("hidden");
+            this.collabReaderMode.classList.remove("hidden");
+            this.collabModeToggleBtn.textContent = "Edit Mode";
+            this.updateCollabReaderView();
+        } else {
+            // Switch to Edit Mode
+            this.collabEditMode.classList.remove("hidden");
+            this.collabReaderMode.classList.add("hidden");
+            this.collabModeToggleBtn.textContent = "Reader Mode";
+        }
+    }
+
+    updateCollabReaderView() {
+        const title = this.collabDocTitle.value || "Untitled Document";
+        const content = this.collabDocContent.value || "";
+        
+        this.collabReaderTitle.textContent = title;
+        
+        if (content.trim()) {
+            this.collabReaderContent.innerHTML = marked.parse(content);
+        } else {
+            this.collabReaderContent.innerHTML = "<p style='color: #94a3b8;'>No content yet. Switch to Edit Mode to start writing.</p>";
+        }
+    }
+
     // ===== GAME METHODS =====
 
     showGameView() {
@@ -1535,6 +1729,7 @@ class App {
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
         this.gameView.classList.remove("hidden");
 
         soundManager.play('bite');

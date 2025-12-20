@@ -82,6 +82,10 @@
                         <div class="activity-option-name">Dice Roller</div>
                         <div class="activity-option-desc">Roll d4, d20, and more</div>
                     </button>
+                    <button class="activity-option" data-type="collab_doc">
+                        <div class="activity-option-name">Collaborative Doc</div>
+                        <div class="activity-option-desc">Edit together in real-time</div>
+                    </button>
                 </div>
                 <button class="btn-secondary" id="cancelActivityBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
             </div>
@@ -150,6 +154,56 @@
                 
                 <div class="scrollable-list">
                     <div class="dice-rolls" id="diceRolls"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Collaborative Doc Activity View -->
+        <div id="collabDocView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Collaborative Doc</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="collabDocRoomCode"></span>
+                    <button class="btn-logout" id="leaveCollabDocBtn">Leave Activity</button>
+                </div>
+            </div>
+            
+            <div class="collab-doc-content">
+                <div class="section-header">
+                    <div class="collab-editors">
+                        <span class="collab-editors-label">Editing:</span>
+                        <div class="collab-editors-list" id="collabEditorsList"></div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-mode-toggle" id="collabModeToggleBtn">Reader Mode</button>
+                    </div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="collab-doc-wrapper">
+                        <!-- Edit Mode -->
+                        <div id="collabEditMode">
+                            <input 
+                                type="text" 
+                                id="collabDocTitle" 
+                                class="doc-title-input" 
+                                placeholder="Untitled Document"
+                            >
+                            <textarea 
+                                id="collabDocContent" 
+                                class="doc-textarea" 
+                                placeholder="Start typing together..."
+                            ></textarea>
+                            <div class="editor-status" id="collabEditorStatus">Ready</div>
+                        </div>
+                        
+                        <!-- Reader Mode -->
+                        <div id="collabReaderMode" class="hidden">
+                            <div class="reader-title" id="collabReaderTitle"></div>
+                            <div class="reader-content" id="collabReaderContent"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
