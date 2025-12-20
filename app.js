@@ -1167,7 +1167,15 @@ class App {
             this.closeObjectTypeBuilder();
         } catch (err) {
             console.error("Failed to save object type:", err);
-            this.showToast("Failed to save object type", "error");
+            console.error("Error code:", err.code);
+            console.error("Error message:", err.message);
+            
+            let errorMsg = "Failed to save object type";
+            if (err.code === 'PERMISSION_DENIED') {
+                errorMsg = "Permission denied. Please update Firebase security rules.";
+            }
+            
+            this.showToast(errorMsg, "error");
         }
     }
 
