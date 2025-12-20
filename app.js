@@ -145,6 +145,7 @@ class App {
         this.diceInitialLoadComplete = false;
         this.storyListener = null;
         this.storyTurnListener = null;
+        this.storyUsersListener = null;
         this.storyBlocksListener = null;
         this.roundStartTime = null;
 
@@ -1283,6 +1284,11 @@ class App {
             this.storyTurnListener = null;
         }
 
+        if (this.storyUsersListener) {
+            activityRef.child("activeUsers").off("value", this.storyUsersListener);
+            this.storyUsersListener = null;
+        }
+
         if (this.storyBlocksListener) {
             activityRef.child("blocks").off("child_added", this.storyBlocksListener);
             this.storyBlocksListener = null;
@@ -1612,17 +1618,69 @@ class App {
 
     listenToStoryTurn() {
         const turnRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/turn`);
+        const usersRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers`);
         
         if (this.storyTurnListener) {
             turnRef.off("value", this.storyTurnListener);
         }
+        
+        if (this.storyUsersListener) {
+            usersRef.off("value", this.storyUsersListener);
+        }
+
+        // Listen for changes in active users to update turn order
+        this.storyUsersListener = usersRef.on("value", async (usersSnap) => {
+            if (!usersSnap.exists()) return;
+            
+            const activeUsers = [];
+            usersSnap.forEach(userSnap => {
+                activeUsers.push({
+                    id: userSnap.key,
+                    name: userSnap.val().name
+                });
+            });
+            
+            // Check if turn exists
+            const turnSnap = await turnRef.once("value");
+            const turn = turnSnap.val();
+            
+            if (!turn) {
+                // Initialize turn if it doesn't exist
+                await this.initializeTurn(activeUsers);
+            } else {
+                // Update turn order to include all active users
+                const currentTurnOrder = turn.turnOrder || [];
+                const activeUserIds = activeUsers.map(u => u.id);
+                
+                // Add new users to turn order
+                const newTurnOrder = [...currentTurnOrder];
+                activeUsers.forEach(user => {
+                    if (!newTurnOrder.includes(user.id)) {
+                        newTurnOrder.push(user.id);
+                    }
+                });
+                
+                // Remove inactive users from turn order
+                const filteredTurnOrder = newTurnOrder.filter(id => activeUserIds.includes(id));
+                
+                // If turn order changed, update it
+                if (JSON.stringify(filteredTurnOrder) !== JSON.stringify(currentTurnOrder)) {
+                    await turnRef.update({
+                        turnOrder: filteredTurnOrder
+                    });
+                    
+                    // If current player is no longer active, advance turn
+                    if (!activeUserIds.includes(turn.currentPlayer)) {
+                        await this.advanceTurn();
+                    }
+                }
+            }
+        });
 
         this.storyTurnListener = turnRef.on("value", snap => {
             const turn = snap.val();
             
             if (!turn || !turn.currentPlayer) {
-                // Initialize turn if it doesn't exist
-                this.initializeTurn();
                 return;
             }
             
@@ -1644,28 +1702,30 @@ class App {
         });
     }
 
-    async initializeTurn() {
-        // Get all active users
-        const usersSnap = await db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers`).once("value");
-        
-        if (!usersSnap.exists()) return;
-        
-        const users = [];
-        usersSnap.forEach(userSnap => {
-            users.push({
-                id: userSnap.key,
-                name: userSnap.val().name
+    async initializeTurn(activeUsers) {
+        if (!activeUsers || activeUsers.length === 0) {
+            // Get active users if not provided
+            const usersSnap = await db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers`).once("value");
+            
+            if (!usersSnap.exists()) return;
+            
+            activeUsers = [];
+            usersSnap.forEach(userSnap => {
+                activeUsers.push({
+                    id: userSnap.key,
+                    name: userSnap.val().name
+                });
             });
-        });
+        }
         
-        if (users.length === 0) return;
+        if (activeUsers.length === 0) return;
         
         // Set first user as current turn
         const turnRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/turn`);
         await turnRef.set({
-            currentPlayer: users[0].id,
-            currentPlayerName: users[0].name,
-            turnOrder: users.map(u => u.id),
+            currentPlayer: activeUsers[0].id,
+            currentPlayerName: activeUsers[0].name,
+            turnOrder: activeUsers.map(u => u.id),
             turnIndex: 0
         });
     }
@@ -1746,6 +1806,19 @@ class App {
             return;
         }
         
+        // Verify it's actually our turn before submitting
+        const turnRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/turn`);
+        const turnSnap = await turnRef.once("value");
+        const turn = turnSnap.val();
+        
+        if (!turn || turn.currentPlayer !== this.currentUser.id) {
+            this.showToast("It's not your turn!", "error");
+            return;
+        }
+        
+        // Disable submit button to prevent double submission
+        this.submitBlockBtn.disabled = true;
+        
         const blocksRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/blocks`);
         
         await blocksRef.push({
@@ -1762,9 +1835,25 @@ class App {
         
         // Advance turn
         await this.advanceTurn();
+        
+        // Re-enable button after turn advances
+        this.submitBlockBtn.disabled = false;
     }
 
     async passTurn() {
+        // Verify it's actually our turn
+        const turnRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/turn`);
+        const turnSnap = await turnRef.once("value");
+        const turn = turnSnap.val();
+        
+        if (!turn || turn.currentPlayer !== this.currentUser.id) {
+            this.showToast("It's not your turn!", "error");
+            return;
+        }
+        
+        // Disable pass button to prevent double pass
+        this.passBtn.disabled = true;
+        
         const blocksRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/blocks`);
         
         await blocksRef.push({
@@ -1779,6 +1868,9 @@ class App {
         
         // Advance turn
         await this.advanceTurn();
+        
+        // Re-enable button after turn advances
+        this.passBtn.disabled = false;
     }
 
     async advanceTurn() {
