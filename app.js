@@ -73,7 +73,22 @@ class App {
         this.instancesTypeName = document.getElementById("instancesTypeName");
         this.instancesList = document.getElementById("instancesList");
         this.createInstanceBtn = document.getElementById("createInstanceBtn");
+        this.visualizeBtn = document.getElementById("visualizeBtn");
         this.backFromInstancesBtn = document.getElementById("backFromInstancesBtn");
+
+        // DOM elements - Data Visualization View
+        this.dataVisualizationView = document.getElementById("dataVisualizationView");
+        this.visualizationTypeName = document.getElementById("visualizationTypeName");
+        this.chartTypeSelect = document.getElementById("chartTypeSelect");
+        this.xAxisSelect = document.getElementById("xAxisSelect");
+        this.yAxisSelect = document.getElementById("yAxisSelect");
+        this.aggregationSelect = document.getElementById("aggregationSelect");
+        this.xAxisGroup = document.getElementById("xAxisGroup");
+        this.yAxisGroup = document.getElementById("yAxisGroup");
+        this.aggregationGroup = document.getElementById("aggregationGroup");
+        this.dataChart = document.getElementById("dataChart");
+        this.chartStats = document.getElementById("chartStats");
+        this.backFromVisualizationBtn = document.getElementById("backFromVisualizationBtn");
 
         // DOM elements - Object Instance Editor View
         this.objectInstanceEditorView = document.getElementById("objectInstanceEditorView");
@@ -182,6 +197,8 @@ class App {
         this.currentObjectTypeId = null;
         this.currentInstanceId = null;
         this.currentObjectType = null;
+        this.currentInstances = [];
+        this.currentChart = null;
         this.objectTypesListener = null;
         this.instancesListener = null;
         this.fieldIdCounter = 0;
@@ -212,9 +229,17 @@ class App {
         // Object Instance actions
         this.backFromInstancesBtn.onclick = () => this.closeInstancesList();
         this.createInstanceBtn.onclick = () => this.createInstance();
+        this.visualizeBtn.onclick = () => this.openVisualization();
         this.backFromInstanceEditorBtn.onclick = () => this.closeInstanceEditor();
         this.saveInstanceBtn.onclick = () => this.saveInstance();
         this.deleteInstanceBtn.onclick = () => this.deleteInstance();
+        
+        // Data Visualization actions
+        this.backFromVisualizationBtn.onclick = () => this.closeVisualization();
+        this.chartTypeSelect.onchange = () => this.updateChart();
+        this.xAxisSelect.onchange = () => this.updateChart();
+        this.yAxisSelect.onchange = () => this.updateChart();
+        this.aggregationSelect.onchange = () => this.updateChart();
         
         // Document actions
         this.createDocBtn.onclick = () => this.createDocument();
@@ -471,6 +496,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         
         // Stop listening to rooms
         db.ref("rooms").off();
@@ -490,6 +516,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         
         soundManager.play('bite');
         
@@ -806,6 +833,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         
         soundManager.play('bite');
         
@@ -1077,6 +1105,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
@@ -1091,6 +1120,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.homeView.classList.remove("hidden");
         this.switchTab('toolkit');
     }
@@ -1269,12 +1299,14 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.objectInstancesView.classList.remove("hidden");
     }
 
@@ -1308,6 +1340,7 @@ class App {
         this.instancesList.innerHTML = "";
 
         if (!snap.exists()) {
+            this.currentInstances = [];
             const emptyMsg = document.createElement("div");
             emptyMsg.className = "instance-empty";
             emptyMsg.textContent = `No ${this.currentObjectType.name} instances yet. Create one to get started!`;
@@ -1325,6 +1358,9 @@ class App {
 
         // Sort by most recent
         instances.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        // Store for visualization
+        this.currentInstances = instances;
 
         instances.forEach(instance => {
             this.renderInstanceCard(instance);
@@ -1431,6 +1467,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
@@ -1444,6 +1481,7 @@ class App {
 
     closeInstanceEditor() {
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.objectInstancesView.classList.remove("hidden");
     }
 
@@ -1580,6 +1618,328 @@ class App {
             console.error("Failed to delete instance:", err);
             this.showToast("Failed to delete instance", "error");
         }
+    }
+
+    // ===== DATA VISUALIZATION METHODS =====
+
+    openVisualization() {
+        if (this.currentInstances.length === 0) {
+            this.showToast("No data to visualize. Create some instances first!", "error");
+            return;
+        }
+
+        this.visualizationTypeName.textContent = `${this.currentObjectType.name} Data`;
+        this.showVisualizationView();
+        this.setupVisualizationControls();
+        this.updateChart();
+    }
+
+    showVisualizationView() {
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.dataVisualizationView.classList.remove("hidden");
+
+        soundManager.play('bite');
+    }
+
+    closeVisualization() {
+        // Destroy existing chart
+        if (this.currentChart) {
+            this.currentChart.destroy();
+            this.currentChart = null;
+        }
+
+        this.dataVisualizationView.classList.add("hidden");
+        this.objectInstancesView.classList.remove("hidden");
+    }
+
+    setupVisualizationControls() {
+        // Populate axis selects with field options
+        this.xAxisSelect.innerHTML = "";
+        this.yAxisSelect.innerHTML = "";
+
+        if (!this.currentObjectType.fields) return;
+
+        // Get fields in order
+        const fieldsArray = Object.entries(this.currentObjectType.fields).map(([id, field]) => ({
+            id,
+            ...field
+        }));
+        fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // Add date fields and text fields to X axis
+        const xFields = fieldsArray.filter(f => f.type === 'date' || f.type === 'text');
+        xFields.forEach(field => {
+            const option = document.createElement("option");
+            option.value = field.id;
+            option.textContent = `${field.name} (${field.type})`;
+            this.xAxisSelect.appendChild(option);
+        });
+
+        // Add number fields to Y axis
+        const yFields = fieldsArray.filter(f => f.type === 'number');
+        yFields.forEach(field => {
+            const option = document.createElement("option");
+            option.value = field.id;
+            option.textContent = `${field.name} (${field.type})`;
+            this.yAxisSelect.appendChild(option);
+        });
+
+        // If no number fields, allow all fields on Y axis
+        if (yFields.length === 0) {
+            fieldsArray.forEach(field => {
+                const option = document.createElement("option");
+                option.value = field.id;
+                option.textContent = `${field.name} (${field.type})`;
+                this.yAxisSelect.appendChild(option);
+            });
+        }
+    }
+
+    updateChart() {
+        const chartType = this.chartTypeSelect.value;
+        const xFieldId = this.xAxisSelect.value;
+        const yFieldId = this.yAxisSelect.value;
+        const aggregation = this.aggregationSelect.value;
+
+        if (!xFieldId || !yFieldId) {
+            return;
+        }
+
+        // Get field metadata
+        const xField = this.currentObjectType.fields[xFieldId];
+        const yField = this.currentObjectType.fields[yFieldId];
+
+        // Prepare data
+        const chartData = this.prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType);
+
+        // Update control visibility based on chart type
+        if (chartType === 'pie') {
+            this.xAxisGroup.style.display = 'none';
+            this.yAxisGroup.style.display = 'block';
+            this.aggregationGroup.style.display = 'block';
+        } else {
+            this.xAxisGroup.style.display = 'block';
+            this.yAxisGroup.style.display = 'block';
+            this.aggregationGroup.style.display = 'block';
+        }
+
+        // Render chart
+        this.renderChart(chartType, chartData, xField, yField);
+
+        // Render stats
+        this.renderStats(chartData, yField);
+    }
+
+    prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType) {
+        const dataPoints = [];
+
+        this.currentInstances.forEach(instance => {
+            if (!instance.data) return;
+
+            const xValue = instance.data[xFieldId];
+            const yValue = instance.data[yFieldId];
+
+            if (xValue !== undefined && xValue !== null && yValue !== undefined && yValue !== null) {
+                let xLabel = xValue;
+
+                // Format x value
+                if (xField.type === 'date') {
+                    xLabel = new Date(xValue).toLocaleDateString();
+                } else if (xField.type === 'boolean') {
+                    xLabel = xValue ? 'Yes' : 'No';
+                }
+
+                // Convert y value to number if possible
+                let yNum = yValue;
+                if (yField.type === 'number') {
+                    yNum = parseFloat(yValue);
+                } else if (yField.type === 'boolean') {
+                    yNum = yValue ? 1 : 0;
+                }
+
+                dataPoints.push({
+                    x: xValue,
+                    xLabel: xLabel,
+                    y: yNum
+                });
+            }
+        });
+
+        // Sort by x value for line charts
+        if (chartType === 'line' && xField.type === 'date') {
+            dataPoints.sort((a, b) => new Date(a.x) - new Date(b.x));
+        }
+
+        // Apply aggregation
+        if (aggregation !== 'none' && chartType !== 'pie') {
+            return this.aggregateData(dataPoints, aggregation);
+        }
+
+        return dataPoints;
+    }
+
+    aggregateData(dataPoints, aggregation) {
+        // Group by x value
+        const groups = {};
+        dataPoints.forEach(point => {
+            const key = point.xLabel;
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(point.y);
+        });
+
+        // Aggregate
+        const aggregated = [];
+        Object.entries(groups).forEach(([xLabel, yValues]) => {
+            let value;
+            if (aggregation === 'sum') {
+                value = yValues.reduce((a, b) => a + b, 0);
+            } else if (aggregation === 'avg') {
+                value = yValues.reduce((a, b) => a + b, 0) / yValues.length;
+            } else if (aggregation === 'count') {
+                value = yValues.length;
+            } else if (aggregation === 'min') {
+                value = Math.min(...yValues);
+            } else if (aggregation === 'max') {
+                value = Math.max(...yValues);
+            }
+
+            aggregated.push({
+                xLabel: xLabel,
+                y: value
+            });
+        });
+
+        return aggregated;
+    }
+
+    renderChart(chartType, dataPoints, xField, yField) {
+        // Destroy existing chart
+        if (this.currentChart) {
+            this.currentChart.destroy();
+        }
+
+        const ctx = this.dataChart.getContext('2d');
+
+        let chartConfig;
+
+        if (chartType === 'pie') {
+            // Pie chart: aggregate by y field value
+            const valueCounts = {};
+            dataPoints.forEach(point => {
+                const key = point.xLabel;
+                valueCounts[key] = (valueCounts[key] || 0) + 1;
+            });
+
+            chartConfig = {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(valueCounts),
+                    datasets: [{
+                        data: Object.values(valueCounts),
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+                            '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            };
+        } else {
+            chartConfig = {
+                type: chartType,
+                data: {
+                    labels: dataPoints.map(p => p.xLabel),
+                    datasets: [{
+                        label: yField.name,
+                        data: dataPoints.map(p => p.y),
+                        backgroundColor: chartType === 'bar' ? '#3b82f6' : 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        fill: chartType === 'line',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            };
+        }
+
+        this.currentChart = new Chart(ctx, chartConfig);
+    }
+
+    renderStats(dataPoints, yField) {
+        this.chartStats.innerHTML = "";
+
+        if (dataPoints.length === 0) {
+            this.chartStats.innerHTML = "<div class='chart-empty'>No data available</div>";
+            return;
+        }
+
+        const yValues = dataPoints.map(p => p.y).filter(v => typeof v === 'number');
+
+        if (yValues.length === 0) {
+            this.chartStats.innerHTML = "<div class='chart-empty'>No numeric data available</div>";
+            return;
+        }
+
+        const stats = {
+            'Total Data Points': dataPoints.length,
+            'Sum': yValues.reduce((a, b) => a + b, 0).toFixed(2),
+            'Average': (yValues.reduce((a, b) => a + b, 0) / yValues.length).toFixed(2),
+            'Minimum': Math.min(...yValues).toFixed(2),
+            'Maximum': Math.max(...yValues).toFixed(2)
+        };
+
+        Object.entries(stats).forEach(([label, value]) => {
+            const row = document.createElement("div");
+            row.className = "stat-row";
+
+            const labelDiv = document.createElement("div");
+            labelDiv.className = "stat-label";
+            labelDiv.textContent = label;
+
+            const valueDiv = document.createElement("div");
+            valueDiv.className = "stat-value";
+            valueDiv.textContent = value;
+
+            row.appendChild(labelDiv);
+            row.appendChild(valueDiv);
+            this.chartStats.appendChild(row);
+        });
     }
 
     // ===== USER & PROFILE METHODS =====
@@ -1791,6 +2151,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
@@ -2061,6 +2422,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
@@ -2184,6 +2546,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.gameView.classList.add("hidden");
@@ -2310,6 +2673,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
@@ -2639,6 +3003,7 @@ class App {
         this.objectTypeBuilderView.classList.add("hidden");
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");

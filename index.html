@@ -444,6 +444,7 @@
             <div class="header">
                 <h1 class="player-name" id="instancesTypeName">Instances</h1>
                 <div class="user-info">
+                    <button class="btn-secondary" id="visualizeBtn">📊 Visualize</button>
                     <button class="btn-create" id="createInstanceBtn">New Instance</button>
                     <button class="btn-logout" id="backFromInstancesBtn">Back to Toolkit</button>
                 </div>
@@ -452,6 +453,60 @@
             <div class="instances-content">
                 <div class="scrollable-list">
                     <div class="instances-list" id="instancesList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Visualization View -->
+        <div id="dataVisualizationView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="visualizationTypeName">Data Visualization</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="backFromVisualizationBtn">Back to List</button>
+                </div>
+            </div>
+            
+            <div class="visualization-content">
+                <div class="viz-controls">
+                    <div class="viz-control-group">
+                        <label class="viz-label">Chart Type</label>
+                        <select id="chartTypeSelect" class="viz-select">
+                            <option value="line">Line Chart</option>
+                            <option value="bar">Bar Chart</option>
+                            <option value="scatter">Scatter Plot</option>
+                            <option value="pie">Pie Chart</option>
+                        </select>
+                    </div>
+                    
+                    <div class="viz-control-group" id="xAxisGroup">
+                        <label class="viz-label">X-Axis</label>
+                        <select id="xAxisSelect" class="viz-select"></select>
+                    </div>
+                    
+                    <div class="viz-control-group" id="yAxisGroup">
+                        <label class="viz-label">Y-Axis</label>
+                        <select id="yAxisSelect" class="viz-select"></select>
+                    </div>
+                    
+                    <div class="viz-control-group" id="aggregationGroup">
+                        <label class="viz-label">Aggregation</label>
+                        <select id="aggregationSelect" class="viz-select">
+                            <option value="none">None (All Points)</option>
+                            <option value="sum">Sum</option>
+                            <option value="avg">Average</option>
+                            <option value="count">Count</option>
+                            <option value="min">Minimum</option>
+                            <option value="max">Maximum</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="chart-container">
+                        <canvas id="dataChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-stats" id="chartStats"></div>
                 </div>
             </div>
         </div>

@@ -878,6 +878,100 @@ button:active {
     cursor: pointer;
 }
 
+/* Data Visualization Styles */
+.visualization-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.viz-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.viz-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.viz-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.viz-select {
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    background: white;
+    transition: border-color 0.2s;
+}
+
+.viz-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    margin-bottom: 16px;
+}
+
+.chart-stats {
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.stat-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.chart-empty {
+    text-align: center;
+    color: #94a3b8;
+    padding: 60px 20px;
+    font-size: 14px;
+}
+
 .privacy-select {
     width: 100%;
     font-size: 16px;
