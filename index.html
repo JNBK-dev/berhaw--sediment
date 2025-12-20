@@ -78,6 +78,10 @@
                         <div class="activity-option-name">Quick Draw</div>
                         <div class="activity-option-desc">Reaction time game</div>
                     </button>
+                    <button class="activity-option" data-type="dice">
+                        <div class="activity-option-name">Dice Roller</div>
+                        <div class="activity-option-desc">Roll d4, d20, and more</div>
+                    </button>
                 </div>
                 <button class="btn-secondary" id="cancelActivityBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
             </div>
@@ -103,6 +107,49 @@
                         <input type="text" id="chatInput" placeholder="Type a message...">
                         <button class="btn-create" id="sendChatBtn">Send</button>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dice Activity View -->
+        <div id="diceView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Dice Roller</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="diceRoomCode"></span>
+                    <button class="btn-logout" id="leaveDiceBtn">Leave Activity</button>
+                </div>
+            </div>
+            
+            <div class="dice-content">
+                <div class="section-header">
+                    <div class="dice-controls">
+                        <button class="dice-btn dice-d4" id="rollD4Btn">
+                            <span class="dice-label">d4</span>
+                        </button>
+                        <button class="dice-btn dice-d6" id="rollD6Btn">
+                            <span class="dice-label">d6</span>
+                        </button>
+                        <button class="dice-btn dice-d8" id="rollD8Btn">
+                            <span class="dice-label">d8</span>
+                        </button>
+                        <button class="dice-btn dice-d10" id="rollD10Btn">
+                            <span class="dice-label">d10</span>
+                        </button>
+                        <button class="dice-btn dice-d12" id="rollD12Btn">
+                            <span class="dice-label">d12</span>
+                        </button>
+                        <button class="dice-btn dice-d20" id="rollD20Btn">
+                            <span class="dice-label">d20</span>
+                        </button>
+                        <button class="dice-btn dice-d100" id="rollD100Btn">
+                            <span class="dice-label">d100</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="dice-rolls" id="diceRolls"></div>
                 </div>
             </div>
         </div>

@@ -87,6 +87,19 @@ class App {
         this.sendChatBtn = document.getElementById("sendChatBtn");
         this.leaveChatBtn = document.getElementById("leaveChatBtn");
 
+        // DOM elements - Dice View
+        this.diceView = document.getElementById("diceView");
+        this.diceRoomCode = document.getElementById("diceRoomCode");
+        this.diceRolls = document.getElementById("diceRolls");
+        this.rollD4Btn = document.getElementById("rollD4Btn");
+        this.rollD6Btn = document.getElementById("rollD6Btn");
+        this.rollD8Btn = document.getElementById("rollD8Btn");
+        this.rollD10Btn = document.getElementById("rollD10Btn");
+        this.rollD12Btn = document.getElementById("rollD12Btn");
+        this.rollD20Btn = document.getElementById("rollD20Btn");
+        this.rollD100Btn = document.getElementById("rollD100Btn");
+        this.leaveDiceBtn = document.getElementById("leaveDiceBtn");
+
         // DOM elements - Game View
         this.gameView = document.getElementById("gameView");
         this.gameRoomCode = document.getElementById("gameRoomCode");
@@ -113,6 +126,8 @@ class App {
         this.activitiesListener = null;
         this.chatListener = null;
         this.chatInitialLoadComplete = false;
+        this.diceListener = null;
+        this.diceInitialLoadComplete = false;
         this.roundStartTime = null;
 
         // Bind events
@@ -151,6 +166,16 @@ class App {
         this.chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendChatMessage();
         });
+        
+        // Dice actions
+        this.leaveDiceBtn.onclick = () => this.leaveActivity();
+        this.rollD4Btn.onclick = () => this.rollDice(4);
+        this.rollD6Btn.onclick = () => this.rollDice(6);
+        this.rollD8Btn.onclick = () => this.rollDice(8);
+        this.rollD10Btn.onclick = () => this.rollDice(10);
+        this.rollD12Btn.onclick = () => this.rollDice(12);
+        this.rollD20Btn.onclick = () => this.rollDice(20);
+        this.rollD100Btn.onclick = () => this.rollDice(100);
         
         // Game actions
         this.watchBtn.onclick = () => this.setPlayerStatus("watching");
@@ -357,6 +382,7 @@ class App {
         this.editorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         
@@ -370,6 +396,7 @@ class App {
         this.editorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         
@@ -674,6 +701,7 @@ class App {
         this.editorView.classList.remove("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         
@@ -984,6 +1012,7 @@ class App {
         this.editorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.remove("hidden");
         
@@ -1024,6 +1053,7 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.activityMenuView.classList.remove("hidden");
 
@@ -1091,7 +1121,8 @@ class App {
             const name = document.createElement("div");
             name.className = "activity-name";
             name.textContent = activity.type === "chat" ? "Chat" : 
-                              activity.type === "quick_draw" ? "Quick Draw" : "Activity";
+                              activity.type === "quick_draw" ? "Quick Draw" :
+                              activity.type === "dice" ? "Dice Roller" : "Activity";
 
             const count = document.createElement("div");
             count.className = "activity-count";
@@ -1173,6 +1204,8 @@ class App {
         // Show appropriate view based on type
         if (type === "chat") {
             this.showChatView();
+        } else if (type === "dice") {
+            this.showDiceView();
         } else if (type === "quick_draw") {
             this.showGameView();
         }
@@ -1190,6 +1223,12 @@ class App {
             activityRef.child("messages").off("child_added", this.chatListener);
             this.chatListener = null;
             this.chatInitialLoadComplete = false;
+        }
+
+        if (this.diceListener) {
+            activityRef.child("rolls").off("child_added", this.diceListener);
+            this.diceListener = null;
+            this.diceInitialLoadComplete = false;
         }
 
         if (this.gameListener) {
@@ -1252,6 +1291,7 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.chatView.classList.remove("hidden");
 
@@ -1362,6 +1402,129 @@ class App {
         this.chatInput.value = "";
     }
 
+    // ===== DICE METHODS =====
+
+    showDiceView() {
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.diceView.classList.remove("hidden");
+
+        soundManager.play('bite');
+        this.diceRoomCode.textContent = this.currentRoomCode;
+        this.diceRolls.innerHTML = "";
+
+        // Listen for dice rolls
+        this.listenToDiceRolls();
+    }
+
+    listenToDiceRolls() {
+        const rollsRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/rolls`);
+        
+        if (this.diceListener) {
+            rollsRef.off("child_added", this.diceListener);
+        }
+
+        // Reset flag for new room
+        this.diceInitialLoadComplete = false;
+
+        // First, load existing rolls silently
+        rollsRef.limitToLast(50).once("value", snap => {
+            // Render all existing rolls without sound
+            snap.forEach(rollSnap => {
+                const roll = rollSnap.val();
+                this.renderDiceRoll(roll, true); // true = silent (no sound)
+            });
+            
+            // Mark initial load as complete
+            this.diceInitialLoadComplete = true;
+        });
+
+        // Then listen for new rolls
+        this.diceListener = rollsRef.limitToLast(1).on("child_added", snap => {
+            // Skip if this is part of initial load
+            if (!this.diceInitialLoadComplete) return;
+            
+            const roll = snap.val();
+            this.renderDiceRoll(roll, false); // false = play sound
+        });
+    }
+
+    renderDiceRoll(roll, silent = false) {
+        const rollDiv = document.createElement("div");
+        rollDiv.className = "dice-roll";
+
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "dice-roll-header";
+
+        const nameDiv = document.createElement("div");
+        nameDiv.className = "dice-roll-name";
+        nameDiv.textContent = roll.name;
+
+        const timeDiv = document.createElement("div");
+        timeDiv.className = "dice-roll-time";
+        const date = new Date(roll.timestamp);
+        timeDiv.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        headerDiv.appendChild(nameDiv);
+        headerDiv.appendChild(timeDiv);
+
+        const resultDiv = document.createElement("div");
+        resultDiv.className = "dice-roll-result";
+
+        const typeDiv = document.createElement("div");
+        typeDiv.className = "dice-roll-type";
+        typeDiv.textContent = `d${roll.sides}`;
+
+        const valueDiv = document.createElement("div");
+        valueDiv.className = "dice-roll-value";
+        valueDiv.textContent = roll.value;
+
+        // Highlight critical and fumbles
+        if (roll.value === roll.sides) {
+            valueDiv.classList.add("dice-roll-critical");
+        } else if (roll.value === 1) {
+            valueDiv.classList.add("dice-roll-fumble");
+        }
+
+        resultDiv.appendChild(typeDiv);
+        resultDiv.appendChild(valueDiv);
+
+        rollDiv.appendChild(headerDiv);
+        rollDiv.appendChild(resultDiv);
+
+        this.diceRolls.insertBefore(rollDiv, this.diceRolls.firstChild);
+
+        // Play sound for incoming rolls from others
+        if (!silent && roll.userId !== this.currentUser.id) {
+            soundManager.play('keyboard');
+        }
+        
+        // Scroll to top to see new roll
+        const container = this.diceRolls.parentElement;
+        container.scrollTop = 0;
+    }
+
+    async rollDice(sides) {
+        const rollsRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/rolls`);
+        
+        const value = Math.floor(Math.random() * sides) + 1;
+
+        await rollsRef.push({
+            userId: this.currentUser.id,
+            name: this.currentUser.name,
+            sides: sides,
+            value: value,
+            timestamp: Date.now()
+        });
+
+        soundManager.play('submitted');
+    }
+
     // ===== GAME METHODS =====
 
     showGameView() {
@@ -1371,6 +1534,7 @@ class App {
         this.profileView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
         this.gameView.classList.remove("hidden");
 
         soundManager.play('bite');
