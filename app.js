@@ -100,18 +100,19 @@ class App {
         this.rollD100Btn = document.getElementById("rollD100Btn");
         this.leaveDiceBtn = document.getElementById("leaveDiceBtn");
 
-        // DOM elements - Collaborative Doc View
+        // DOM elements - Collaborative Story View
         this.collabDocView = document.getElementById("collabDocView");
         this.collabDocRoomCode = document.getElementById("collabDocRoomCode");
-        this.collabEditorsList = document.getElementById("collabEditorsList");
-        this.collabDocTitle = document.getElementById("collabDocTitle");
-        this.collabDocContent = document.getElementById("collabDocContent");
-        this.collabEditorStatus = document.getElementById("collabEditorStatus");
-        this.collabModeToggleBtn = document.getElementById("collabModeToggleBtn");
-        this.collabEditMode = document.getElementById("collabEditMode");
-        this.collabReaderMode = document.getElementById("collabReaderMode");
-        this.collabReaderTitle = document.getElementById("collabReaderTitle");
-        this.collabReaderContent = document.getElementById("collabReaderContent");
+        this.turnIndicator = document.getElementById("turnIndicator");
+        this.turnPlayer = document.getElementById("turnPlayer");
+        this.storyBlocks = document.getElementById("storyBlocks");
+        this.yourTurnSection = document.getElementById("yourTurnSection");
+        this.waitingTurnSection = document.getElementById("waitingTurnSection");
+        this.yourTurnInput = document.getElementById("yourTurnInput");
+        this.charCount = document.getElementById("charCount");
+        this.submitBlockBtn = document.getElementById("submitBlockBtn");
+        this.passBtn = document.getElementById("passBtn");
+        this.waitingText = document.getElementById("waitingText");
         this.leaveCollabDocBtn = document.getElementById("leaveCollabDocBtn");
 
         // DOM elements - Game View
@@ -142,9 +143,9 @@ class App {
         this.chatInitialLoadComplete = false;
         this.diceListener = null;
         this.diceInitialLoadComplete = false;
-        this.collabDocListener = null;
-        this.collabEditorsListener = null;
-        this.collabIsReaderMode = false;
+        this.storyListener = null;
+        this.storyTurnListener = null;
+        this.storyBlocksListener = null;
         this.roundStartTime = null;
 
         // Bind events
@@ -194,9 +195,14 @@ class App {
         this.rollD20Btn.onclick = () => this.rollDice(20);
         this.rollD100Btn.onclick = () => this.rollDice(100);
         
-        // Collaborative Doc actions
+        // Collaborative Story actions
         this.leaveCollabDocBtn.onclick = () => this.leaveActivity();
-        this.collabModeToggleBtn.onclick = () => this.toggleCollabMode();
+        this.submitBlockBtn.onclick = () => this.submitStoryBlock();
+        this.passBtn.onclick = () => this.passTurn();
+        this.yourTurnInput.addEventListener('input', () => {
+            const length = this.yourTurnInput.value.length;
+            this.charCount.textContent = `${length} / 500`;
+        });
         
         // Game actions
         this.watchBtn.onclick = () => this.setPlayerStatus("watching");
@@ -216,17 +222,6 @@ class App {
         });
         this.docPrivacy.addEventListener("change", () => {
             this.autoSave();
-        });
-        
-        // Collaborative doc auto-save (debounced)
-        let collabSaveTimeout;
-        this.collabDocTitle.addEventListener("input", () => {
-            clearTimeout(collabSaveTimeout);
-            collabSaveTimeout = setTimeout(() => this.autoSaveCollabDoc(), 1000);
-        });
-        this.collabDocContent.addEventListener("input", () => {
-            clearTimeout(collabSaveTimeout);
-            collabSaveTimeout = setTimeout(() => this.autoSaveCollabDoc(), 1000);
         });
         
         // User search
@@ -1162,7 +1157,7 @@ class App {
             name.textContent = activity.type === "chat" ? "Chat" : 
                               activity.type === "quick_draw" ? "Quick Draw" :
                               activity.type === "dice" ? "Dice Roller" :
-                              activity.type === "collab_doc" ? "Collaborative Doc" : "Activity";
+                              activity.type === "collab_doc" ? "Collaborative Story" : "Activity";
 
             const count = document.createElement("div");
             count.className = "activity-count";
@@ -1281,6 +1276,16 @@ class App {
         if (this.collabEditorsListener) {
             activityRef.child("activeUsers").off("value", this.collabEditorsListener);
             this.collabEditorsListener = null;
+        }
+
+        if (this.storyTurnListener) {
+            activityRef.child("turn").off("value", this.storyTurnListener);
+            this.storyTurnListener = null;
+        }
+
+        if (this.storyBlocksListener) {
+            activityRef.child("blocks").off("child_added", this.storyBlocksListener);
+            this.storyBlocksListener = null;
         }
 
         if (this.gameListener) {
@@ -1578,7 +1583,7 @@ class App {
         soundManager.play('submitted');
     }
 
-    // ===== COLLABORATIVE DOC METHODS =====
+    // ===== COLLABORATIVE STORY METHODS =====
 
     showCollabDocView() {
         this.authView.classList.add("hidden");
@@ -1595,128 +1600,227 @@ class App {
         soundManager.play('bite');
         this.collabDocRoomCode.textContent = this.currentRoomCode;
         
-        // Reset to edit mode
-        this.collabIsReaderMode = false;
-        this.collabEditMode.classList.remove("hidden");
-        this.collabReaderMode.classList.add("hidden");
-        this.collabModeToggleBtn.textContent = "Reader Mode";
+        // Clear input and blocks
+        this.yourTurnInput.value = "";
+        this.charCount.textContent = "0 / 500";
+        this.storyBlocks.innerHTML = "";
 
-        // Listen for document updates and editors
-        this.listenToCollabDoc();
-        this.listenToCollabEditors();
+        // Listen for turn updates and blocks
+        this.listenToStoryTurn();
+        this.listenToStoryBlocks();
     }
 
-    listenToCollabDoc() {
-        const docRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/document`);
+    listenToStoryTurn() {
+        const turnRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/turn`);
         
-        if (this.collabDocListener) {
-            docRef.off("value", this.collabDocListener);
+        if (this.storyTurnListener) {
+            turnRef.off("value", this.storyTurnListener);
         }
 
-        this.collabDocListener = docRef.on("value", snap => {
-            const doc = snap.val() || { title: "", content: "" };
+        this.storyTurnListener = turnRef.on("value", snap => {
+            const turn = snap.val();
             
-            // Only update if not currently typing (to avoid cursor jumping)
-            if (document.activeElement !== this.collabDocTitle) {
-                this.collabDocTitle.value = doc.title || "";
-            }
-            if (document.activeElement !== this.collabDocContent) {
-                this.collabDocContent.value = doc.content || "";
+            if (!turn || !turn.currentPlayer) {
+                // Initialize turn if it doesn't exist
+                this.initializeTurn();
+                return;
             }
             
-            // Update reader mode if active
-            if (this.collabIsReaderMode) {
-                this.updateCollabReaderView();
-            }
+            // Update turn display
+            this.turnPlayer.textContent = turn.currentPlayerName;
             
-            this.collabEditorStatus.textContent = "Synced";
-            this.collabEditorStatus.style.color = "#10b981";
+            // Show/hide input based on whose turn it is
+            if (turn.currentPlayer === this.currentUser.id) {
+                this.yourTurnSection.classList.remove("hidden");
+                this.waitingTurnSection.classList.add("hidden");
+                this.turnPlayer.textContent = "Your turn!";
+                this.turnPlayer.style.color = "#10b981";
+            } else {
+                this.yourTurnSection.classList.add("hidden");
+                this.waitingTurnSection.classList.remove("hidden");
+                this.waitingText.textContent = `Waiting for ${turn.currentPlayerName}...`;
+                this.turnPlayer.style.color = "#3b82f6";
+            }
         });
     }
 
-    listenToCollabEditors() {
-        const usersRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers`);
+    async initializeTurn() {
+        // Get all active users
+        const usersSnap = await db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers`).once("value");
         
-        if (this.collabEditorsListener) {
-            usersRef.off("value", this.collabEditorsListener);
+        if (!usersSnap.exists()) return;
+        
+        const users = [];
+        usersSnap.forEach(userSnap => {
+            users.push({
+                id: userSnap.key,
+                name: userSnap.val().name
+            });
+        });
+        
+        if (users.length === 0) return;
+        
+        // Set first user as current turn
+        const turnRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/turn`);
+        await turnRef.set({
+            currentPlayer: users[0].id,
+            currentPlayerName: users[0].name,
+            turnOrder: users.map(u => u.id),
+            turnIndex: 0
+        });
+    }
+
+    listenToStoryBlocks() {
+        const blocksRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/blocks`);
+        
+        if (this.storyBlocksListener) {
+            blocksRef.off("child_added", this.storyBlocksListener);
         }
 
-        this.collabEditorsListener = usersRef.on("value", snap => {
-            this.collabEditorsList.innerHTML = "";
+        // Load existing blocks
+        blocksRef.limitToLast(50).once("value", snap => {
+            snap.forEach(blockSnap => {
+                const block = blockSnap.val();
+                this.renderStoryBlock(block);
+            });
+        });
+
+        // Listen for new blocks
+        this.storyBlocksListener = blocksRef.limitToLast(1).on("child_added", snap => {
+            const block = snap.val();
+            // Check if this block is already rendered (from initial load)
+            const existingBlock = Array.from(this.storyBlocks.children).find(
+                el => el.dataset.blockId === snap.key
+            );
             
-            if (!snap.exists()) return;
-            
-            snap.forEach(userSnap => {
-                const user = userSnap.val();
-                const chip = document.createElement("div");
-                chip.className = "collab-editor-chip";
-                chip.textContent = user.name;
-                if (userSnap.key === this.currentUser.id) {
-                    chip.textContent += " (you)";
+            if (!existingBlock) {
+                this.renderStoryBlock(block);
+                
+                // Play sound for new blocks from others
+                if (block.userId !== this.currentUser.id) {
+                    soundManager.play('keyboard');
                 }
-                this.collabEditorsList.appendChild(chip);
-            });
+            }
         });
     }
 
-    async autoSaveCollabDoc() {
-        if (!this.currentActivityId) return;
+    renderStoryBlock(block) {
+        const blockDiv = document.createElement("div");
+        blockDiv.className = block.passed ? "story-block story-block-pass" : "story-block";
+        blockDiv.dataset.blockId = block.timestamp; // Use timestamp as ID
+
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "story-block-header";
+
+        const authorDiv = document.createElement("div");
+        authorDiv.className = "story-block-author";
+        authorDiv.textContent = block.passed ? `${block.name} passed` : block.name;
+
+        const timeDiv = document.createElement("div");
+        timeDiv.className = "story-block-time";
+        const date = new Date(block.timestamp);
+        timeDiv.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        headerDiv.appendChild(authorDiv);
+        headerDiv.appendChild(timeDiv);
+
+        const textDiv = document.createElement("div");
+        textDiv.className = "story-block-text";
+        textDiv.textContent = block.text || "(passed their turn)";
+
+        blockDiv.appendChild(headerDiv);
+        blockDiv.appendChild(textDiv);
+
+        this.storyBlocks.appendChild(blockDiv);
         
-        const title = this.collabDocTitle.value;
-        const content = this.collabDocContent.value;
+        // Scroll to bottom
+        const container = this.storyBlocks.parentElement;
+        container.scrollTop = container.scrollHeight;
+    }
 
-        try {
-            const docRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/document`);
-            await docRef.update({
-                title: title,
-                content: content,
-                updatedAt: Date.now(),
-                lastEditedBy: this.currentUser.name
-            });
+    async submitStoryBlock() {
+        const text = this.yourTurnInput.value.trim();
+        
+        if (!text) {
+            this.showToast("Please write something before submitting", "error");
+            return;
+        }
+        
+        const blocksRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/blocks`);
+        
+        await blocksRef.push({
+            userId: this.currentUser.id,
+            name: this.currentUser.name,
+            text: text,
+            timestamp: Date.now(),
+            passed: false
+        });
 
-            soundManager.play('reclick');
-            this.collabEditorStatus.textContent = "Saved";
-            this.collabEditorStatus.style.color = "#10b981";
+        soundManager.play('submitted');
+        this.yourTurnInput.value = "";
+        this.charCount.textContent = "0 / 500";
+        
+        // Advance turn
+        await this.advanceTurn();
+    }
+
+    async passTurn() {
+        const blocksRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/blocks`);
+        
+        await blocksRef.push({
+            userId: this.currentUser.id,
+            name: this.currentUser.name,
+            text: "",
+            timestamp: Date.now(),
+            passed: true
+        });
+
+        soundManager.play('bite');
+        
+        // Advance turn
+        await this.advanceTurn();
+    }
+
+    async advanceTurn() {
+        const turnRef = db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/turn`);
+        const turnSnap = await turnRef.once("value");
+        const turn = turnSnap.val();
+        
+        if (!turn) return;
+        
+        // Get current active users
+        const usersSnap = await db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers`).once("value");
+        const activeUserIds = [];
+        usersSnap.forEach(userSnap => {
+            activeUserIds.push(userSnap.key);
+        });
+        
+        // Find next user in turn order who is still active
+        let nextIndex = (turn.turnIndex + 1) % turn.turnOrder.length;
+        let attempts = 0;
+        
+        while (attempts < turn.turnOrder.length) {
+            const nextUserId = turn.turnOrder[nextIndex];
             
-            setTimeout(() => {
-                this.collabEditorStatus.textContent = "Ready";
-                this.collabEditorStatus.style.color = "#64748b";
-            }, 1500);
-        } catch (err) {
-            console.error("Failed to save collab doc:", err);
-            this.collabEditorStatus.textContent = "Error saving";
-            this.collabEditorStatus.style.color = "#ef4444";
+            if (activeUserIds.includes(nextUserId)) {
+                // Found next active user
+                const nextUserSnap = await db.ref(`rooms/${this.currentRoomCode}/activities/${this.currentActivityId}/activeUsers/${nextUserId}`).once("value");
+                const nextUser = nextUserSnap.val();
+                
+                await turnRef.update({
+                    currentPlayer: nextUserId,
+                    currentPlayerName: nextUser.name,
+                    turnIndex: nextIndex
+                });
+                return;
+            }
+            
+            nextIndex = (nextIndex + 1) % turn.turnOrder.length;
+            attempts++;
         }
-    }
-
-    toggleCollabMode() {
-        this.collabIsReaderMode = !this.collabIsReaderMode;
         
-        if (this.collabIsReaderMode) {
-            // Switch to Reader Mode
-            this.collabEditMode.classList.add("hidden");
-            this.collabReaderMode.classList.remove("hidden");
-            this.collabModeToggleBtn.textContent = "Edit Mode";
-            this.updateCollabReaderView();
-        } else {
-            // Switch to Edit Mode
-            this.collabEditMode.classList.remove("hidden");
-            this.collabReaderMode.classList.add("hidden");
-            this.collabModeToggleBtn.textContent = "Reader Mode";
-        }
-    }
-
-    updateCollabReaderView() {
-        const title = this.collabDocTitle.value || "Untitled Document";
-        const content = this.collabDocContent.value || "";
-        
-        this.collabReaderTitle.textContent = title;
-        
-        if (content.trim()) {
-            this.collabReaderContent.innerHTML = marked.parse(content);
-        } else {
-            this.collabReaderContent.innerHTML = "<p style='color: #94a3b8;'>No content yet. Switch to Edit Mode to start writing.</p>";
-        }
+        // If we get here, no active users found - reinitialize
+        await this.initializeTurn();
     }
 
     // ===== GAME METHODS =====
