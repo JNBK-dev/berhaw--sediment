@@ -439,6 +439,44 @@
             </div>
         </div>
         
+        <!-- Object Instances List View -->
+        <div id="objectInstancesView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="instancesTypeName">Instances</h1>
+                <div class="user-info">
+                    <button class="btn-create" id="createInstanceBtn">New Instance</button>
+                    <button class="btn-logout" id="backFromInstancesBtn">Back to Toolkit</button>
+                </div>
+            </div>
+            
+            <div class="instances-content">
+                <div class="scrollable-list">
+                    <div class="instances-list" id="instancesList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Object Instance Editor View -->
+        <div id="objectInstanceEditorView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="instanceEditorTitle">New Instance</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="backFromInstanceEditorBtn">Back to List</button>
+                </div>
+            </div>
+            
+            <div class="instance-editor-content">
+                <div class="scrollable-list">
+                    <div class="instance-form" id="instanceForm"></div>
+                </div>
+                
+                <div class="section-footer">
+                    <button class="btn-leave" id="deleteInstanceBtn">Delete Instance</button>
+                    <button class="btn-create" id="saveInstanceBtn">Save Instance</button>
+                </div>
+            </div>
+        </div>
+        
         <!-- Document Editor View -->
         <div id="editorView" class="card hidden">
             <div class="header">

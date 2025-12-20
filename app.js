@@ -68,6 +68,21 @@ class App {
         this.deleteObjectTypeBtn = document.getElementById("deleteObjectTypeBtn");
         this.backFromBuilderBtn = document.getElementById("backFromBuilderBtn");
 
+        // DOM elements - Object Instances View
+        this.objectInstancesView = document.getElementById("objectInstancesView");
+        this.instancesTypeName = document.getElementById("instancesTypeName");
+        this.instancesList = document.getElementById("instancesList");
+        this.createInstanceBtn = document.getElementById("createInstanceBtn");
+        this.backFromInstancesBtn = document.getElementById("backFromInstancesBtn");
+
+        // DOM elements - Object Instance Editor View
+        this.objectInstanceEditorView = document.getElementById("objectInstanceEditorView");
+        this.instanceEditorTitle = document.getElementById("instanceEditorTitle");
+        this.instanceForm = document.getElementById("instanceForm");
+        this.saveInstanceBtn = document.getElementById("saveInstanceBtn");
+        this.deleteInstanceBtn = document.getElementById("deleteInstanceBtn");
+        this.backFromInstanceEditorBtn = document.getElementById("backFromInstanceEditorBtn");
+
         // DOM elements - Editor View
         this.editorView = document.getElementById("editorView");
         this.editMode = document.getElementById("editMode");
@@ -165,7 +180,10 @@ class App {
         this.storyUsersListener = null;
         this.storyBlocksListener = null;
         this.currentObjectTypeId = null;
+        this.currentInstanceId = null;
+        this.currentObjectType = null;
         this.objectTypesListener = null;
+        this.instancesListener = null;
         this.fieldIdCounter = 0;
         this.roundStartTime = null;
 
@@ -190,6 +208,13 @@ class App {
         this.addFieldBtn.onclick = () => this.addField();
         this.saveObjectTypeBtn.onclick = () => this.saveObjectType();
         this.deleteObjectTypeBtn.onclick = () => this.deleteObjectType();
+        
+        // Object Instance actions
+        this.backFromInstancesBtn.onclick = () => this.closeInstancesList();
+        this.createInstanceBtn.onclick = () => this.createInstance();
+        this.backFromInstanceEditorBtn.onclick = () => this.closeInstanceEditor();
+        this.saveInstanceBtn.onclick = () => this.saveInstance();
+        this.deleteInstanceBtn.onclick = () => this.deleteInstance();
         
         // Document actions
         this.createDocBtn.onclick = () => this.createDocument();
@@ -444,6 +469,8 @@ class App {
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         
         // Stop listening to rooms
         db.ref("rooms").off();
@@ -461,6 +488,8 @@ class App {
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         
         soundManager.play('bite');
         
@@ -775,6 +804,8 @@ class App {
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         
         soundManager.play('bite');
         
@@ -954,7 +985,7 @@ class App {
     renderObjectTypeCard(typeId, type) {
         const card = document.createElement("div");
         card.className = "object-type-card";
-        card.onclick = () => this.openObjectType(typeId);
+        card.onclick = () => this.openInstancesList(typeId);
 
         const name = document.createElement("div");
         name.className = "object-type-name";
@@ -979,6 +1010,17 @@ class App {
             });
             card.appendChild(tagsDiv);
         }
+
+        // Add edit button
+        const editBtn = document.createElement("button");
+        editBtn.className = "btn-secondary";
+        editBtn.textContent = "Edit Type";
+        editBtn.style.marginTop = "12px";
+        editBtn.onclick = (e) => {
+            e.stopPropagation(); // Prevent opening instances list
+            this.openObjectType(typeId);
+        };
+        card.appendChild(editBtn);
 
         this.objectTypesList.appendChild(card);
     }
@@ -1033,6 +1075,8 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
@@ -1045,6 +1089,8 @@ class App {
 
     closeObjectTypeBuilder() {
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         this.homeView.classList.remove("hidden");
         this.switchTab('toolkit');
     }
@@ -1192,6 +1238,347 @@ class App {
         } catch (err) {
             console.error("Failed to delete object type:", err);
             this.showToast("Failed to delete object type", "error");
+        }
+    }
+
+    // ===== OBJECT INSTANCE METHODS =====
+
+    async openInstancesList(typeId) {
+        this.currentObjectTypeId = typeId;
+
+        // Load the object type
+        const typeSnap = await db.ref(`objectTypes/${typeId}`).once("value");
+        if (!typeSnap.exists()) {
+            this.showToast("Object type not found", "error");
+            return;
+        }
+
+        this.currentObjectType = typeSnap.val();
+        this.instancesTypeName.textContent = this.currentObjectType.name;
+
+        soundManager.play('bite');
+        this.showInstancesView();
+        this.listenToInstances();
+    }
+
+    showInstancesView() {
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.objectInstancesView.classList.remove("hidden");
+    }
+
+    closeInstancesList() {
+        this.objectInstancesView.classList.add("hidden");
+        this.homeView.classList.remove("hidden");
+        
+        // Clean up listener
+        if (this.instancesListener) {
+            db.ref("objects").off("value", this.instancesListener);
+            this.instancesListener = null;
+        }
+        
+        this.switchTab('toolkit');
+    }
+
+    listenToInstances() {
+        if (this.instancesListener) {
+            db.ref("objects").off("value", this.instancesListener);
+        }
+
+        this.instancesListener = db.ref("objects")
+            .orderByChild("typeId")
+            .equalTo(this.currentObjectTypeId)
+            .on("value", snap => {
+                this.renderInstances(snap);
+            });
+    }
+
+    renderInstances(snap) {
+        this.instancesList.innerHTML = "";
+
+        if (!snap.exists()) {
+            const emptyMsg = document.createElement("div");
+            emptyMsg.className = "instance-empty";
+            emptyMsg.textContent = `No ${this.currentObjectType.name} instances yet. Create one to get started!`;
+            this.instancesList.appendChild(emptyMsg);
+            return;
+        }
+
+        const instances = [];
+        snap.forEach(instanceSnap => {
+            instances.push({
+                id: instanceSnap.key,
+                ...instanceSnap.val()
+            });
+        });
+
+        // Sort by most recent
+        instances.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        instances.forEach(instance => {
+            this.renderInstanceCard(instance);
+        });
+    }
+
+    renderInstanceCard(instance) {
+        const card = document.createElement("div");
+        card.className = "instance-card";
+        card.onclick = () => this.openInstance(instance.id);
+
+        const header = document.createElement("div");
+        header.className = "instance-header";
+
+        const id = document.createElement("div");
+        id.className = "instance-id";
+        id.textContent = `#${instance.id.substring(0, 8)}`;
+
+        const date = document.createElement("div");
+        date.className = "instance-date";
+        const createdDate = new Date(instance.createdAt);
+        date.textContent = createdDate.toLocaleDateString();
+
+        header.appendChild(id);
+        header.appendChild(date);
+        card.appendChild(header);
+
+        // Render fields
+        const fieldsDiv = document.createElement("div");
+        fieldsDiv.className = "instance-fields";
+
+        if (this.currentObjectType.fields && instance.data) {
+            // Get fields in order
+            const fieldsArray = Object.entries(this.currentObjectType.fields).map(([id, field]) => ({
+                id,
+                ...field
+            }));
+            fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            fieldsArray.forEach(field => {
+                const value = instance.data[field.id];
+                if (value !== undefined && value !== null && value !== "") {
+                    const fieldDiv = document.createElement("div");
+                    fieldDiv.className = "instance-field";
+
+                    const label = document.createElement("div");
+                    label.className = "instance-field-label";
+                    label.textContent = field.name;
+
+                    const valueDiv = document.createElement("div");
+                    valueDiv.className = "instance-field-value";
+
+                    if (field.type === "boolean") {
+                        const boolSpan = document.createElement("span");
+                        boolSpan.className = `instance-field-value-boolean ${value ? 'true' : 'false'}`;
+                        boolSpan.textContent = value ? "Yes" : "No";
+                        valueDiv.appendChild(boolSpan);
+                    } else if (field.type === "date") {
+                        valueDiv.textContent = new Date(value).toLocaleDateString();
+                    } else {
+                        valueDiv.textContent = value;
+                    }
+
+                    fieldDiv.appendChild(label);
+                    fieldDiv.appendChild(valueDiv);
+                    fieldsDiv.appendChild(fieldDiv);
+                }
+            });
+        }
+
+        card.appendChild(fieldsDiv);
+        this.instancesList.appendChild(card);
+    }
+
+    createInstance() {
+        this.currentInstanceId = null;
+        this.instanceEditorTitle.textContent = `New ${this.currentObjectType.name}`;
+        this.deleteInstanceBtn.style.display = "none";
+        this.showInstanceEditor();
+        this.renderInstanceForm();
+    }
+
+    async openInstance(instanceId) {
+        this.currentInstanceId = instanceId;
+
+        const instanceSnap = await db.ref(`objects/${instanceId}`).once("value");
+        if (!instanceSnap.exists()) {
+            this.showToast("Instance not found", "error");
+            return;
+        }
+
+        const instance = instanceSnap.val();
+        this.instanceEditorTitle.textContent = `Edit ${this.currentObjectType.name}`;
+        this.deleteInstanceBtn.style.display = "block";
+        this.showInstanceEditor();
+        this.renderInstanceForm(instance.data);
+    }
+
+    showInstanceEditor() {
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.remove("hidden");
+
+        soundManager.play('bite');
+    }
+
+    closeInstanceEditor() {
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.objectInstancesView.classList.remove("hidden");
+    }
+
+    renderInstanceForm(existingData = {}) {
+        this.instanceForm.innerHTML = "";
+
+        if (!this.currentObjectType.fields) {
+            const noFields = document.createElement("div");
+            noFields.className = "instance-empty";
+            noFields.textContent = "This object type has no fields defined.";
+            this.instanceForm.appendChild(noFields);
+            return;
+        }
+
+        // Get fields in order
+        const fieldsArray = Object.entries(this.currentObjectType.fields).map(([id, field]) => ({
+            id,
+            ...field
+        }));
+        fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        fieldsArray.forEach(field => {
+            const fieldDiv = document.createElement("div");
+            fieldDiv.className = "form-field";
+
+            const labelDiv = document.createElement("div");
+            labelDiv.style.display = "flex";
+            labelDiv.style.justifyContent = "space-between";
+            labelDiv.style.alignItems = "baseline";
+
+            const label = document.createElement("div");
+            label.className = "form-field-label";
+            label.textContent = field.name;
+
+            const typeLabel = document.createElement("div");
+            typeLabel.className = "form-field-type";
+            typeLabel.textContent = field.type;
+
+            labelDiv.appendChild(label);
+            labelDiv.appendChild(typeLabel);
+
+            let input;
+            const value = existingData[field.id];
+
+            if (field.type === "text") {
+                input = document.createElement("textarea");
+                input.className = "form-field-input form-field-textarea";
+                input.value = value || "";
+                input.dataset.fieldId = field.id;
+            } else if (field.type === "number") {
+                input = document.createElement("input");
+                input.type = "number";
+                input.step = "any";
+                input.className = "form-field-input";
+                input.value = value || "";
+                input.dataset.fieldId = field.id;
+            } else if (field.type === "date") {
+                input = document.createElement("input");
+                input.type = "date";
+                input.className = "form-field-input";
+                input.value = value || "";
+                input.dataset.fieldId = field.id;
+            } else if (field.type === "boolean") {
+                input = document.createElement("input");
+                input.type = "checkbox";
+                input.className = "form-field-checkbox";
+                input.checked = value === true;
+                input.dataset.fieldId = field.id;
+            }
+
+            fieldDiv.appendChild(labelDiv);
+            fieldDiv.appendChild(input);
+            this.instanceForm.appendChild(fieldDiv);
+        });
+    }
+
+    async saveInstance() {
+        // Collect field data
+        const data = {};
+        const inputs = this.instanceForm.querySelectorAll('[data-field-id]');
+
+        inputs.forEach(input => {
+            const fieldId = input.dataset.fieldId;
+            
+            if (input.type === "checkbox") {
+                data[fieldId] = input.checked;
+            } else if (input.type === "number") {
+                const value = input.value.trim();
+                data[fieldId] = value ? parseFloat(value) : null;
+            } else {
+                data[fieldId] = input.value.trim();
+            }
+        });
+
+        const instance = {
+            typeId: this.currentObjectTypeId,
+            typeName: this.currentObjectType.name,
+            authorId: this.currentUser.id,
+            data: data,
+            updatedAt: Date.now()
+        };
+
+        try {
+            if (this.currentInstanceId) {
+                // Update existing
+                await db.ref(`objects/${this.currentInstanceId}`).update(instance);
+                this.showToast("Instance updated", "success");
+            } else {
+                // Create new
+                instance.createdAt = Date.now();
+                await db.ref("objects").push(instance);
+                this.showToast("Instance created", "success");
+            }
+
+            soundManager.play('accepted');
+            this.closeInstanceEditor();
+        } catch (err) {
+            console.error("Failed to save instance:", err);
+            this.showToast("Failed to save instance", "error");
+        }
+    }
+
+    async deleteInstance() {
+        if (!this.currentInstanceId) return;
+
+        const confirmed = confirm("Are you sure you want to delete this instance? This cannot be undone.");
+        if (!confirmed) return;
+
+        try {
+            await db.ref(`objects/${this.currentInstanceId}`).remove();
+            this.showToast("Instance deleted", "success");
+            this.closeInstanceEditor();
+        } catch (err) {
+            console.error("Failed to delete instance:", err);
+            this.showToast("Failed to delete instance", "error");
         }
     }
 
@@ -1402,6 +1789,8 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
@@ -1670,6 +2059,8 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
@@ -1791,6 +2182,8 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.gameView.classList.add("hidden");
@@ -1915,6 +2308,8 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
@@ -2242,6 +2637,8 @@ class App {
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
         this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
