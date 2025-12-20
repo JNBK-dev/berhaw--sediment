@@ -451,8 +451,34 @@
             </div>
             
             <div class="instances-content">
+                <div class="instances-controls">
+                    <div class="instances-search">
+                        <input 
+                            type="text" 
+                            id="instancesSearchInput" 
+                            class="search-input" 
+                            placeholder="Search instances..."
+                        >
+                    </div>
+                    
+                    <div class="instances-actions">
+                        <div class="view-toggle">
+                            <button class="view-toggle-btn active" id="cardViewBtn" title="Card View">📇</button>
+                            <button class="view-toggle-btn" id="tableViewBtn" title="Table View">📋</button>
+                        </div>
+                        <button class="btn-secondary" id="exportCsvBtn">Export CSV</button>
+                        <button class="btn-secondary hidden" id="bulkDeleteBtn">Delete Selected</button>
+                    </div>
+                </div>
+                
                 <div class="scrollable-list">
                     <div class="instances-list" id="instancesList"></div>
+                    <div class="instances-table-wrapper hidden" id="instancesTableWrapper">
+                        <table class="instances-table" id="instancesTable">
+                            <thead id="instancesTableHead"></thead>
+                            <tbody id="instancesTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

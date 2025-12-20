@@ -72,6 +72,15 @@ class App {
         this.objectInstancesView = document.getElementById("objectInstancesView");
         this.instancesTypeName = document.getElementById("instancesTypeName");
         this.instancesList = document.getElementById("instancesList");
+        this.instancesTableWrapper = document.getElementById("instancesTableWrapper");
+        this.instancesTable = document.getElementById("instancesTable");
+        this.instancesTableHead = document.getElementById("instancesTableHead");
+        this.instancesTableBody = document.getElementById("instancesTableBody");
+        this.instancesSearchInput = document.getElementById("instancesSearchInput");
+        this.cardViewBtn = document.getElementById("cardViewBtn");
+        this.tableViewBtn = document.getElementById("tableViewBtn");
+        this.exportCsvBtn = document.getElementById("exportCsvBtn");
+        this.bulkDeleteBtn = document.getElementById("bulkDeleteBtn");
         this.createInstanceBtn = document.getElementById("createInstanceBtn");
         this.visualizeBtn = document.getElementById("visualizeBtn");
         this.backFromInstancesBtn = document.getElementById("backFromInstancesBtn");
@@ -198,6 +207,11 @@ class App {
         this.currentInstanceId = null;
         this.currentObjectType = null;
         this.currentInstances = [];
+        this.filteredInstances = [];
+        this.selectedInstanceIds = new Set();
+        this.currentView = 'card'; // 'card' or 'table'
+        this.sortField = null;
+        this.sortDirection = 'asc';
         this.currentChart = null;
         this.objectTypesListener = null;
         this.instancesListener = null;
@@ -230,6 +244,11 @@ class App {
         this.backFromInstancesBtn.onclick = () => this.closeInstancesList();
         this.createInstanceBtn.onclick = () => this.createInstance();
         this.visualizeBtn.onclick = () => this.openVisualization();
+        this.cardViewBtn.onclick = () => this.switchInstanceView('card');
+        this.tableViewBtn.onclick = () => this.switchInstanceView('table');
+        this.exportCsvBtn.onclick = () => this.exportToCSV();
+        this.bulkDeleteBtn.onclick = () => this.bulkDeleteInstances();
+        this.instancesSearchInput.oninput = () => this.filterInstances();
         this.backFromInstanceEditorBtn.onclick = () => this.closeInstanceEditor();
         this.saveInstanceBtn.onclick = () => this.saveInstance();
         this.deleteInstanceBtn.onclick = () => this.deleteInstance();
@@ -1320,6 +1339,16 @@ class App {
             this.instancesListener = null;
         }
         
+        // Reset view state
+        this.currentView = 'card';
+        this.selectedInstanceIds.clear();
+        this.instancesSearchInput.value = '';
+        this.sortField = null;
+        this.sortDirection = 'asc';
+        this.cardViewBtn.classList.add('active');
+        this.tableViewBtn.classList.remove('active');
+        this.bulkDeleteBtn.classList.add('hidden');
+        
         this.switchTab('toolkit');
     }
 
@@ -1337,13 +1366,15 @@ class App {
     }
 
     renderInstances(snap) {
-        this.instancesList.innerHTML = "";
-
         if (!snap.exists()) {
             this.currentInstances = [];
+            this.filteredInstances = [];
             const emptyMsg = document.createElement("div");
             emptyMsg.className = "instance-empty";
             emptyMsg.textContent = `No ${this.currentObjectType.name} instances yet. Create one to get started!`;
+            
+            this.instancesList.innerHTML = "";
+            this.instancesTableBody.innerHTML = "";
             this.instancesList.appendChild(emptyMsg);
             return;
         }
@@ -1359,12 +1390,185 @@ class App {
         // Sort by most recent
         instances.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-        // Store for visualization
+        // Store for visualization and filtering
         this.currentInstances = instances;
+        this.filteredInstances = instances;
 
-        instances.forEach(instance => {
+        // Render based on current view
+        this.renderCurrentView();
+    }
+
+    renderCurrentView() {
+        if (this.currentView === 'card') {
+            this.renderCardView();
+        } else {
+            this.renderTableView();
+        }
+    }
+
+    renderCardView() {
+        this.instancesList.innerHTML = "";
+        
+        this.filteredInstances.forEach(instance => {
             this.renderInstanceCard(instance);
         });
+    }
+
+    renderTableView() {
+        // Render table headers
+        this.instancesTableHead.innerHTML = "";
+        const headerRow = document.createElement("tr");
+
+        // Checkbox column
+        const checkboxTh = document.createElement("th");
+        const selectAllCheckbox = document.createElement("input");
+        selectAllCheckbox.type = "checkbox";
+        selectAllCheckbox.className = "table-checkbox";
+        selectAllCheckbox.onchange = (e) => this.toggleSelectAll(e.target.checked);
+        checkboxTh.appendChild(selectAllCheckbox);
+        headerRow.appendChild(checkboxTh);
+
+        // ID column
+        const idTh = document.createElement("th");
+        idTh.textContent = "ID";
+        idTh.className = "sortable";
+        idTh.onclick = () => this.sortTable('id');
+        headerRow.appendChild(idTh);
+
+        // Field columns
+        if (this.currentObjectType.fields) {
+            const fieldsArray = Object.entries(this.currentObjectType.fields).map(([id, field]) => ({
+                id,
+                ...field
+            }));
+            fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            fieldsArray.forEach(field => {
+                const th = document.createElement("th");
+                th.textContent = field.name;
+                th.className = "sortable";
+                th.dataset.fieldId = field.id;
+                th.onclick = () => this.sortTable(field.id);
+                headerRow.appendChild(th);
+            });
+        }
+
+        // Date column
+        const dateTh = document.createElement("th");
+        dateTh.textContent = "Created";
+        dateTh.className = "sortable";
+        dateTh.onclick = () => this.sortTable('createdAt');
+        headerRow.appendChild(dateTh);
+
+        // Actions column
+        const actionsTh = document.createElement("th");
+        actionsTh.textContent = "Actions";
+        headerRow.appendChild(actionsTh);
+
+        this.instancesTableHead.appendChild(headerRow);
+
+        // Render table body
+        this.instancesTableBody.innerHTML = "";
+        
+        this.filteredInstances.forEach(instance => {
+            this.renderTableRow(instance);
+        });
+    }
+
+    renderTableRow(instance) {
+        const row = document.createElement("tr");
+        row.dataset.instanceId = instance.id;
+        if (this.selectedInstanceIds.has(instance.id)) {
+            row.classList.add("selected");
+        }
+
+        // Checkbox cell
+        const checkboxTd = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "table-checkbox";
+        checkbox.checked = this.selectedInstanceIds.has(instance.id);
+        checkbox.onchange = (e) => this.toggleSelectInstance(instance.id, e.target.checked);
+        checkboxTd.appendChild(checkbox);
+        row.appendChild(checkboxTd);
+
+        // ID cell
+        const idTd = document.createElement("td");
+        idTd.textContent = instance.id.substring(0, 8);
+        idTd.style.fontFamily = "monospace";
+        idTd.style.color = "#64748b";
+        idTd.style.fontSize = "12px";
+        row.appendChild(idTd);
+
+        // Field cells
+        if (this.currentObjectType.fields) {
+            const fieldsArray = Object.entries(this.currentObjectType.fields).map(([id, field]) => ({
+                id,
+                ...field
+            }));
+            fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            fieldsArray.forEach(field => {
+                const td = document.createElement("td");
+                td.className = "table-cell-editable";
+                td.dataset.instanceId = instance.id;
+                td.dataset.fieldId = field.id;
+                
+                const value = instance.data ? instance.data[field.id] : null;
+                
+                if (field.type === 'boolean') {
+                    td.className = "table-cell-boolean";
+                    if (value !== null && value !== undefined) {
+                        const badge = document.createElement("span");
+                        badge.className = `table-cell-boolean-badge ${value ? 'true' : 'false'}`;
+                        badge.textContent = value ? "Yes" : "No";
+                        td.appendChild(badge);
+                    } else {
+                        td.textContent = "-";
+                    }
+                } else if (field.type === 'date') {
+                    td.textContent = value ? new Date(value).toLocaleDateString() : "-";
+                } else if (field.type === 'number') {
+                    td.textContent = value !== null && value !== undefined ? value : "-";
+                } else {
+                    td.textContent = value || "-";
+                }
+
+                // Click to edit (we'll add this functionality later)
+                td.onclick = () => this.editTableCell(instance.id, field.id, field.type);
+                
+                row.appendChild(td);
+            });
+        }
+
+        // Created date cell
+        const dateTd = document.createElement("td");
+        dateTd.textContent = new Date(instance.createdAt).toLocaleDateString();
+        dateTd.style.fontSize = "12px";
+        dateTd.style.color = "#64748b";
+        row.appendChild(dateTd);
+
+        // Actions cell
+        const actionsTd = document.createElement("td");
+        actionsTd.className = "table-actions-cell";
+        
+        const editBtn = document.createElement("button");
+        editBtn.className = "table-action-btn";
+        editBtn.textContent = "✏️";
+        editBtn.title = "Edit";
+        editBtn.onclick = () => this.openInstance(instance.id);
+        
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "table-action-btn delete";
+        deleteBtn.textContent = "🗑️";
+        deleteBtn.title = "Delete";
+        deleteBtn.onclick = () => this.quickDeleteInstance(instance.id);
+        
+        actionsTd.appendChild(editBtn);
+        actionsTd.appendChild(deleteBtn);
+        row.appendChild(actionsTd);
+
+        this.instancesTableBody.appendChild(row);
     }
 
     renderInstanceCard(instance) {
@@ -1618,6 +1822,318 @@ class App {
             console.error("Failed to delete instance:", err);
             this.showToast("Failed to delete instance", "error");
         }
+    }
+
+    // ===== TABLE VIEW METHODS =====
+
+    switchInstanceView(view) {
+        this.currentView = view;
+        
+        if (view === 'card') {
+            this.cardViewBtn.classList.add('active');
+            this.tableViewBtn.classList.remove('active');
+            this.instancesList.classList.remove('hidden');
+            this.instancesTableWrapper.classList.add('hidden');
+            this.renderCardView();
+        } else {
+            this.cardViewBtn.classList.remove('active');
+            this.tableViewBtn.classList.add('active');
+            this.instancesList.classList.add('hidden');
+            this.instancesTableWrapper.classList.remove('hidden');
+            this.renderTableView();
+        }
+    }
+
+    filterInstances() {
+        const query = this.instancesSearchInput.value.toLowerCase().trim();
+        
+        if (!query) {
+            this.filteredInstances = this.currentInstances;
+        } else {
+            this.filteredInstances = this.currentInstances.filter(instance => {
+                // Search in ID
+                if (instance.id.toLowerCase().includes(query)) return true;
+                
+                // Search in field values
+                if (instance.data) {
+                    return Object.values(instance.data).some(value => {
+                        if (value === null || value === undefined) return false;
+                        return String(value).toLowerCase().includes(query);
+                    });
+                }
+                
+                return false;
+            });
+        }
+        
+        this.renderCurrentView();
+    }
+
+    sortTable(field) {
+        // Toggle sort direction if clicking same field
+        if (this.sortField === field) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortField = field;
+            this.sortDirection = 'asc';
+        }
+
+        // Sort the filtered instances
+        this.filteredInstances.sort((a, b) => {
+            let aValue, bValue;
+
+            if (field === 'id') {
+                aValue = a.id;
+                bValue = b.id;
+            } else if (field === 'createdAt') {
+                aValue = a.createdAt || 0;
+                bValue = b.createdAt || 0;
+            } else {
+                // Field value
+                aValue = a.data ? a.data[field] : null;
+                bValue = b.data ? b.data[field] : null;
+            }
+
+            // Handle null/undefined
+            if (aValue === null || aValue === undefined) return 1;
+            if (bValue === null || bValue === undefined) return -1;
+
+            // Compare
+            let comparison = 0;
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                comparison = aValue - bValue;
+            } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+                comparison = aValue === bValue ? 0 : aValue ? -1 : 1;
+            } else {
+                comparison = String(aValue).localeCompare(String(bValue));
+            }
+
+            return this.sortDirection === 'asc' ? comparison : -comparison;
+        });
+
+        // Update table headers to show sort indicator
+        const headers = this.instancesTableHead.querySelectorAll('th.sortable');
+        headers.forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            const thFieldId = th.dataset.fieldId || th.textContent.toLowerCase();
+            if ((field === 'id' && th.textContent === 'ID') ||
+                (field === 'createdAt' && th.textContent === 'Created') ||
+                th.dataset.fieldId === field) {
+                th.classList.add(`sorted-${this.sortDirection}`);
+            }
+        });
+
+        this.renderTableView();
+    }
+
+    toggleSelectAll(checked) {
+        if (checked) {
+            this.filteredInstances.forEach(instance => {
+                this.selectedInstanceIds.add(instance.id);
+            });
+        } else {
+            this.selectedInstanceIds.clear();
+        }
+
+        this.renderTableView();
+        this.updateBulkDeleteButton();
+    }
+
+    toggleSelectInstance(instanceId, checked) {
+        if (checked) {
+            this.selectedInstanceIds.add(instanceId);
+        } else {
+            this.selectedInstanceIds.delete(instanceId);
+        }
+
+        // Update row styling
+        const row = this.instancesTableBody.querySelector(`tr[data-instance-id="${instanceId}"]`);
+        if (row) {
+            if (checked) {
+                row.classList.add('selected');
+            } else {
+                row.classList.remove('selected');
+            }
+        }
+
+        this.updateBulkDeleteButton();
+    }
+
+    updateBulkDeleteButton() {
+        if (this.selectedInstanceIds.size > 0) {
+            this.bulkDeleteBtn.classList.remove('hidden');
+            this.bulkDeleteBtn.textContent = `Delete ${this.selectedInstanceIds.size} Selected`;
+        } else {
+            this.bulkDeleteBtn.classList.add('hidden');
+        }
+    }
+
+    async bulkDeleteInstances() {
+        const count = this.selectedInstanceIds.size;
+        const confirmed = confirm(`Are you sure you want to delete ${count} instance${count === 1 ? '' : 's'}? This cannot be undone.`);
+        
+        if (!confirmed) return;
+
+        try {
+            const deletePromises = Array.from(this.selectedInstanceIds).map(id => 
+                db.ref(`objects/${id}`).remove()
+            );
+            
+            await Promise.all(deletePromises);
+            
+            this.selectedInstanceIds.clear();
+            this.updateBulkDeleteButton();
+            this.showToast(`Deleted ${count} instance${count === 1 ? '' : 's'}`, "success");
+        } catch (err) {
+            console.error("Failed to delete instances:", err);
+            this.showToast("Failed to delete instances", "error");
+        }
+    }
+
+    async quickDeleteInstance(instanceId) {
+        const confirmed = confirm("Are you sure you want to delete this instance? This cannot be undone.");
+        if (!confirmed) return;
+
+        try {
+            await db.ref(`objects/${instanceId}`).remove();
+            this.showToast("Instance deleted", "success");
+        } catch (err) {
+            console.error("Failed to delete instance:", err);
+            this.showToast("Failed to delete instance", "error");
+        }
+    }
+
+    editTableCell(instanceId, fieldId, fieldType) {
+        // Find the cell
+        const cell = this.instancesTableBody.querySelector(
+            `td[data-instance-id="${instanceId}"][data-field-id="${fieldId}"]`
+        );
+        
+        if (!cell || cell.classList.contains('table-cell-boolean')) return; // Skip boolean for now
+
+        const currentValue = cell.textContent === '-' ? '' : cell.textContent;
+        
+        // Create input
+        let input;
+        if (fieldType === 'number') {
+            input = document.createElement('input');
+            input.type = 'number';
+            input.step = 'any';
+            input.value = currentValue;
+        } else if (fieldType === 'date') {
+            input = document.createElement('input');
+            input.type = 'date';
+            // Parse the displayed date back to YYYY-MM-DD
+            if (currentValue && currentValue !== '-') {
+                const date = new Date(currentValue);
+                input.value = date.toISOString().split('T')[0];
+            }
+        } else {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentValue;
+        }
+        
+        input.className = 'table-cell-input';
+        
+        // Save on blur or enter
+        const saveEdit = async () => {
+            let newValue = input.value.trim();
+            
+            if (fieldType === 'number') {
+                newValue = newValue ? parseFloat(newValue) : null;
+            }
+            
+            try {
+                await db.ref(`objects/${instanceId}/data/${fieldId}`).set(newValue);
+                // Cell will update automatically from Firebase listener
+            } catch (err) {
+                console.error("Failed to update cell:", err);
+                this.showToast("Failed to update", "error");
+            }
+        };
+        
+        input.onblur = saveEdit;
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                input.blur();
+            }
+        };
+        
+        // Replace cell content with input
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+    }
+
+    exportToCSV() {
+        if (this.currentInstances.length === 0) {
+            this.showToast("No data to export", "error");
+            return;
+        }
+
+        // Build CSV header
+        const headers = ['ID'];
+        const fieldsArray = [];
+        
+        if (this.currentObjectType.fields) {
+            const fields = Object.entries(this.currentObjectType.fields).map(([id, field]) => ({
+                id,
+                ...field
+            }));
+            fields.sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            fields.forEach(field => {
+                headers.push(field.name);
+                fieldsArray.push(field);
+            });
+        }
+        
+        headers.push('Created');
+
+        // Build CSV rows
+        const rows = [headers];
+        
+        this.currentInstances.forEach(instance => {
+            const row = [instance.id];
+            
+            fieldsArray.forEach(field => {
+                const value = instance.data ? instance.data[field.id] : null;
+                
+                if (value === null || value === undefined) {
+                    row.push('');
+                } else if (field.type === 'date') {
+                    row.push(new Date(value).toLocaleDateString());
+                } else if (field.type === 'boolean') {
+                    row.push(value ? 'Yes' : 'No');
+                } else {
+                    // Escape commas and quotes
+                    const str = String(value);
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                        row.push(`"${str.replace(/"/g, '""')}"`);
+                    } else {
+                        row.push(str);
+                    }
+                }
+            });
+            
+            row.push(new Date(instance.createdAt).toLocaleString());
+            rows.push(row);
+        });
+
+        // Convert to CSV string
+        const csvContent = rows.map(row => row.join(',')).join('\n');
+
+        // Download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${this.currentObjectType.name}_${Date.now()}.csv`;
+        link.click();
+        
+        this.showToast("CSV exported successfully", "success");
+        soundManager.play('accepted');
     }
 
     // ===== DATA VISUALIZATION METHODS =====
