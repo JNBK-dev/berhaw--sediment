@@ -253,6 +253,7 @@
             <!-- Tab Navigation -->
             <div class="tabs">
                 <button class="tab active" id="writeTab">Write</button>
+                <button class="tab" id="toolkitTab">Toolkit</button>
                 <button class="tab" id="playTab">Play</button>
                 <button class="tab" id="peopleTab">People</button>
                 <button class="tab" id="settingsTab">Settings</button>
@@ -271,6 +272,17 @@
                     </div>
                     <div class="section-footer">
                         <button class="btn-create" id="createDocBtn">New Document</button>
+                    </div>
+                </div>
+                
+                <!-- Toolkit Section -->
+                <div id="toolkitSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">Object Types</div>
+                        <button class="btn-create" id="createObjectTypeBtn">New Object Type</button>
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="object-types-grid" id="objectTypesList"></div>
                     </div>
                 </div>
                 
@@ -376,6 +388,53 @@
                 
                 <div class="scrollable-list">
                     <div class="documents-grid" id="profileDocsList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Object Type Builder View -->
+        <div id="objectTypeBuilderView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="objectTypeBuilderTitle">Object Type Builder</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="backFromBuilderBtn">Back to Toolkit</button>
+                </div>
+            </div>
+            
+            <div class="builder-content">
+                <div class="scrollable-list">
+                    <div class="builder-section">
+                        <div class="builder-label">Type Name</div>
+                        <input 
+                            type="text" 
+                            id="objectTypeName" 
+                            class="builder-input" 
+                            placeholder="e.g. Run, Recipe, Task..."
+                        >
+                    </div>
+                    
+                    <div class="builder-section">
+                        <div class="builder-header">
+                            <div class="builder-label">Fields</div>
+                            <button class="btn-secondary" id="addFieldBtn">+ Add Field</button>
+                        </div>
+                        <div class="fields-list" id="fieldsList"></div>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <div class="builder-label">Tags</div>
+                        <input 
+                            type="text" 
+                            id="objectTypeTags" 
+                            class="builder-input" 
+                            placeholder="fitness, work, health (comma-separated)"
+                        >
+                    </div>
+                </div>
+                
+                <div class="section-footer">
+                    <button class="btn-leave" id="deleteObjectTypeBtn">Delete Type</button>
+                    <button class="btn-create" id="saveObjectTypeBtn">Save Type</button>
                 </div>
             </div>
         </div>

@@ -571,6 +571,166 @@ button:active {
     font-size: 14px;
 }
 
+/* Object Type Styles */
+.object-types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.object-type-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid #e2e8f0;
+}
+
+.object-type-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+}
+
+.object-type-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.object-type-fields {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.object-type-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.object-type-tag {
+    background: #eff6ff;
+    color: #3b82f6;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Builder Styles */
+.builder-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.builder-section {
+    margin-bottom: 24px;
+}
+
+.builder-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.builder-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.builder-input {
+    width: 100%;
+    font-size: 16px;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.2s;
+}
+
+.builder-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.field-item {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.field-drag-handle {
+    cursor: grab;
+    color: #94a3b8;
+    font-size: 18px;
+}
+
+.field-drag-handle:active {
+    cursor: grabbing;
+}
+
+.field-input {
+    flex: 1;
+    font-size: 14px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.field-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.field-type-select {
+    font-size: 14px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    background: white;
+}
+
+.field-type-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.field-delete-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 8px;
+    transition: all 0.2s;
+}
+
+.field-delete-btn:hover {
+    background: #fee2e2;
+    border-radius: 6px;
+}
+
 .privacy-select {
     width: 100%;
     font-size: 16px;

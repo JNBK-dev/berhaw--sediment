@@ -14,10 +14,12 @@ class App {
         
         // Tab navigation
         this.writeTab = document.getElementById("writeTab");
+        this.toolkitTab = document.getElementById("toolkitTab");
         this.playTab = document.getElementById("playTab");
         this.peopleTab = document.getElementById("peopleTab");
         this.settingsTab = document.getElementById("settingsTab");
         this.writeSection = document.getElementById("writeSection");
+        this.toolkitSection = document.getElementById("toolkitSection");
         this.playSection = document.getElementById("playSection");
         this.peopleSection = document.getElementById("peopleSection");
         this.settingsSection = document.getElementById("settingsSection");
@@ -25,6 +27,10 @@ class App {
         // Write section
         this.documentsList = document.getElementById("documentsList");
         this.createDocBtn = document.getElementById("createDocBtn");
+        
+        // Toolkit section
+        this.objectTypesList = document.getElementById("objectTypesList");
+        this.createObjectTypeBtn = document.getElementById("createObjectTypeBtn");
         
         // Play section
         this.createRoomBtn = document.getElementById("createRoomBtn");
@@ -50,6 +56,17 @@ class App {
         this.profileDocCount = document.getElementById("profileDocCount");
         this.profileDocsList = document.getElementById("profileDocsList");
         this.backFromProfileBtn = document.getElementById("backFromProfileBtn");
+
+        // DOM elements - Object Type Builder View
+        this.objectTypeBuilderView = document.getElementById("objectTypeBuilderView");
+        this.objectTypeBuilderTitle = document.getElementById("objectTypeBuilderTitle");
+        this.objectTypeName = document.getElementById("objectTypeName");
+        this.fieldsList = document.getElementById("fieldsList");
+        this.addFieldBtn = document.getElementById("addFieldBtn");
+        this.objectTypeTags = document.getElementById("objectTypeTags");
+        this.saveObjectTypeBtn = document.getElementById("saveObjectTypeBtn");
+        this.deleteObjectTypeBtn = document.getElementById("deleteObjectTypeBtn");
+        this.backFromBuilderBtn = document.getElementById("backFromBuilderBtn");
 
         // DOM elements - Editor View
         this.editorView = document.getElementById("editorView");
@@ -147,6 +164,9 @@ class App {
         this.storyTurnListener = null;
         this.storyUsersListener = null;
         this.storyBlocksListener = null;
+        this.currentObjectTypeId = null;
+        this.objectTypesListener = null;
+        this.fieldIdCounter = 0;
         this.roundStartTime = null;
 
         // Bind events
@@ -156,12 +176,20 @@ class App {
         
         // Tab navigation
         this.writeTab.onclick = () => this.switchTab('write');
+        this.toolkitTab.onclick = () => this.switchTab('toolkit');
         this.playTab.onclick = () => this.switchTab('play');
         this.peopleTab.onclick = () => this.switchTab('people');
         this.settingsTab.onclick = () => this.switchTab('settings');
         
         // Profile navigation
         this.backFromProfileBtn.onclick = () => this.closeProfile();
+        
+        // Object Type Builder actions
+        this.createObjectTypeBtn.onclick = () => this.createObjectType();
+        this.backFromBuilderBtn.onclick = () => this.closeObjectTypeBuilder();
+        this.addFieldBtn.onclick = () => this.addField();
+        this.saveObjectTypeBtn.onclick = () => this.saveObjectType();
+        this.deleteObjectTypeBtn.onclick = () => this.deleteObjectType();
         
         // Document actions
         this.createDocBtn.onclick = () => this.createDocument();
@@ -415,6 +443,7 @@ class App {
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         
         // Stop listening to rooms
         db.ref("rooms").off();
@@ -431,6 +460,7 @@ class App {
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         
         soundManager.play('bite');
         
@@ -477,12 +507,14 @@ class App {
     switchTab(tabName) {
         // Remove active class from all tabs
         this.writeTab.classList.remove('active');
+        this.toolkitTab.classList.remove('active');
         this.playTab.classList.remove('active');
         this.peopleTab.classList.remove('active');
         this.settingsTab.classList.remove('active');
         
         // Hide all sections
         this.writeSection.classList.add('hidden');
+        this.toolkitSection.classList.add('hidden');
         this.playSection.classList.add('hidden');
         this.peopleSection.classList.add('hidden');
         this.settingsSection.classList.add('hidden');
@@ -491,6 +523,11 @@ class App {
         if (tabName === 'write') {
             this.writeTab.classList.add('active');
             this.writeSection.classList.remove('hidden');
+        } else if (tabName === 'toolkit') {
+            this.toolkitTab.classList.add('active');
+            this.toolkitSection.classList.remove('hidden');
+            // Load object types when switching to toolkit tab
+            this.listenToObjectTypes();
         } else if (tabName === 'play') {
             this.playTab.classList.add('active');
             this.playSection.classList.remove('hidden');
@@ -737,6 +774,7 @@ class App {
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         
         soundManager.play('bite');
         
@@ -877,6 +915,275 @@ class App {
         } catch (err) {
             console.error("Failed to delete document:", err);
             this.showToast("Failed to delete document", "error");
+        }
+    }
+
+    // ===== OBJECT TYPE METHODS =====
+
+    listenToObjectTypes() {
+        if (this.objectTypesListener) {
+            db.ref(`objectTypes`).off("value", this.objectTypesListener);
+        }
+
+        this.objectTypesListener = db.ref(`objectTypes`)
+            .orderByChild("authorId")
+            .equalTo(this.currentUser.id)
+            .on("value", snap => {
+                this.renderObjectTypes(snap);
+            });
+    }
+
+    renderObjectTypes(snap) {
+        this.objectTypesList.innerHTML = "";
+
+        if (!snap.exists()) {
+            const emptyMsg = document.createElement("div");
+            emptyMsg.className = "document-empty";
+            emptyMsg.textContent = "No object types yet. Create one to get started!";
+            this.objectTypesList.appendChild(emptyMsg);
+            return;
+        }
+
+        snap.forEach(typeSnap => {
+            const typeId = typeSnap.key;
+            const type = typeSnap.val();
+            this.renderObjectTypeCard(typeId, type);
+        });
+    }
+
+    renderObjectTypeCard(typeId, type) {
+        const card = document.createElement("div");
+        card.className = "object-type-card";
+        card.onclick = () => this.openObjectType(typeId);
+
+        const name = document.createElement("div");
+        name.className = "object-type-name";
+        name.textContent = type.name || "Untitled Type";
+
+        const fieldCount = type.fields ? Object.keys(type.fields).length : 0;
+        const fields = document.createElement("div");
+        fields.className = "object-type-fields";
+        fields.textContent = `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'}`;
+
+        card.appendChild(name);
+        card.appendChild(fields);
+
+        if (type.tags && type.tags.length > 0) {
+            const tagsDiv = document.createElement("div");
+            tagsDiv.className = "object-type-tags";
+            type.tags.forEach(tag => {
+                const tagSpan = document.createElement("span");
+                tagSpan.className = "object-type-tag";
+                tagSpan.textContent = tag;
+                tagsDiv.appendChild(tagSpan);
+            });
+            card.appendChild(tagsDiv);
+        }
+
+        this.objectTypesList.appendChild(card);
+    }
+
+    createObjectType() {
+        this.currentObjectTypeId = null;
+        this.fieldIdCounter = 0;
+        this.objectTypeName.value = "";
+        this.objectTypeTags.value = "";
+        this.fieldsList.innerHTML = "";
+        this.deleteObjectTypeBtn.style.display = "none";
+        this.objectTypeBuilderTitle.textContent = "New Object Type";
+        this.showObjectTypeBuilder();
+    }
+
+    async openObjectType(typeId) {
+        this.currentObjectTypeId = typeId;
+        this.fieldIdCounter = 0;
+
+        const typeSnap = await db.ref(`objectTypes/${typeId}`).once("value");
+        if (!typeSnap.exists()) {
+            this.showToast("Object type not found", "error");
+            return;
+        }
+
+        const type = typeSnap.val();
+        this.objectTypeName.value = type.name || "";
+        this.objectTypeTags.value = type.tags ? type.tags.join(", ") : "";
+        this.fieldsList.innerHTML = "";
+
+        if (type.fields) {
+            // Sort fields by order
+            const fieldsArray = Object.entries(type.fields).map(([id, field]) => ({
+                id,
+                ...field
+            }));
+            fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            fieldsArray.forEach(field => {
+                this.renderField(field.id, field.name, field.type);
+            });
+        }
+
+        this.deleteObjectTypeBtn.style.display = "block";
+        this.objectTypeBuilderTitle.textContent = "Edit Object Type";
+        this.showObjectTypeBuilder();
+    }
+
+    showObjectTypeBuilder() {
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.remove("hidden");
+
+        soundManager.play('bite');
+    }
+
+    closeObjectTypeBuilder() {
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.homeView.classList.remove("hidden");
+        this.switchTab('toolkit');
+    }
+
+    addField() {
+        const fieldId = `field_${Date.now()}_${this.fieldIdCounter++}`;
+        this.renderField(fieldId, "", "text");
+    }
+
+    renderField(fieldId, fieldName = "", fieldType = "text") {
+        const fieldDiv = document.createElement("div");
+        fieldDiv.className = "field-item";
+        fieldDiv.dataset.fieldId = fieldId;
+
+        const dragHandle = document.createElement("div");
+        dragHandle.className = "field-drag-handle";
+        dragHandle.textContent = "⋮⋮";
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.className = "field-input";
+        nameInput.placeholder = "Field name";
+        nameInput.value = fieldName;
+        nameInput.dataset.fieldId = fieldId;
+
+        const typeSelect = document.createElement("select");
+        typeSelect.className = "field-type-select";
+        typeSelect.dataset.fieldId = fieldId;
+        
+        const types = [
+            { value: "text", label: "Text" },
+            { value: "number", label: "Number" },
+            { value: "date", label: "Date" },
+            { value: "boolean", label: "Yes/No" }
+        ];
+        
+        types.forEach(type => {
+            const option = document.createElement("option");
+            option.value = type.value;
+            option.textContent = type.label;
+            if (type.value === fieldType) {
+                option.selected = true;
+            }
+            typeSelect.appendChild(option);
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "field-delete-btn";
+        deleteBtn.textContent = "×";
+        deleteBtn.onclick = () => this.removeField(fieldId);
+
+        fieldDiv.appendChild(dragHandle);
+        fieldDiv.appendChild(nameInput);
+        fieldDiv.appendChild(typeSelect);
+        fieldDiv.appendChild(deleteBtn);
+
+        this.fieldsList.appendChild(fieldDiv);
+    }
+
+    removeField(fieldId) {
+        const fieldDiv = this.fieldsList.querySelector(`[data-field-id="${fieldId}"]`);
+        if (fieldDiv) {
+            fieldDiv.remove();
+        }
+    }
+
+    async saveObjectType() {
+        const name = this.objectTypeName.value.trim();
+        
+        if (!name) {
+            this.showToast("Please enter a type name", "error");
+            return;
+        }
+
+        // Collect fields
+        const fields = {};
+        const fieldElements = this.fieldsList.querySelectorAll('.field-item');
+        
+        fieldElements.forEach((fieldEl, index) => {
+            const fieldId = fieldEl.dataset.fieldId;
+            const nameInput = fieldEl.querySelector('.field-input');
+            const typeSelect = fieldEl.querySelector('.field-type-select');
+            
+            const fieldName = nameInput.value.trim();
+            if (fieldName) {
+                fields[fieldId] = {
+                    name: fieldName,
+                    type: typeSelect.value,
+                    order: index
+                };
+            }
+        });
+
+        // Parse tags
+        const tagsInput = this.objectTypeTags.value.trim();
+        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+
+        const objectType = {
+            name: name,
+            fields: fields,
+            tags: tags,
+            authorId: this.currentUser.id,
+            updatedAt: Date.now()
+        };
+
+        try {
+            if (this.currentObjectTypeId) {
+                // Update existing
+                await db.ref(`objectTypes/${this.currentObjectTypeId}`).update(objectType);
+                this.showToast("Object type updated", "success");
+            } else {
+                // Create new
+                objectType.createdAt = Date.now();
+                const newTypeRef = await db.ref("objectTypes").push(objectType);
+                this.currentObjectTypeId = newTypeRef.key;
+                this.showToast("Object type created", "success");
+            }
+            
+            soundManager.play('accepted');
+            this.closeObjectTypeBuilder();
+        } catch (err) {
+            console.error("Failed to save object type:", err);
+            this.showToast("Failed to save object type", "error");
+        }
+    }
+
+    async deleteObjectType() {
+        if (!this.currentObjectTypeId) return;
+
+        const confirmed = confirm("Are you sure you want to delete this object type? This cannot be undone.");
+        if (!confirmed) return;
+
+        try {
+            await db.ref(`objectTypes/${this.currentObjectTypeId}`).remove();
+            this.showToast("Object type deleted", "success");
+            this.closeObjectTypeBuilder();
+        } catch (err) {
+            console.error("Failed to delete object type:", err);
+            this.showToast("Failed to delete object type", "error");
         }
     }
 
@@ -1086,6 +1393,7 @@ class App {
         this.homeView.classList.add("hidden");
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
@@ -1353,6 +1661,7 @@ class App {
         this.homeView.classList.add("hidden");
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
@@ -1473,6 +1782,7 @@ class App {
         this.homeView.classList.add("hidden");
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.gameView.classList.add("hidden");
@@ -1596,6 +1906,7 @@ class App {
         this.homeView.classList.add("hidden");
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
@@ -1922,6 +2233,7 @@ class App {
         this.homeView.classList.add("hidden");
         this.editorView.classList.add("hidden");
         this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
