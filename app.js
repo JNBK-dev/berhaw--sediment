@@ -1745,6 +1745,13 @@ class App {
     prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType) {
         const dataPoints = [];
 
+        console.log("Preparing chart data:", {
+            xFieldId, yFieldId, 
+            xFieldName: xField.name, 
+            yFieldName: yField.name,
+            instances: this.currentInstances.length
+        });
+
         this.currentInstances.forEach(instance => {
             if (!instance.data) return;
 
@@ -1777,6 +1784,8 @@ class App {
             }
         });
 
+        console.log("Data points before aggregation:", dataPoints);
+
         // Sort by x value for line charts
         if (chartType === 'line' && xField.type === 'date') {
             dataPoints.sort((a, b) => new Date(a.x) - new Date(b.x));
@@ -1784,7 +1793,9 @@ class App {
 
         // Apply aggregation
         if (aggregation !== 'none' && chartType !== 'pie') {
-            return this.aggregateData(dataPoints, aggregation);
+            const aggregated = this.aggregateData(dataPoints, aggregation);
+            console.log("Data points after aggregation:", aggregated);
+            return aggregated;
         }
 
         return dataPoints;
@@ -1832,7 +1843,19 @@ class App {
             this.currentChart.destroy();
         }
 
+        if (dataPoints.length === 0) {
+            this.dataChart.parentElement.innerHTML = "<div class='chart-empty'>No data available for selected fields</div>";
+            return;
+        }
+
         const ctx = this.dataChart.getContext('2d');
+
+        // Check if Chart.js is loaded
+        if (typeof Chart === 'undefined') {
+            console.error("Chart.js not loaded!");
+            this.dataChart.parentElement.innerHTML = "<div class='chart-empty'>Chart.js library not loaded. Please refresh the page.</div>";
+            return;
+        }
 
         let chartConfig;
 
@@ -1898,7 +1921,13 @@ class App {
             };
         }
 
-        this.currentChart = new Chart(ctx, chartConfig);
+        try {
+            this.currentChart = new Chart(ctx, chartConfig);
+            console.log("Chart rendered successfully with", dataPoints.length, "data points");
+        } catch (err) {
+            console.error("Error rendering chart:", err);
+            this.showToast("Error rendering chart", "error");
+        }
     }
 
     renderStats(dataPoints, yField) {
