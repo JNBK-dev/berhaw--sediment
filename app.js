@@ -147,6 +147,7 @@ class App {
         this.diceView = document.getElementById("diceView");
         this.diceRoomCode = document.getElementById("diceRoomCode");
         this.diceRolls = document.getElementById("diceRolls");
+        this.diceHistory = document.getElementById("diceHistory");
         this.rollD4Btn = document.getElementById("rollD4Btn");
         this.rollD6Btn = document.getElementById("rollD6Btn");
         this.rollD8Btn = document.getElementById("rollD8Btn");
@@ -155,6 +156,50 @@ class App {
         this.rollD20Btn = document.getElementById("rollD20Btn");
         this.rollD100Btn = document.getElementById("rollD100Btn");
         this.leaveDiceBtn = document.getElementById("leaveDiceBtn");
+        
+        // Dice tabs
+        this.diceRollTab = document.getElementById("diceRollTab");
+        this.diceHistoryTab = document.getElementById("diceHistoryTab");
+        this.diceActionsTab = document.getElementById("diceActionsTab");
+        this.diceRollContent = document.getElementById("diceRollContent");
+        this.diceHistoryContent = document.getElementById("diceHistoryContent");
+        this.diceActionsContent = document.getElementById("diceActionsContent");
+        
+        // Dice actions
+        this.createDiceActionBtn = document.getElementById("createDiceActionBtn");
+        this.diceActionsList = document.getElementById("diceActionsList");
+        this.diceActionBuilder = document.getElementById("diceActionBuilder");
+        this.closeDiceActionBuilderBtn = document.getElementById("closeDiceActionBuilderBtn");
+        this.actionBuilderTitle = document.getElementById("actionBuilderTitle");
+        
+        // Action builder steps
+        this.actionProgressFill = document.getElementById("actionProgressFill");
+        this.actionProgressText = document.getElementById("actionProgressText");
+        this.actionStep1 = document.getElementById("actionStep1");
+        this.actionStep2 = document.getElementById("actionStep2");
+        this.actionStep3 = document.getElementById("actionStep3");
+        
+        // Action builder inputs - Step 1
+        this.actionNameInput = document.getElementById("actionNameInput");
+        this.actionTargetTypeSelect = document.getElementById("actionTargetTypeSelect");
+        this.actionTargetInstanceSelect = document.getElementById("actionTargetInstanceSelect");
+        this.actionStep1NextBtn = document.getElementById("actionStep1NextBtn");
+        
+        // Action builder inputs - Step 2
+        this.conditionDetails = document.getElementById("conditionDetails");
+        this.conditionOperatorSelect = document.getElementById("conditionOperatorSelect");
+        this.conditionValueInput = document.getElementById("conditionValueInput");
+        this.actionStep2BackBtn = document.getElementById("actionStep2BackBtn");
+        this.actionStep2NextBtn = document.getElementById("actionStep2NextBtn");
+        
+        // Action builder inputs - Step 3
+        this.actionFieldSelect = document.getElementById("actionFieldSelect");
+        this.actionOperatorSelect = document.getElementById("actionOperatorSelect");
+        this.actionFixedValueInput = document.getElementById("actionFixedValueInput");
+        this.actionMinValueInput = document.getElementById("actionMinValueInput");
+        this.actionMaxValueInput = document.getElementById("actionMaxValueInput");
+        this.actionStep3BackBtn = document.getElementById("actionStep3BackBtn");
+        this.actionStep3SaveBtn = document.getElementById("actionStep3SaveBtn");
 
         // DOM elements - Collaborative Story View
         this.collabDocView = document.getElementById("collabDocView");
@@ -198,6 +243,10 @@ class App {
         this.chatListener = null;
         this.chatInitialLoadComplete = false;
         this.diceListener = null;
+        this.diceActions = [];
+        this.currentDiceActionId = null;
+        this.currentActionStep = 1;
+        this.diceActionsListener = null;
         this.diceInitialLoadComplete = false;
         this.storyListener = null;
         this.storyTurnListener = null;
@@ -294,6 +343,38 @@ class App {
         this.rollD12Btn.onclick = () => this.rollDice(12);
         this.rollD20Btn.onclick = () => this.rollDice(20);
         this.rollD100Btn.onclick = () => this.rollDice(100);
+        
+        // Dice tabs
+        this.diceRollTab.onclick = () => this.switchDiceTab('roll');
+        this.diceHistoryTab.onclick = () => this.switchDiceTab('history');
+        this.diceActionsTab.onclick = () => this.switchDiceTab('actions');
+        
+        // Dice Actions
+        this.createDiceActionBtn.onclick = () => this.openDiceActionBuilder();
+        this.closeDiceActionBuilderBtn.onclick = () => this.closeDiceActionBuilder();
+        
+        // Action builder navigation
+        this.actionStep1NextBtn.onclick = () => this.goToActionStep(2);
+        this.actionStep2BackBtn.onclick = () => this.goToActionStep(1);
+        this.actionStep2NextBtn.onclick = () => this.goToActionStep(3);
+        this.actionStep3BackBtn.onclick = () => this.goToActionStep(2);
+        this.actionStep3SaveBtn.onclick = () => this.saveDiceAction();
+        
+        // Action builder conditional visibility
+        document.querySelectorAll('input[name="conditionType"]').forEach(radio => {
+            radio.onchange = () => {
+                this.conditionDetails.classList.toggle('hidden', radio.value === 'always');
+            };
+        });
+        
+        document.querySelectorAll('input[name="valueSource"]').forEach(radio => {
+            radio.onchange = () => {
+                this.actionFixedValueInput.classList.toggle('hidden', radio.value !== 'fixed');
+            };
+        });
+        
+        // Action target type change
+        this.actionTargetTypeSelect.onchange = () => this.loadActionTargetInstances();
         
         // Collaborative Story actions
         this.leaveCollabDocBtn.onclick = () => this.leaveActivity();
@@ -3861,6 +3942,486 @@ class App {
         });
 
         soundManager.play('submitted');
+        
+        // Execute dice actions
+        await this.executeDiceActions(value, sides);
+    }
+
+    // ===== DICE ACTIONS METHODS =====
+
+    switchDiceTab(tab) {
+        // Update tab buttons
+        this.diceRollTab.classList.toggle('active', tab === 'roll');
+        this.diceHistoryTab.classList.toggle('active', tab === 'history');
+        this.diceActionsTab.classList.toggle('active', tab === 'actions');
+        
+        // Update content
+        this.diceRollContent.classList.toggle('hidden', tab !== 'roll');
+        this.diceHistoryContent.classList.toggle('hidden', tab !== 'history');
+        this.diceActionsContent.classList.toggle('hidden', tab !== 'actions');
+        
+        // Load actions when switching to actions tab
+        if (tab === 'actions') {
+            this.loadDiceActions();
+        }
+    }
+
+    async loadDiceActions() {
+        if (!this.currentUser) return;
+        
+        // Clean up existing listener
+        if (this.diceActionsListener) {
+            db.ref(`users/${this.currentUser.id}/diceActions`).off('value', this.diceActionsListener);
+        }
+        
+        // Listen to user's dice actions
+        this.diceActionsListener = db.ref(`users/${this.currentUser.id}/diceActions`)
+            .on('value', (snap) => {
+                this.renderDiceActions(snap);
+            });
+    }
+
+    renderDiceActions(snap) {
+        this.diceActionsList.innerHTML = '';
+        
+        if (!snap.exists()) {
+            const empty = document.createElement('div');
+            empty.className = 'action-empty';
+            empty.textContent = 'No actions connected yet. Create one to automate dice rolls!';
+            this.diceActionsList.appendChild(empty);
+            return;
+        }
+        
+        const actions = [];
+        snap.forEach(actionSnap => {
+            actions.push({
+                id: actionSnap.key,
+                ...actionSnap.val()
+            });
+        });
+        
+        // Sort by priority
+        actions.sort((a, b) => (a.priority || 999) - (b.priority || 999));
+        
+        this.diceActions = actions;
+        
+        actions.forEach(action => {
+            this.renderDiceActionCard(action);
+        });
+    }
+
+    renderDiceActionCard(action) {
+        const card = document.createElement('div');
+        card.className = `action-card ${action.active ? 'active' : 'inactive'}`;
+        
+        // Header
+        const header = document.createElement('div');
+        header.className = 'action-card-header';
+        
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'action-name';
+        nameDiv.textContent = action.name;
+        
+        const statusBadge = document.createElement('span');
+        statusBadge.className = `action-status ${action.active ? 'active' : 'inactive'}`;
+        statusBadge.textContent = action.active ? '⚡ Active' : 'Inactive';
+        
+        header.appendChild(nameDiv);
+        header.appendChild(statusBadge);
+        
+        // Details
+        const details = document.createElement('div');
+        details.className = 'action-details';
+        
+        const targetRow = document.createElement('div');
+        targetRow.className = 'action-detail-row';
+        targetRow.innerHTML = `<span class="action-detail-label">Target:</span> ${action.targetTypeName || 'Unknown'} → ${action.targetInstanceName || 'Unknown'}`;
+        
+        const conditionRow = document.createElement('div');
+        conditionRow.className = 'action-detail-row';
+        if (action.condition.type === 'always') {
+            conditionRow.innerHTML = `<span class="action-detail-label">When:</span> Always`;
+        } else {
+            conditionRow.innerHTML = `<span class="action-detail-label">When:</span> Roll ${action.condition.operator} ${action.condition.value}`;
+        }
+        
+        const actionRow = document.createElement('div');
+        actionRow.className = 'action-detail-row';
+        actionRow.innerHTML = `<span class="action-detail-label">Then:</span> ${action.operation.fieldName} ${action.operation.operator} ${action.operation.valueSource === 'roll' ? 'roll value' : action.operation.fixedValue}`;
+        
+        details.appendChild(targetRow);
+        details.appendChild(conditionRow);
+        details.appendChild(actionRow);
+        
+        // Actions
+        const actions = document.createElement('div');
+        actions.className = 'action-actions';
+        
+        // Toggle switch
+        const toggleDiv = document.createElement('div');
+        toggleDiv.className = 'action-toggle';
+        const toggleLabel = document.createElement('label');
+        toggleLabel.className = 'toggle-switch';
+        const toggleInput = document.createElement('input');
+        toggleInput.type = 'checkbox';
+        toggleInput.checked = action.active;
+        toggleInput.onchange = () => this.toggleDiceAction(action.id, toggleInput.checked);
+        const toggleSlider = document.createElement('span');
+        toggleSlider.className = 'toggle-slider';
+        toggleLabel.appendChild(toggleInput);
+        toggleLabel.appendChild(toggleSlider);
+        toggleDiv.appendChild(toggleLabel);
+        
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'action-btn-delete';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = () => this.deleteDiceAction(action.id);
+        
+        actions.appendChild(toggleDiv);
+        actions.appendChild(deleteBtn);
+        
+        card.appendChild(header);
+        card.appendChild(details);
+        card.appendChild(actions);
+        
+        this.diceActionsList.appendChild(card);
+    }
+
+    async toggleDiceAction(actionId, active) {
+        try {
+            await db.ref(`users/${this.currentUser.id}/diceActions/${actionId}/active`).set(active);
+            this.showToast(active ? 'Action activated' : 'Action deactivated', 'success');
+        } catch (err) {
+            console.error('Failed to toggle action:', err);
+            this.showToast('Failed to update action', 'error');
+        }
+    }
+
+    async deleteDiceAction(actionId) {
+        const confirmed = confirm('Are you sure you want to delete this action?');
+        if (!confirmed) return;
+        
+        try {
+            await db.ref(`users/${this.currentUser.id}/diceActions/${actionId}`).remove();
+            this.showToast('Action deleted', 'success');
+        } catch (err) {
+            console.error('Failed to delete action:', err);
+            this.showToast('Failed to delete action', 'error');
+        }
+    }
+
+    openDiceActionBuilder() {
+        this.currentDiceActionId = null;
+        this.currentActionStep = 1;
+        this.actionBuilderTitle.textContent = 'Connect New Action';
+        
+        // Reset form
+        this.actionNameInput.value = '';
+        this.actionTargetTypeSelect.value = '';
+        this.actionTargetInstanceSelect.innerHTML = '<option value="">-- Select Instance --</option>';
+        this.actionFieldSelect.innerHTML = '<option value="">-- Select Field --</option>';
+        
+        // Load object types
+        this.loadActionObjectTypes();
+        
+        // Show step 1
+        this.goToActionStep(1);
+        
+        // Show builder
+        this.diceView.classList.add('hidden');
+        this.diceActionBuilder.classList.remove('hidden');
+        
+        soundManager.play('bite');
+    }
+
+    closeDiceActionBuilder() {
+        this.diceActionBuilder.classList.add('hidden');
+        this.diceView.classList.remove('hidden');
+    }
+
+    async loadActionObjectTypes() {
+        this.actionTargetTypeSelect.innerHTML = '<option value="">-- Select Type --</option>';
+        
+        try {
+            const snap = await db.ref('objectTypes')
+                .orderByChild('authorId')
+                .equalTo(this.currentUser.id)
+                .once('value');
+            
+            if (snap.exists()) {
+                snap.forEach(typeSnap => {
+                    const type = typeSnap.val();
+                    const option = document.createElement('option');
+                    option.value = typeSnap.key;
+                    option.textContent = type.name;
+                    option.dataset.type = JSON.stringify(type);
+                    this.actionTargetTypeSelect.appendChild(option);
+                });
+            }
+        } catch (err) {
+            console.error('Failed to load object types:', err);
+        }
+    }
+
+    async loadActionTargetInstances() {
+        const typeId = this.actionTargetTypeSelect.value;
+        this.actionTargetInstanceSelect.innerHTML = '<option value="">-- Select Instance --</option>';
+        this.actionFieldSelect.innerHTML = '<option value="">-- Select Field --</option>';
+        
+        if (!typeId) return;
+        
+        // Get the selected type data
+        const selectedOption = this.actionTargetTypeSelect.selectedOptions[0];
+        const typeData = JSON.parse(selectedOption.dataset.type || '{}');
+        
+        // Load instances
+        try {
+            const snap = await db.ref('objects')
+                .orderByChild('typeId')
+                .equalTo(typeId)
+                .once('value');
+            
+            if (snap.exists()) {
+                snap.forEach(instanceSnap => {
+                    const instance = instanceSnap.val();
+                    const option = document.createElement('option');
+                    option.value = instanceSnap.key;
+                    
+                    // Use first field value as display name
+                    let displayName = instanceSnap.key.substring(0, 8);
+                    if (instance.data) {
+                        const firstValue = Object.values(instance.data).find(v => v && v !== '');
+                        if (firstValue) {
+                            displayName = String(firstValue).substring(0, 50);
+                        }
+                    }
+                    
+                    option.textContent = displayName;
+                    option.dataset.instance = JSON.stringify(instance);
+                    this.actionTargetInstanceSelect.appendChild(option);
+                });
+            }
+        } catch (err) {
+            console.error('Failed to load instances:', err);
+        }
+        
+        // Load fields for step 3
+        if (typeData.fields) {
+            const fieldsArray = Object.entries(typeData.fields).map(([id, field]) => ({
+                id,
+                ...field
+            }));
+            fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            // Only show number fields for now
+            fieldsArray.filter(f => f.type === 'number').forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.id;
+                option.textContent = `${field.name} (${field.type})`;
+                option.dataset.fieldName = field.name;
+                this.actionFieldSelect.appendChild(option);
+            });
+        }
+    }
+
+    goToActionStep(step) {
+        this.currentActionStep = step;
+        
+        // Hide all steps
+        this.actionStep1.classList.add('hidden');
+        this.actionStep2.classList.add('hidden');
+        this.actionStep3.classList.add('hidden');
+        
+        // Show current step
+        if (step === 1) {
+            this.actionStep1.classList.remove('hidden');
+        } else if (step === 2) {
+            this.actionStep2.classList.remove('hidden');
+        } else if (step === 3) {
+            this.actionStep3.classList.remove('hidden');
+        }
+        
+        // Update progress
+        const progress = (step / 3) * 100;
+        this.actionProgressFill.style.width = `${progress}%`;
+        this.actionProgressText.textContent = `Step ${step} of 3`;
+    }
+
+    async saveDiceAction() {
+        // Collect data
+        const name = this.actionNameInput.value.trim();
+        if (!name) {
+            this.showToast('Please enter an action name', 'error');
+            return;
+        }
+        
+        const targetTypeId = this.actionTargetTypeSelect.value;
+        const targetInstanceId = this.actionTargetInstanceSelect.value;
+        if (!targetTypeId || !targetInstanceId) {
+            this.showToast('Please select a target', 'error');
+            return;
+        }
+        
+        const targetTypeName = this.actionTargetTypeSelect.selectedOptions[0].textContent;
+        const targetInstanceName = this.actionTargetInstanceSelect.selectedOptions[0].textContent;
+        
+        // Condition
+        const conditionType = document.querySelector('input[name="conditionType"]:checked').value;
+        const condition = {
+            type: conditionType
+        };
+        
+        if (conditionType === 'comparison') {
+            condition.operator = this.conditionOperatorSelect.value;
+            condition.value = parseInt(this.conditionValueInput.value) || 0;
+        }
+        
+        // Operation
+        const fieldId = this.actionFieldSelect.value;
+        if (!fieldId) {
+            this.showToast('Please select a field to update', 'error');
+            return;
+        }
+        
+        const fieldName = this.actionFieldSelect.selectedOptions[0].dataset.fieldName;
+        const operator = this.actionOperatorSelect.value;
+        const valueSource = document.querySelector('input[name="valueSource"]:checked').value;
+        
+        const operation = {
+            type: 'updateField',
+            fieldId,
+            fieldName,
+            operator,
+            valueSource
+        };
+        
+        if (valueSource === 'fixed') {
+            operation.fixedValue = parseFloat(this.actionFixedValueInput.value) || 0;
+        }
+        
+        const minValue = this.actionMinValueInput.value.trim();
+        const maxValue = this.actionMaxValueInput.value.trim();
+        if (minValue) operation.minValue = parseFloat(minValue);
+        if (maxValue) operation.maxValue = parseFloat(maxValue);
+        
+        // Save
+        const actionData = {
+            name,
+            targetTypeId,
+            targetTypeName,
+            targetInstanceId,
+            targetInstanceName,
+            condition,
+            operation,
+            active: true,
+            priority: this.diceActions.length,
+            createdAt: Date.now()
+        };
+        
+        try {
+            await db.ref(`users/${this.currentUser.id}/diceActions`).push(actionData);
+            this.showToast('Action created and activated!', 'success');
+            soundManager.play('accepted');
+            this.closeDiceActionBuilder();
+            this.switchDiceTab('actions');
+        } catch (err) {
+            console.error('Failed to save action:', err);
+            this.showToast('Failed to create action', 'error');
+        }
+    }
+
+    async executeDiceActions(rollValue, sides) {
+        if (this.diceActions.length === 0) return;
+        
+        // Get active actions sorted by priority
+        const activeActions = this.diceActions
+            .filter(a => a.active)
+            .sort((a, b) => (a.priority || 999) - (b.priority || 999));
+        
+        for (const action of activeActions) {
+            // Check condition
+            let shouldExecute = false;
+            
+            if (action.condition.type === 'always') {
+                shouldExecute = true;
+            } else if (action.condition.type === 'comparison') {
+                const op = action.condition.operator;
+                const val = action.condition.value;
+                
+                if (op === '<') shouldExecute = rollValue < val;
+                else if (op === '<=') shouldExecute = rollValue <= val;
+                else if (op === '==') shouldExecute = rollValue === val;
+                else if (op === '>=') shouldExecute = rollValue >= val;
+                else if (op === '>') shouldExecute = rollValue > val;
+            }
+            
+            if (!shouldExecute) continue;
+            
+            // Execute action
+            try {
+                await this.executeAction(action, rollValue);
+            } catch (err) {
+                console.error('Failed to execute action:', err);
+            }
+        }
+    }
+
+    async executeAction(action, rollValue) {
+        // Get current field value
+        const instanceRef = db.ref(`objects/${action.targetInstanceId}`);
+        const snap = await instanceRef.once('value');
+        
+        if (!snap.exists()) {
+            this.showToast(`Target instance not found: ${action.targetInstanceName}`, 'error');
+            return;
+        }
+        
+        const instance = snap.val();
+        const currentValue = instance.data?.[action.operation.fieldId] || 0;
+        
+        // Calculate new value
+        let newValue;
+        const operand = action.operation.valueSource === 'roll' ? rollValue : action.operation.fixedValue;
+        
+        switch (action.operation.operator) {
+            case 'set':
+                newValue = operand;
+                break;
+            case 'add':
+                newValue = currentValue + operand;
+                break;
+            case 'subtract':
+                newValue = currentValue - operand;
+                break;
+            case 'multiply':
+                newValue = currentValue * operand;
+                break;
+            case 'divide':
+                newValue = operand !== 0 ? currentValue / operand : currentValue;
+                break;
+            default:
+                newValue = currentValue;
+        }
+        
+        // Apply constraints
+        if (action.operation.minValue !== undefined) {
+            newValue = Math.max(newValue, action.operation.minValue);
+        }
+        if (action.operation.maxValue !== undefined) {
+            newValue = Math.min(newValue, action.operation.maxValue);
+        }
+        
+        // Update field
+        await instanceRef.child(`data/${action.operation.fieldId}`).set(newValue);
+        
+        // Show feedback
+        const change = newValue - currentValue;
+        const changeStr = change >= 0 ? `+${change}` : change;
+        this.showToast(
+            `⚡ ${action.name}: ${action.targetInstanceName}'s ${action.operation.fieldName} ${currentValue} → ${newValue} (${changeStr})`,
+            'success'
+        );
     }
 
     // ===== COLLABORATIVE STORY METHODS =====

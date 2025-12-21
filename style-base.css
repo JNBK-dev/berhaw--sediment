@@ -2260,3 +2260,299 @@ textarea:focus {
     font-size: 14px;
     color: #64748b;
 }
+
+/* Dice Actions Styles */
+.dice-tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.actions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.actions-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.action-card {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.action-card.active {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.action-card.inactive {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    opacity: 0.7;
+}
+
+.action-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.action-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-status {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.action-status.active {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.action-status.inactive {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.action-status.incomplete {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.action-details {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+
+.action-detail-row {
+    padding: 4px 0;
+}
+
+.action-detail-label {
+    font-weight: 600;
+    color: #475569;
+}
+
+.action-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.action-toggle {
+    flex: 0 0 auto;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #f59e0b;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.action-btn-edit,
+.action-btn-delete {
+    font-size: 13px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.action-btn-edit {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.action-btn-edit:hover {
+    background: #bae6fd;
+}
+
+.action-btn-delete {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.action-btn-delete:hover {
+    background: #fecaca;
+}
+
+.action-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+/* Action Builder Styles */
+.action-builder-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.builder-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+}
+
+.progress-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6 0%, #f59e0b 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.progress-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-align: center;
+}
+
+.builder-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.radio-label input[type="radio"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+}
+
+.condition-inputs {
+    display: flex;
+    gap: 12px;
+}
+
+.builder-label-small {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: block;
+}
+
+/* Dice roll with action badge */
+.dice-roll.triggered-action {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.action-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #92400e;
+    margin-left: 8px;
+}

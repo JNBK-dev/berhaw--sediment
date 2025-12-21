@@ -125,35 +125,198 @@
                 </div>
             </div>
             
+            <div class="tabs">
+                <button class="tab active" id="diceRollTab">Roll</button>
+                <button class="tab" id="diceHistoryTab">History</button>
+                <button class="tab" id="diceActionsTab">⚡ Actions</button>
+            </div>
+            
             <div class="dice-content">
-                <div class="section-header">
-                    <div class="dice-controls">
-                        <button class="dice-btn dice-d4" id="rollD4Btn">
-                            <span class="dice-label">d4</span>
-                        </button>
-                        <button class="dice-btn dice-d6" id="rollD6Btn">
-                            <span class="dice-label">d6</span>
-                        </button>
-                        <button class="dice-btn dice-d8" id="rollD8Btn">
-                            <span class="dice-label">d8</span>
-                        </button>
-                        <button class="dice-btn dice-d10" id="rollD10Btn">
-                            <span class="dice-label">d10</span>
-                        </button>
-                        <button class="dice-btn dice-d12" id="rollD12Btn">
-                            <span class="dice-label">d12</span>
-                        </button>
-                        <button class="dice-btn dice-d20" id="rollD20Btn">
-                            <span class="dice-label">d20</span>
-                        </button>
-                        <button class="dice-btn dice-d100" id="rollD100Btn">
-                            <span class="dice-label">d100</span>
-                        </button>
+                <!-- Roll Tab -->
+                <div class="dice-tab-content" id="diceRollContent">
+                    <div class="section-header">
+                        <div class="dice-controls">
+                            <button class="dice-btn dice-d4" id="rollD4Btn">
+                                <span class="dice-label">d4</span>
+                            </button>
+                            <button class="dice-btn dice-d6" id="rollD6Btn">
+                                <span class="dice-label">d6</span>
+                            </button>
+                            <button class="dice-btn dice-d8" id="rollD8Btn">
+                                <span class="dice-label">d8</span>
+                            </button>
+                            <button class="dice-btn dice-d10" id="rollD10Btn">
+                                <span class="dice-label">d10</span>
+                            </button>
+                            <button class="dice-btn dice-d12" id="rollD12Btn">
+                                <span class="dice-label">d12</span>
+                            </button>
+                            <button class="dice-btn dice-d20" id="rollD20Btn">
+                                <span class="dice-label">d20</span>
+                            </button>
+                            <button class="dice-btn dice-d100" id="rollD100Btn">
+                                <span class="dice-label">d100</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="scrollable-list">
+                        <div class="dice-rolls" id="diceRolls"></div>
                     </div>
                 </div>
                 
-                <div class="scrollable-list">
-                    <div class="dice-rolls" id="diceRolls"></div>
+                <!-- History Tab (same as Roll for now) -->
+                <div class="dice-tab-content hidden" id="diceHistoryContent">
+                    <div class="scrollable-list">
+                        <div class="dice-rolls" id="diceHistory"></div>
+                    </div>
+                </div>
+                
+                <!-- Actions Tab -->
+                <div class="dice-tab-content hidden" id="diceActionsContent">
+                    <div class="actions-header">
+                        <h3>Connected Actions</h3>
+                        <button class="btn-create" id="createDiceActionBtn">+ Connect Action</button>
+                    </div>
+                    
+                    <div class="scrollable-list">
+                        <div class="actions-list" id="diceActionsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dice Action Builder Modal -->
+        <div id="diceActionBuilder" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="actionBuilderTitle">Connect New Action</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="closeDiceActionBuilderBtn">Cancel</button>
+                </div>
+            </div>
+            
+            <div class="action-builder-content">
+                <div class="builder-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="actionProgressFill"></div>
+                    </div>
+                    <div class="progress-text" id="actionProgressText">Step 1 of 3</div>
+                </div>
+                
+                <!-- Step 1: Target -->
+                <div class="builder-step" id="actionStep1">
+                    <div class="builder-section">
+                        <label class="builder-label">Action Name</label>
+                        <input type="text" class="builder-input" id="actionNameInput" placeholder="e.g., Combat Damage">
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Target Object Type</label>
+                        <select class="builder-input" id="actionTargetTypeSelect">
+                            <option value="">-- Select Type --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Target Instance</label>
+                        <select class="builder-input" id="actionTargetInstanceSelect">
+                            <option value="">-- Select Instance --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-create" id="actionStep1NextBtn">Next: Set Condition</button>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Condition -->
+                <div class="builder-step hidden" id="actionStep2">
+                    <div class="builder-section">
+                        <label class="builder-label">When should this trigger?</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="conditionType" value="always" checked>
+                                Always (trigger on every roll)
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="conditionType" value="comparison">
+                                If roll meets condition
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="builder-section hidden" id="conditionDetails">
+                        <div class="condition-inputs">
+                            <select class="builder-input" id="conditionOperatorSelect" style="flex: 1;">
+                                <option value="<">Less than (<)</option>
+                                <option value="<=">Less than or equal (≤)</option>
+                                <option value="==">Equal to (=)</option>
+                                <option value=">=">Greater than or equal (≥)</option>
+                                <option value=">">Greater than (>)</option>
+                            </select>
+                            <input type="number" class="builder-input" id="conditionValueInput" placeholder="Value" style="flex: 1;">
+                        </div>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-secondary" id="actionStep2BackBtn">Back</button>
+                        <button class="btn-create" id="actionStep2NextBtn">Next: Define Action</button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Operation -->
+                <div class="builder-step hidden" id="actionStep3">
+                    <div class="builder-section">
+                        <label class="builder-label">Update Field</label>
+                        <select class="builder-input" id="actionFieldSelect">
+                            <option value="">-- Select Field --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Operation</label>
+                        <select class="builder-input" id="actionOperatorSelect">
+                            <option value="set">Set to value</option>
+                            <option value="add">Add to current</option>
+                            <option value="subtract">Subtract from current</option>
+                            <option value="multiply">Multiply current</option>
+                            <option value="divide">Divide current</option>
+                        </select>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Value Source</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="valueSource" value="roll" checked>
+                                Use roll value
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="valueSource" value="fixed">
+                                Fixed amount
+                            </label>
+                        </div>
+                        <input type="number" class="builder-input hidden" id="actionFixedValueInput" placeholder="Enter amount">
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Constraints (optional)</label>
+                        <div style="display: flex; gap: 12px;">
+                            <div style="flex: 1;">
+                                <label class="builder-label-small">Min value</label>
+                                <input type="number" class="builder-input" id="actionMinValueInput" placeholder="None">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="builder-label-small">Max value</label>
+                                <input type="number" class="builder-input" id="actionMaxValueInput" placeholder="None">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-secondary" id="actionStep3BackBtn">Back</button>
+                        <button class="btn-create" id="actionStep3SaveBtn">Activate Action!</button>
+                    </div>
                 </div>
             </div>
         </div>
