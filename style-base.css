@@ -2650,6 +2650,17 @@ input:checked + .toggle-slider:before {
     display: none;
 }
 
+/* Old views in workspace */
+.workspace-view .card {
+    margin: 0 auto;
+    max-width: 1100px;
+}
+
+/* Hide old container when using new layout */
+.app-container ~ .container {
+    display: none !important;
+}
+
 /* Pegboard */
 .pegboard-grid {
     display: grid;

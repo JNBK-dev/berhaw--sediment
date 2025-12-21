@@ -660,13 +660,14 @@ class App {
         // Show new three-column layout
         this.showAppContainer();
         
-        // Hide all old views
-        this.homeView.classList.add("hidden");
+        // Make sure homeView is visible (it's now in workshop)
+        this.homeView.classList.remove("hidden");
+        
+        // Hide other major views initially
         this.editorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
         this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.add("hidden");
@@ -5080,22 +5081,21 @@ class App {
         this.workshopView.classList.toggle('hidden', workspace !== 'workshop');
         this.workshopView.classList.toggle('active', workspace === 'workshop');
         
-        // Load workshop content if switching to workshop
+        // Show homeView when switching to workshop
         if (workspace === 'workshop') {
-            this.loadWorkshop();
+            this.showViewInWorkspace(this.homeView);
         }
     }
 
-    loadWorkshop() {
-        // Move existing toolkit view into workshop
-        const toolkitView = document.getElementById('homeView');
-        if (toolkitView && this.workshopView) {
-            // Clone toolkit content into workshop
-            this.workshopView.innerHTML = toolkitView.innerHTML;
-            
-            // Re-bind event listeners for cloned elements
-            const createBtn = this.workshopView.querySelector('#createObjectTypeBtn');
-            if (createBtn) createBtn.onclick = () => this.createObjectType();
+    showViewInWorkspace(view) {
+        // Move the view into the workshop
+        if (view && this.workshopView && !this.workshopView.contains(view)) {
+            this.workshopView.appendChild(view);
+        }
+        
+        // Make sure it's visible
+        if (view) {
+            view.classList.remove('hidden');
         }
     }
 
@@ -5104,6 +5104,9 @@ class App {
     }
 
     handleCreate(type) {
+        // Close menu
+        this.sidebarCreateMenu.classList.add('hidden');
+        
         switch(type) {
             case 'document':
                 this.createDoc();
@@ -5112,7 +5115,7 @@ class App {
                 this.createObjectType();
                 break;
             case 'objectInstance':
-                // Show workshop/toolkit
+                // Switch to workshop and show toolkit
                 this.switchWorkspace('workshop');
                 break;
             case 'room':
@@ -5122,6 +5125,10 @@ class App {
     }
 
     handleNavigation(destination) {
+        // Switch to workshop first
+        this.switchWorkspace('workshop');
+        
+        // Then switch to the appropriate tab
         switch(destination) {
             case 'write':
                 this.switchTab('write');
@@ -5133,20 +5140,19 @@ class App {
     }
 
     showAppContainer() {
-        // Hide old container
-        document.querySelector('.container').classList.add('hidden');
-        
         // Show new three-column layout
         this.appContainer.classList.remove('hidden');
+        
+        // Move homeView into workshop on first show
+        if (!this.workshopView.contains(this.homeView)) {
+            this.workshopView.appendChild(this.homeView);
+        }
         
         // Populate sidebar
         this.populateSidebar();
     }
 
     hideAppContainer() {
-        // Show old container
-        document.querySelector('.container').classList.remove('hidden');
-        
         // Hide new layout
         this.appContainer.classList.add('hidden');
     }
@@ -5182,13 +5188,15 @@ class App {
             }
             
             snapshot.forEach(roomSnap => {
-                const room = roomSnap.val();
                 const roomCode = roomSnap.key;
                 
                 const item = document.createElement('div');
                 item.className = 'sidebar-list-item';
                 item.textContent = `Room ${roomCode}`;
-                item.onclick = () => this.joinRoom(roomCode);
+                item.onclick = () => {
+                    this.joinRoomCode.value = roomCode;
+                    this.joinRoom(roomCode);
+                };
                 
                 this.sidebarRoomsList.appendChild(item);
             });
