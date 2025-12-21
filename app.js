@@ -2646,8 +2646,13 @@ class App {
         }));
         fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        // Add date fields and text fields to X axis
-        const xFields = fieldsArray.filter(f => f.type === 'date' || f.type === 'text');
+        // Add categorical fields to X axis (date, text, dropdown, relationship)
+        const xFields = fieldsArray.filter(f => 
+            f.type === 'date' || 
+            f.type === 'text' || 
+            f.type === 'dropdown' || 
+            f.type === 'relationship'
+        );
         xFields.forEach(field => {
             const option = document.createElement("option");
             option.value = field.id;
@@ -2655,8 +2660,8 @@ class App {
             this.xAxisSelect.appendChild(option);
         });
 
-        // Add number fields to Y axis
-        const yFields = fieldsArray.filter(f => f.type === 'number');
+        // Add number and boolean fields to Y axis
+        const yFields = fieldsArray.filter(f => f.type === 'number' || f.type === 'boolean');
         yFields.forEach(field => {
             const option = document.createElement("option");
             option.value = field.id;
@@ -2664,7 +2669,7 @@ class App {
             this.yAxisSelect.appendChild(option);
         });
 
-        // If no number fields, allow all fields on Y axis
+        // If no number/boolean fields, allow all fields on Y axis
         if (yFields.length === 0) {
             fieldsArray.forEach(field => {
                 const option = document.createElement("option");
@@ -2675,7 +2680,7 @@ class App {
         }
     }
 
-    updateChart() {
+    async updateChart() {
         const chartType = this.chartTypeSelect.value;
         const xFieldId = this.xAxisSelect.value;
         const yFieldId = this.yAxisSelect.value;
@@ -2689,8 +2694,8 @@ class App {
         const xField = this.currentObjectType.fields[xFieldId];
         const yField = this.currentObjectType.fields[yFieldId];
 
-        // Prepare data
-        const chartData = this.prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType);
+        // Prepare data (now async to handle relationships)
+        const chartData = await this.prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType);
 
         // Update control visibility based on chart type
         if (chartType === 'pie') {
@@ -2710,15 +2715,43 @@ class App {
         this.renderStats(chartData, yField);
     }
 
-    prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType) {
+    async prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType) {
         const dataPoints = [];
 
         console.log("Preparing chart data:", {
             xFieldId, yFieldId, 
             xFieldName: xField.name, 
             yFieldName: yField.name,
+            xFieldType: xField.type,
+            yFieldType: yField.type,
             instances: this.currentInstances.length
         });
+
+        // For relationship fields, we need to resolve instance IDs to display names
+        const relationshipCache = {};
+        
+        if (xField.type === 'relationship' && xField.targetType) {
+            try {
+                const instancesSnap = await db.ref("objects")
+                    .orderByChild("typeId")
+                    .equalTo(xField.targetType)
+                    .once("value");
+                
+                instancesSnap.forEach(snap => {
+                    const instance = snap.val();
+                    let displayName = snap.key.substring(0, 8);
+                    if (instance.data) {
+                        const firstValue = Object.values(instance.data).find(v => v && v !== "");
+                        if (firstValue) {
+                            displayName = String(firstValue).substring(0, 50);
+                        }
+                    }
+                    relationshipCache[snap.key] = displayName;
+                });
+            } catch (err) {
+                console.error("Failed to load relationship data:", err);
+            }
+        }
 
         this.currentInstances.forEach(instance => {
             if (!instance.data) return;
@@ -2734,6 +2767,8 @@ class App {
                     xLabel = new Date(xValue).toLocaleDateString();
                 } else if (xField.type === 'boolean') {
                     xLabel = xValue ? 'Yes' : 'No';
+                } else if (xField.type === 'relationship') {
+                    xLabel = relationshipCache[xValue] || xValue.substring(0, 8);
                 }
 
                 // Convert y value to number if possible
@@ -2857,7 +2892,68 @@ class App {
                     }
                 }
             };
+        } else if (chartType === 'scatter') {
+            // Scatter plot needs {x, y} format, not labels
+            chartConfig = {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: `${xField.name} vs ${yField.name}`,
+                        data: dataPoints.map((p, index) => ({
+                            x: index,  // Use index for categorical X-axis
+                            y: p.y
+                        })),
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#3b82f6',
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = dataPoints[context.dataIndex];
+                                    return `${point.xLabel}: ${point.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: xField.name
+                            },
+                            ticks: {
+                                callback: function(value, index) {
+                                    // Show x labels at appropriate points
+                                    if (dataPoints[Math.floor(value)]) {
+                                        return dataPoints[Math.floor(value)].xLabel;
+                                    }
+                                    return '';
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: yField.name
+                            }
+                        }
+                    }
+                }
+            };
         } else {
+            // Line and Bar charts
             chartConfig = {
                 type: chartType,
                 data: {
