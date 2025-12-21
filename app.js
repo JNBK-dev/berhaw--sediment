@@ -1107,7 +1107,7 @@ class App {
             fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
 
             fieldsArray.forEach(field => {
-                this.renderField(field.id, field.name, field.type, field.options || []);
+                this.renderField(field.id, field.name, field.type, field.options || [], field.targetType || null);
             });
         }
 
@@ -1149,7 +1149,7 @@ class App {
         this.renderField(fieldId, "", "text");
     }
 
-    renderField(fieldId, fieldName = "", fieldType = "text", fieldOptions = []) {
+    renderField(fieldId, fieldName = "", fieldType = "text", fieldOptions = [], targetType = null) {
         const fieldDiv = document.createElement("div");
         fieldDiv.className = "field-item";
         fieldDiv.dataset.fieldId = fieldId;
@@ -1176,6 +1176,7 @@ class App {
             { value: "boolean", label: "Yes/No" },
             { value: "dropdown", label: "Dropdown" },
             { value: "multiselect", label: "Multi-Select" },
+            { value: "relationship", label: "Relationship" },
             { value: "url", label: "URL" },
             { value: "image", label: "Image URL" },
             { value: "email", label: "Email" },
@@ -1202,13 +1203,28 @@ class App {
         optionsInput.value = fieldOptions.length > 0 ? fieldOptions.join(', ') : '';
         optionsInput.style.display = (fieldType === 'dropdown' || fieldType === 'multiselect') ? 'block' : 'none';
 
-        // Show/hide options input based on type
+        // Target type selector for relationships
+        const targetTypeSelect = document.createElement("select");
+        targetTypeSelect.className = "field-options-input field-target-type";
+        targetTypeSelect.dataset.fieldId = fieldId;
+        targetTypeSelect.style.display = fieldType === 'relationship' ? 'block' : 'none';
+        
+        // Populate with object types
+        this.populateObjectTypeSelector(targetTypeSelect, targetType);
+
+        // Show/hide options/target based on type
         typeSelect.onchange = () => {
             const selectedType = typeSelect.value;
             if (selectedType === 'dropdown' || selectedType === 'multiselect') {
                 optionsInput.style.display = 'block';
+                targetTypeSelect.style.display = 'none';
+            } else if (selectedType === 'relationship') {
+                optionsInput.style.display = 'none';
+                targetTypeSelect.style.display = 'block';
+                this.populateObjectTypeSelector(targetTypeSelect, null);
             } else {
                 optionsInput.style.display = 'none';
+                targetTypeSelect.style.display = 'none';
             }
         };
 
@@ -1221,9 +1237,43 @@ class App {
         fieldDiv.appendChild(nameInput);
         fieldDiv.appendChild(typeSelect);
         fieldDiv.appendChild(optionsInput);
+        fieldDiv.appendChild(targetTypeSelect);
         fieldDiv.appendChild(deleteBtn);
 
         this.fieldsList.appendChild(fieldDiv);
+    }
+
+    async populateObjectTypeSelector(selectElement, selectedTypeId = null) {
+        selectElement.innerHTML = "";
+        
+        // Add default option
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "-- Select Object Type --";
+        selectElement.appendChild(defaultOption);
+        
+        try {
+            // Get all object types for this user
+            const typesSnap = await db.ref("objectTypes")
+                .orderByChild("authorId")
+                .equalTo(this.currentUser.id)
+                .once("value");
+            
+            if (typesSnap.exists()) {
+                typesSnap.forEach(typeSnap => {
+                    const type = typeSnap.val();
+                    const option = document.createElement("option");
+                    option.value = typeSnap.key;
+                    option.textContent = type.name;
+                    if (typeSnap.key === selectedTypeId) {
+                        option.selected = true;
+                    }
+                    selectElement.appendChild(option);
+                });
+            }
+        } catch (err) {
+            console.error("Failed to load object types:", err);
+        }
     }
 
     removeField(fieldId) {
@@ -1250,6 +1300,7 @@ class App {
             const nameInput = fieldEl.querySelector('.field-input');
             const typeSelect = fieldEl.querySelector('.field-type-select');
             const optionsInput = fieldEl.querySelector('.field-options-input');
+            const targetTypeSelect = fieldEl.querySelector('.field-target-type');
             
             const fieldName = nameInput.value.trim();
             if (fieldName) {
@@ -1263,6 +1314,11 @@ class App {
                 if (typeSelect.value === 'dropdown' || typeSelect.value === 'multiselect') {
                     const optionsValue = optionsInput.value.trim();
                     field.options = optionsValue ? optionsValue.split(',').map(o => o.trim()).filter(o => o) : [];
+                }
+                
+                // Add targetType for relationship
+                if (typeSelect.value === 'relationship' && targetTypeSelect) {
+                    field.targetType = targetTypeSelect.value;
                 }
                 
                 fields[fieldId] = field;
@@ -1631,6 +1687,23 @@ class App {
                     } else {
                         td.textContent = "-";
                     }
+                } else if (field.type === 'relationship') {
+                    if (value) {
+                        const link = document.createElement("a");
+                        link.href = "#";
+                        link.textContent = "View →";
+                        link.style.color = "#3b82f6";
+                        link.style.textDecoration = "none";
+                        link.title = "Click to view related instance";
+                        link.onclick = async (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            await this.openRelatedInstance(value, field.targetType);
+                        };
+                        td.appendChild(link);
+                    } else {
+                        td.textContent = "-";
+                    }
                 } else {
                     td.textContent = value || "-";
                 }
@@ -1778,6 +1851,18 @@ class App {
                         colorText.style.color = "#64748b";
                         colorText.style.marginTop = "4px";
                         valueDiv.appendChild(colorText);
+                    } else if (field.type === "relationship") {
+                        const link = document.createElement("a");
+                        link.href = "#";
+                        link.textContent = "View related →";
+                        link.style.color = "#3b82f6";
+                        link.style.textDecoration = "none";
+                        link.onclick = async (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            await this.openRelatedInstance(value, field.targetType);
+                        };
+                        valueDiv.appendChild(link);
                     } else {
                         valueDiv.textContent = value;
                     }
@@ -2001,12 +2086,62 @@ class App {
                 input.className = "form-field-color";
                 input.value = value || "#3b82f6";
                 input.dataset.fieldId = field.id;
+            } else if (field.type === "relationship") {
+                input = document.createElement("select");
+                input.className = "form-field-input";
+                input.dataset.fieldId = field.id;
+                
+                // Add empty option
+                const emptyOption = document.createElement("option");
+                emptyOption.value = "";
+                emptyOption.textContent = "-- Select --";
+                input.appendChild(emptyOption);
+                
+                // Load instances of target type
+                if (field.targetType) {
+                    this.loadRelationshipOptions(input, field.targetType, value);
+                }
             }
 
             fieldDiv.appendChild(labelDiv);
             fieldDiv.appendChild(input);
             this.instanceForm.appendChild(fieldDiv);
         });
+    }
+
+    async loadRelationshipOptions(selectElement, targetTypeId, selectedInstanceId = null) {
+        try {
+            const instancesSnap = await db.ref("objects")
+                .orderByChild("typeId")
+                .equalTo(targetTypeId)
+                .once("value");
+            
+            if (instancesSnap.exists()) {
+                instancesSnap.forEach(instanceSnap => {
+                    const instance = instanceSnap.val();
+                    const option = document.createElement("option");
+                    option.value = instanceSnap.key;
+                    
+                    // Try to create a display name from instance data
+                    let displayName = instanceSnap.key.substring(0, 8);
+                    if (instance.data) {
+                        // Use first non-empty field as display
+                        const firstValue = Object.values(instance.data).find(v => v && v !== "");
+                        if (firstValue) {
+                            displayName = String(firstValue).substring(0, 50);
+                        }
+                    }
+                    
+                    option.textContent = displayName;
+                    if (instanceSnap.key === selectedInstanceId) {
+                        option.selected = true;
+                    }
+                    selectElement.appendChild(option);
+                });
+            }
+        } catch (err) {
+            console.error("Failed to load relationship options:", err);
+        }
     }
 
     async saveInstance() {
@@ -2399,6 +2534,58 @@ class App {
         
         this.showToast("CSV exported successfully", "success");
         soundManager.play('accepted');
+    }
+
+    async openRelatedInstance(instanceId, targetTypeId) {
+        try {
+            // Load the target type
+            const typeSnap = await db.ref(`objectTypes/${targetTypeId}`).once("value");
+            if (!typeSnap.exists()) {
+                this.showToast("Related object type not found", "error");
+                return;
+            }
+
+            // Load the instance
+            const instanceSnap = await db.ref(`objects/${instanceId}`).once("value");
+            if (!instanceSnap.exists()) {
+                this.showToast("Related instance not found", "error");
+                return;
+            }
+
+            // Set up state as if we opened this type's instances
+            this.currentObjectType = typeSnap.val();
+            this.currentObjectTypeId = targetTypeId;
+            
+            // Load all instances of this type
+            const instancesSnap = await db.ref("objects")
+                .orderByChild("typeId")
+                .equalTo(targetTypeId)
+                .once("value");
+
+            const instances = [];
+            instancesSnap.forEach(snap => {
+                instances.push({
+                    id: snap.key,
+                    ...snap.val()
+                });
+            });
+            instances.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            this.currentInstances = instances;
+            this.filteredInstances = instances;
+
+            // Open the specific instance in the editor
+            this.currentInstanceId = instanceId;
+            this.instanceEditorTitle.textContent = `View ${this.currentObjectType.name}`;
+            this.deleteInstanceBtn.style.display = "block";
+            
+            soundManager.play('bite');
+            this.showInstanceEditor();
+            this.renderInstanceForm(instanceSnap.val().data);
+        } catch (err) {
+            console.error("Failed to open related instance:", err);
+            this.showToast("Failed to open related instance", "error");
+        }
     }
 
     // ===== DATA VISUALIZATION METHODS =====
