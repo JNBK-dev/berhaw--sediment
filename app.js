@@ -228,6 +228,26 @@ class App {
         this.leaveGameBtn = document.getElementById("leaveGameBtn");
         this.scoreboard = document.getElementById("scoreboard");
 
+        // DOM elements - Three-Column Layout
+        this.appContainer = document.getElementById("appContainer");
+        this.sidebarLeft = document.getElementById("sidebarLeft");
+        this.sidebarRight = document.getElementById("sidebarRight");
+        this.workspaceCenter = document.getElementById("workspaceCenter");
+        this.workspaceTabs = document.getElementById("workspaceTabs");
+        this.pegboardView = document.getElementById("pegboardView");
+        this.deskView = document.getElementById("deskView");
+        this.workshopView = document.getElementById("workshopView");
+        
+        // Sidebar elements
+        this.sidebarProfileName = document.getElementById("sidebarProfileName");
+        this.sidebarSettingsBtn = document.getElementById("sidebarSettingsBtn");
+        this.sidebarCreateBtn = document.getElementById("sidebarCreateBtn");
+        this.sidebarCreateMenu = document.getElementById("sidebarCreateMenu");
+        this.sidebarRoomsList = document.getElementById("sidebarRoomsList");
+        this.sidebarDocsList = document.getElementById("sidebarDocsList");
+        this.sidebarPeopleList = document.getElementById("sidebarPeopleList");
+        this.sidebarJoinRoomBtn = document.getElementById("sidebarJoinRoomBtn");
+
         this.currentUser = null;
         this.currentRoomCode = null;
         this.currentDocId = null;
@@ -280,6 +300,36 @@ class App {
         this.playTab.onclick = () => this.switchTab('play');
         this.peopleTab.onclick = () => this.switchTab('people');
         this.settingsTab.onclick = () => this.switchTab('settings');
+        
+        // Workspace tabs
+        document.querySelectorAll('.workspace-tab').forEach(tab => {
+            tab.onclick = () => this.switchWorkspace(tab.dataset.workspace);
+        });
+        
+        // Sidebar navigation
+        this.sidebarSettingsBtn.onclick = () => this.switchTab('settings');
+        this.sidebarCreateBtn.onclick = () => this.toggleCreateMenu();
+        this.sidebarJoinRoomBtn.onclick = () => this.promptJoinRoom();
+        
+        // Create menu items
+        document.querySelectorAll('.create-menu-item').forEach(item => {
+            item.onclick = () => {
+                this.handleCreate(item.dataset.create);
+                this.toggleCreateMenu();
+            };
+        });
+        
+        // Navigation bubbles
+        document.querySelectorAll('.nav-bubble').forEach(bubble => {
+            bubble.onclick = () => this.handleNavigation(bubble.dataset.nav);
+        });
+        
+        // Close create menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!this.sidebarCreateBtn.contains(e.target) && !this.sidebarCreateMenu.contains(e.target)) {
+                this.sidebarCreateMenu.classList.add('hidden');
+            }
+        });
         
         // Profile navigation
         this.backFromProfileBtn.onclick = () => this.closeProfile();
@@ -606,7 +656,12 @@ class App {
 
     showHomeView() {
         this.authView.classList.add("hidden");
-        this.homeView.classList.remove("hidden");
+        
+        // Show new three-column layout
+        this.showAppContainer();
+        
+        // Hide all old views
+        this.homeView.classList.add("hidden");
         this.editorView.classList.add("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
@@ -5005,6 +5060,175 @@ class App {
 
     generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // ===== THREE-COLUMN LAYOUT METHODS =====
+
+    switchWorkspace(workspace) {
+        // Update tab states
+        document.querySelectorAll('.workspace-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.workspace === workspace);
+        });
+        
+        // Update view states
+        this.pegboardView.classList.toggle('hidden', workspace !== 'pegboard');
+        this.pegboardView.classList.toggle('active', workspace === 'pegboard');
+        
+        this.deskView.classList.toggle('hidden', workspace !== 'desk');
+        this.deskView.classList.toggle('active', workspace === 'desk');
+        
+        this.workshopView.classList.toggle('hidden', workspace !== 'workshop');
+        this.workshopView.classList.toggle('active', workspace === 'workshop');
+        
+        // Load workshop content if switching to workshop
+        if (workspace === 'workshop') {
+            this.loadWorkshop();
+        }
+    }
+
+    loadWorkshop() {
+        // Move existing toolkit view into workshop
+        const toolkitView = document.getElementById('homeView');
+        if (toolkitView && this.workshopView) {
+            // Clone toolkit content into workshop
+            this.workshopView.innerHTML = toolkitView.innerHTML;
+            
+            // Re-bind event listeners for cloned elements
+            const createBtn = this.workshopView.querySelector('#createObjectTypeBtn');
+            if (createBtn) createBtn.onclick = () => this.createObjectType();
+        }
+    }
+
+    toggleCreateMenu() {
+        this.sidebarCreateMenu.classList.toggle('hidden');
+    }
+
+    handleCreate(type) {
+        switch(type) {
+            case 'document':
+                this.createDoc();
+                break;
+            case 'objectType':
+                this.createObjectType();
+                break;
+            case 'objectInstance':
+                // Show workshop/toolkit
+                this.switchWorkspace('workshop');
+                break;
+            case 'room':
+                this.promptCreateRoom();
+                break;
+        }
+    }
+
+    handleNavigation(destination) {
+        switch(destination) {
+            case 'write':
+                this.switchTab('write');
+                break;
+            case 'play':
+                this.switchTab('play');
+                break;
+        }
+    }
+
+    showAppContainer() {
+        // Hide old container
+        document.querySelector('.container').classList.add('hidden');
+        
+        // Show new three-column layout
+        this.appContainer.classList.remove('hidden');
+        
+        // Populate sidebar
+        this.populateSidebar();
+    }
+
+    hideAppContainer() {
+        // Show old container
+        document.querySelector('.container').classList.remove('hidden');
+        
+        // Hide new layout
+        this.appContainer.classList.add('hidden');
+    }
+
+    async populateSidebar() {
+        // Update profile name
+        if (this.currentUser) {
+            this.sidebarProfileName.textContent = this.currentUser.name;
+        }
+        
+        // Populate rooms list
+        this.populateSidebarRooms();
+        
+        // Populate documents list
+        this.populateSidebarDocs();
+    }
+
+    async populateSidebarRooms() {
+        this.sidebarRoomsList.innerHTML = '';
+        
+        // Listen to rooms
+        db.ref('rooms').on('value', (snapshot) => {
+            this.sidebarRoomsList.innerHTML = '';
+            
+            if (!snapshot.exists()) {
+                const empty = document.createElement('div');
+                empty.style.color = '#94a3b8';
+                empty.style.fontSize = '13px';
+                empty.style.padding = '8px';
+                empty.textContent = 'No active rooms';
+                this.sidebarRoomsList.appendChild(empty);
+                return;
+            }
+            
+            snapshot.forEach(roomSnap => {
+                const room = roomSnap.val();
+                const roomCode = roomSnap.key;
+                
+                const item = document.createElement('div');
+                item.className = 'sidebar-list-item';
+                item.textContent = `Room ${roomCode}`;
+                item.onclick = () => this.joinRoom(roomCode);
+                
+                this.sidebarRoomsList.appendChild(item);
+            });
+        });
+    }
+
+    async populateSidebarDocs() {
+        if (!this.currentUser) return;
+        
+        this.sidebarDocsList.innerHTML = '';
+        
+        // Listen to user's documents
+        db.ref('documents')
+            .orderByChild('authorId')
+            .equalTo(this.currentUser.id)
+            .on('value', (snapshot) => {
+                this.sidebarDocsList.innerHTML = '';
+                
+                if (!snapshot.exists()) {
+                    const empty = document.createElement('div');
+                    empty.style.color = '#94a3b8';
+                    empty.style.fontSize = '13px';
+                    empty.style.padding = '8px';
+                    empty.textContent = 'No documents yet';
+                    this.sidebarDocsList.appendChild(empty);
+                    return;
+                }
+                
+                snapshot.forEach(docSnap => {
+                    const doc = docSnap.val();
+                    const docId = docSnap.key;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'sidebar-list-item';
+                    item.textContent = doc.title || 'Untitled';
+                    item.onclick = () => this.openDoc(docId);
+                    
+                    this.sidebarDocsList.appendChild(item);
+                });
+            });
     }
 }
 

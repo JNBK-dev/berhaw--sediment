@@ -10,6 +10,121 @@
 
 <body>
     
+    <!-- Three-Column App Container (shown after login) -->
+    <div class="app-container hidden" id="appContainer">
+        <!-- Left Sidebar (Context - empty for now) -->
+        <aside class="sidebar-left" id="sidebarLeft">
+            <div class="sidebar-content">
+                <!-- Future: context-aware content -->
+            </div>
+        </aside>
+
+        <!-- Center Workspace -->
+        <main class="workspace-center" id="workspaceCenter">
+            <!-- Workspace Tabs -->
+            <div class="workspace-tabs" id="workspaceTabs">
+                <button class="workspace-tab active" data-workspace="pegboard">Pegboard</button>
+                <button class="workspace-tab" data-workspace="desk">Desk</button>
+                <button class="workspace-tab" data-workspace="workshop">Workshop</button>
+            </div>
+
+            <!-- Workspace Content Areas -->
+            <div class="workspace-content">
+                <!-- Pegboard View -->
+                <div class="workspace-view active" id="pegboardView">
+                    <div class="pegboard-grid">
+                        <div class="pegboard-welcome">
+                            <h2>Welcome to your Pegboard</h2>
+                            <p>Your personal dashboard. Add widgets to get started.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Desk View -->
+                <div class="workspace-view hidden" id="deskView">
+                    <div class="desk-canvas">
+                        <div class="desk-empty">
+                            <h2>Your Desk is empty</h2>
+                            <p>Add modules to start working.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workshop View (Toolkit content) -->
+                <div class="workspace-view hidden" id="workshopView">
+                    <!-- Toolkit content will be moved here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar (Navigation & Social) -->
+        <aside class="sidebar-right" id="sidebarRight">
+            <div class="sidebar-content">
+                <!-- Profile Section -->
+                <div class="sidebar-section profile-section">
+                    <div class="profile-header">
+                        <div class="profile-name" id="sidebarProfileName"></div>
+                        <button class="btn-icon" id="sidebarSettingsBtn" title="Settings">⚙️</button>
+                    </div>
+                </div>
+
+                <!-- Create Menu -->
+                <div class="sidebar-section create-section">
+                    <button class="btn-create-main" id="sidebarCreateBtn">
+                        <span class="create-icon">+</span>
+                        <span>New</span>
+                    </button>
+                    <div class="create-menu hidden" id="sidebarCreateMenu">
+                        <button class="create-menu-item" data-create="document">Document</button>
+                        <button class="create-menu-item" data-create="objectType">Object Type</button>
+                        <button class="create-menu-item" data-create="objectInstance">Object Instance</button>
+                        <button class="create-menu-item" data-create="room">Room</button>
+                    </div>
+                </div>
+
+                <!-- Navigation Bubbles -->
+                <div class="sidebar-section nav-section">
+                    <h4 class="sidebar-heading">Navigate</h4>
+                    <div class="nav-bubbles">
+                        <button class="nav-bubble" data-nav="write">
+                            <span class="bubble-icon">📝</span>
+                            <span class="bubble-label">Write</span>
+                        </button>
+                        <button class="nav-bubble" data-nav="play">
+                            <span class="bubble-icon">🎮</span>
+                            <span class="bubble-label">Play</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rooms Section -->
+                <div class="sidebar-section rooms-section">
+                    <h4 class="sidebar-heading">Rooms</h4>
+                    <div class="sidebar-list" id="sidebarRoomsList">
+                        <!-- Rooms will be populated here -->
+                    </div>
+                    <button class="btn-secondary-small" id="sidebarJoinRoomBtn">+ Join Room</button>
+                </div>
+
+                <!-- Documents Section -->
+                <div class="sidebar-section docs-section">
+                    <h4 class="sidebar-heading">Documents</h4>
+                    <div class="sidebar-list" id="sidebarDocsList">
+                        <!-- Documents will be populated here -->
+                    </div>
+                </div>
+
+                <!-- People Section -->
+                <div class="sidebar-section people-section">
+                    <h4 class="sidebar-heading">People</h4>
+                    <div class="sidebar-list" id="sidebarPeopleList">
+                        <!-- People/favorites will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+    
     <div class="container">
         
         <!-- Authentication View -->
