@@ -709,6 +709,21 @@ button:active {
     border-color: #3b82f6;
 }
 
+.field-options-input {
+    flex: 1;
+    font-size: 12px;
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    margin-top: 4px;
+}
+
+.field-options-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
 .field-type-select {
     font-size: 14px;
     padding: 8px 12px;
@@ -1091,6 +1106,53 @@ button:active {
     width: auto;
     height: 24px;
     cursor: pointer;
+}
+
+.form-field-checkbox {
+    width: auto;
+    height: 24px;
+    cursor: pointer;
+}
+
+.form-field-color {
+    width: 80px;
+    height: 50px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.multiselect-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+}
+
+.multiselect-option {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.multiselect-option input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.multiselect-option label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.image-preview {
+    max-width: 300px;
+    max-height: 200px;
+    border-radius: 8px;
+    margin-top: 8px;
+    border: 2px solid #e2e8f0;
 }
 
 /* Data Visualization Styles */

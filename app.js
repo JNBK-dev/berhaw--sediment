@@ -1107,7 +1107,7 @@ class App {
             fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
 
             fieldsArray.forEach(field => {
-                this.renderField(field.id, field.name, field.type);
+                this.renderField(field.id, field.name, field.type, field.options || []);
             });
         }
 
@@ -1149,7 +1149,7 @@ class App {
         this.renderField(fieldId, "", "text");
     }
 
-    renderField(fieldId, fieldName = "", fieldType = "text") {
+    renderField(fieldId, fieldName = "", fieldType = "text", fieldOptions = []) {
         const fieldDiv = document.createElement("div");
         fieldDiv.className = "field-item";
         fieldDiv.dataset.fieldId = fieldId;
@@ -1173,7 +1173,14 @@ class App {
             { value: "text", label: "Text" },
             { value: "number", label: "Number" },
             { value: "date", label: "Date" },
-            { value: "boolean", label: "Yes/No" }
+            { value: "boolean", label: "Yes/No" },
+            { value: "dropdown", label: "Dropdown" },
+            { value: "multiselect", label: "Multi-Select" },
+            { value: "url", label: "URL" },
+            { value: "image", label: "Image URL" },
+            { value: "email", label: "Email" },
+            { value: "phone", label: "Phone" },
+            { value: "color", label: "Color" }
         ];
         
         types.forEach(type => {
@@ -1186,6 +1193,25 @@ class App {
             typeSelect.appendChild(option);
         });
 
+        // Options input for dropdown/multiselect
+        const optionsInput = document.createElement("input");
+        optionsInput.type = "text";
+        optionsInput.className = "field-options-input";
+        optionsInput.placeholder = "Options (comma-separated)";
+        optionsInput.dataset.fieldId = fieldId;
+        optionsInput.value = fieldOptions.length > 0 ? fieldOptions.join(', ') : '';
+        optionsInput.style.display = (fieldType === 'dropdown' || fieldType === 'multiselect') ? 'block' : 'none';
+
+        // Show/hide options input based on type
+        typeSelect.onchange = () => {
+            const selectedType = typeSelect.value;
+            if (selectedType === 'dropdown' || selectedType === 'multiselect') {
+                optionsInput.style.display = 'block';
+            } else {
+                optionsInput.style.display = 'none';
+            }
+        };
+
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "field-delete-btn";
         deleteBtn.textContent = "×";
@@ -1194,6 +1220,7 @@ class App {
         fieldDiv.appendChild(dragHandle);
         fieldDiv.appendChild(nameInput);
         fieldDiv.appendChild(typeSelect);
+        fieldDiv.appendChild(optionsInput);
         fieldDiv.appendChild(deleteBtn);
 
         this.fieldsList.appendChild(fieldDiv);
@@ -1222,14 +1249,23 @@ class App {
             const fieldId = fieldEl.dataset.fieldId;
             const nameInput = fieldEl.querySelector('.field-input');
             const typeSelect = fieldEl.querySelector('.field-type-select');
+            const optionsInput = fieldEl.querySelector('.field-options-input');
             
             const fieldName = nameInput.value.trim();
             if (fieldName) {
-                fields[fieldId] = {
+                const field = {
                     name: fieldName,
                     type: typeSelect.value,
                     order: index
                 };
+                
+                // Add options for dropdown/multiselect
+                if (typeSelect.value === 'dropdown' || typeSelect.value === 'multiselect') {
+                    const optionsValue = optionsInput.value.trim();
+                    field.options = optionsValue ? optionsValue.split(',').map(o => o.trim()).filter(o => o) : [];
+                }
+                
+                fields[fieldId] = field;
             }
         });
 
@@ -1530,6 +1566,71 @@ class App {
                     td.textContent = value ? new Date(value).toLocaleDateString() : "-";
                 } else if (field.type === 'number') {
                     td.textContent = value !== null && value !== undefined ? value : "-";
+                } else if (field.type === 'multiselect') {
+                    if (Array.isArray(value) && value.length > 0) {
+                        td.textContent = value.join(', ');
+                    } else {
+                        td.textContent = "-";
+                    }
+                } else if (field.type === 'url') {
+                    if (value) {
+                        const link = document.createElement("a");
+                        link.href = value;
+                        link.textContent = value.length > 30 ? value.substring(0, 30) + '...' : value;
+                        link.target = "_blank";
+                        link.style.color = "#3b82f6";
+                        td.appendChild(link);
+                    } else {
+                        td.textContent = "-";
+                    }
+                } else if (field.type === 'image') {
+                    if (value) {
+                        const img = document.createElement("img");
+                        img.src = value;
+                        img.style.maxWidth = "60px";
+                        img.style.maxHeight = "40px";
+                        img.style.borderRadius = "4px";
+                        img.onerror = () => {
+                            img.style.display = 'none';
+                            td.textContent = "⚠️ Invalid";
+                        };
+                        td.appendChild(img);
+                    } else {
+                        td.textContent = "-";
+                    }
+                } else if (field.type === 'email') {
+                    if (value) {
+                        const link = document.createElement("a");
+                        link.href = `mailto:${value}`;
+                        link.textContent = value;
+                        link.style.color = "#3b82f6";
+                        td.appendChild(link);
+                    } else {
+                        td.textContent = "-";
+                    }
+                } else if (field.type === 'phone') {
+                    if (value) {
+                        const link = document.createElement("a");
+                        link.href = `tel:${value}`;
+                        link.textContent = value;
+                        link.style.color = "#3b82f6";
+                        td.appendChild(link);
+                    } else {
+                        td.textContent = "-";
+                    }
+                } else if (field.type === 'color') {
+                    if (value) {
+                        const colorBox = document.createElement("div");
+                        colorBox.style.width = "40px";
+                        colorBox.style.height = "24px";
+                        colorBox.style.backgroundColor = value;
+                        colorBox.style.borderRadius = "4px";
+                        colorBox.style.border = "1px solid #e2e8f0";
+                        colorBox.title = value;
+                        td.appendChild(colorBox);
+                    } else {
+                        td.textContent = "-";
+                    }
                 } else {
                     td.textContent = value || "-";
                 }
@@ -1606,7 +1707,7 @@ class App {
 
             fieldsArray.forEach(field => {
                 const value = instance.data[field.id];
-                if (value !== undefined && value !== null && value !== "") {
+                if (value !== undefined && value !== null && value !== "" && !(Array.isArray(value) && value.length === 0)) {
                     const fieldDiv = document.createElement("div");
                     fieldDiv.className = "instance-field";
 
@@ -1624,6 +1725,59 @@ class App {
                         valueDiv.appendChild(boolSpan);
                     } else if (field.type === "date") {
                         valueDiv.textContent = new Date(value).toLocaleDateString();
+                    } else if (field.type === "multiselect") {
+                        if (Array.isArray(value)) {
+                            valueDiv.textContent = value.join(', ');
+                        }
+                    } else if (field.type === "url") {
+                        const link = document.createElement("a");
+                        link.href = value;
+                        link.textContent = value;
+                        link.target = "_blank";
+                        link.style.color = "#3b82f6";
+                        link.onclick = (e) => e.stopPropagation();
+                        valueDiv.appendChild(link);
+                    } else if (field.type === "image") {
+                        const img = document.createElement("img");
+                        img.src = value;
+                        img.style.maxWidth = "100%";
+                        img.style.maxHeight = "120px";
+                        img.style.borderRadius = "8px";
+                        img.style.marginTop = "4px";
+                        img.onerror = () => {
+                            img.style.display = 'none';
+                            valueDiv.textContent = "⚠️ Invalid image URL";
+                        };
+                        valueDiv.appendChild(img);
+                    } else if (field.type === "email") {
+                        const link = document.createElement("a");
+                        link.href = `mailto:${value}`;
+                        link.textContent = value;
+                        link.style.color = "#3b82f6";
+                        link.onclick = (e) => e.stopPropagation();
+                        valueDiv.appendChild(link);
+                    } else if (field.type === "phone") {
+                        const link = document.createElement("a");
+                        link.href = `tel:${value}`;
+                        link.textContent = value;
+                        link.style.color = "#3b82f6";
+                        link.onclick = (e) => e.stopPropagation();
+                        valueDiv.appendChild(link);
+                    } else if (field.type === "color") {
+                        const colorBox = document.createElement("div");
+                        colorBox.style.width = "60px";
+                        colorBox.style.height = "30px";
+                        colorBox.style.backgroundColor = value;
+                        colorBox.style.borderRadius = "6px";
+                        colorBox.style.border = "2px solid #e2e8f0";
+                        colorBox.style.marginTop = "4px";
+                        valueDiv.appendChild(colorBox);
+                        const colorText = document.createElement("div");
+                        colorText.textContent = value;
+                        colorText.style.fontSize = "11px";
+                        colorText.style.color = "#64748b";
+                        colorText.style.marginTop = "4px";
+                        valueDiv.appendChild(colorText);
                     } else {
                         valueDiv.textContent = value;
                     }
@@ -1754,6 +1908,99 @@ class App {
                 input.className = "form-field-checkbox";
                 input.checked = value === true;
                 input.dataset.fieldId = field.id;
+            } else if (field.type === "dropdown") {
+                input = document.createElement("select");
+                input.className = "form-field-input";
+                input.dataset.fieldId = field.id;
+                
+                // Add empty option
+                const emptyOption = document.createElement("option");
+                emptyOption.value = "";
+                emptyOption.textContent = "-- Select --";
+                input.appendChild(emptyOption);
+                
+                // Add options
+                if (field.options && field.options.length > 0) {
+                    field.options.forEach(opt => {
+                        const option = document.createElement("option");
+                        option.value = opt;
+                        option.textContent = opt;
+                        if (value === opt) option.selected = true;
+                        input.appendChild(option);
+                    });
+                }
+            } else if (field.type === "multiselect") {
+                input = document.createElement("div");
+                input.className = "multiselect-container";
+                input.dataset.fieldId = field.id;
+                
+                const selectedValues = Array.isArray(value) ? value : [];
+                
+                if (field.options && field.options.length > 0) {
+                    field.options.forEach(opt => {
+                        const checkboxDiv = document.createElement("div");
+                        checkboxDiv.className = "multiselect-option";
+                        
+                        const checkbox = document.createElement("input");
+                        checkbox.type = "checkbox";
+                        checkbox.value = opt;
+                        checkbox.checked = selectedValues.includes(opt);
+                        checkbox.dataset.option = opt;
+                        
+                        const label = document.createElement("label");
+                        label.textContent = opt;
+                        label.style.marginLeft = "8px";
+                        label.style.cursor = "pointer";
+                        label.onclick = () => checkbox.click();
+                        
+                        checkboxDiv.appendChild(checkbox);
+                        checkboxDiv.appendChild(label);
+                        input.appendChild(checkboxDiv);
+                    });
+                }
+            } else if (field.type === "url") {
+                input = document.createElement("input");
+                input.type = "url";
+                input.className = "form-field-input";
+                input.placeholder = "https://example.com";
+                input.value = value || "";
+                input.dataset.fieldId = field.id;
+            } else if (field.type === "image") {
+                input = document.createElement("input");
+                input.type = "url";
+                input.className = "form-field-input";
+                input.placeholder = "https://example.com/image.jpg";
+                input.value = value || "";
+                input.dataset.fieldId = field.id;
+                
+                // Add image preview
+                if (value) {
+                    const preview = document.createElement("img");
+                    preview.src = value;
+                    preview.className = "image-preview";
+                    preview.onerror = () => preview.style.display = 'none';
+                    fieldDiv.appendChild(preview);
+                }
+            } else if (field.type === "email") {
+                input = document.createElement("input");
+                input.type = "email";
+                input.className = "form-field-input";
+                input.placeholder = "email@example.com";
+                input.value = value || "";
+                input.dataset.fieldId = field.id;
+            } else if (field.type === "phone") {
+                input = document.createElement("input");
+                input.type = "tel";
+                input.className = "form-field-input";
+                input.placeholder = "(123) 456-7890";
+                input.value = value || "";
+                input.dataset.fieldId = field.id;
+            } else if (field.type === "color") {
+                input = document.createElement("input");
+                input.type = "color";
+                input.className = "form-field-color";
+                input.value = value || "#3b82f6";
+                input.dataset.fieldId = field.id;
             }
 
             fieldDiv.appendChild(labelDiv);
@@ -1765,18 +2012,36 @@ class App {
     async saveInstance() {
         // Collect field data
         const data = {};
-        const inputs = this.instanceForm.querySelectorAll('[data-field-id]');
-
-        inputs.forEach(input => {
-            const fieldId = input.dataset.fieldId;
+        
+        // Get all field definitions
+        const fieldsArray = Object.entries(this.currentObjectType.fields).map(([id, field]) => ({
+            id,
+            ...field
+        }));
+        
+        fieldsArray.forEach(field => {
+            const fieldId = field.id;
             
-            if (input.type === "checkbox") {
-                data[fieldId] = input.checked;
-            } else if (input.type === "number") {
-                const value = input.value.trim();
-                data[fieldId] = value ? parseFloat(value) : null;
+            if (field.type === "multiselect") {
+                // Handle multiselect specially
+                const container = this.instanceForm.querySelector(`[data-field-id="${fieldId}"]`);
+                if (container) {
+                    const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+                    data[fieldId] = Array.from(checkboxes).map(cb => cb.value);
+                }
             } else {
-                data[fieldId] = input.value.trim();
+                // Handle other field types
+                const input = this.instanceForm.querySelector(`[data-field-id="${fieldId}"]`);
+                if (!input) return;
+                
+                if (input.type === "checkbox") {
+                    data[fieldId] = input.checked;
+                } else if (input.type === "number") {
+                    const value = input.value.trim();
+                    data[fieldId] = value ? parseFloat(value) : null;
+                } else {
+                    data[fieldId] = input.value.trim();
+                }
             }
         });
 
