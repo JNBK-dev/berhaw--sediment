@@ -212,6 +212,8 @@ class App {
         this.currentView = 'card'; // 'card' or 'table'
         this.sortField = null;
         this.sortDirection = 'asc';
+        this.navigationStack = []; // Track navigation history for relationships
+        this.relationshipDisplayNames = {}; // Cache for relationship instance display names
         this.currentChart = null;
         this.objectTypesListener = null;
         this.instancesListener = null;
@@ -1386,6 +1388,10 @@ class App {
 
     async openInstancesList(typeId) {
         this.currentObjectTypeId = typeId;
+        
+        // Clear navigation stack - this is a fresh navigation from toolkit
+        this.navigationStack = [];
+        this.relationshipDisplayNames = {};
 
         // Load the object type
         const typeSnap = await db.ref(`objectTypes/${typeId}`).once("value");
@@ -1440,6 +1446,8 @@ class App {
         this.cardViewBtn.classList.add('active');
         this.tableViewBtn.classList.remove('active');
         this.bulkDeleteBtn.classList.add('hidden');
+        this.navigationStack = []; // Clear navigation history
+        this.relationshipDisplayNames = {}; // Clear relationship cache
         
         this.switchTab('toolkit');
     }
@@ -1457,7 +1465,7 @@ class App {
             });
     }
 
-    renderInstances(snap) {
+    async renderInstances(snap) {
         if (!snap.exists()) {
             this.currentInstances = [];
             this.filteredInstances = [];
@@ -1486,8 +1494,67 @@ class App {
         this.currentInstances = instances;
         this.filteredInstances = instances;
 
+        // Load relationship display names
+        await this.loadRelationshipDisplayNames();
+
         // Render based on current view
         this.renderCurrentView();
+    }
+
+    async loadRelationshipDisplayNames() {
+        this.relationshipDisplayNames = {};
+        
+        if (!this.currentObjectType.fields) return;
+        
+        // Find all relationship fields
+        const relationshipFields = Object.entries(this.currentObjectType.fields)
+            .filter(([id, field]) => field.type === 'relationship' && field.targetType)
+            .map(([id, field]) => ({ id, ...field }));
+        
+        if (relationshipFields.length === 0) return;
+        
+        // Collect all unique instance IDs that we need to look up
+        const instanceIdsToLoad = new Set();
+        this.currentInstances.forEach(instance => {
+            if (!instance.data) return;
+            relationshipFields.forEach(field => {
+                const relatedId = instance.data[field.id];
+                if (relatedId) {
+                    instanceIdsToLoad.add(relatedId);
+                }
+            });
+        });
+        
+        // Load all related instances
+        const loadPromises = Array.from(instanceIdsToLoad).map(async (instanceId) => {
+            try {
+                const snap = await db.ref(`objects/${instanceId}`).once('value');
+                if (snap.exists()) {
+                    const instance = snap.val();
+                    let displayName = instanceId.substring(0, 8);
+                    
+                    if (instance.data) {
+                        // Try to find a good display name
+                        // Priority: first text field, then first field with value
+                        const values = Object.values(instance.data);
+                        const textValue = values.find(v => typeof v === 'string' && v.trim());
+                        const firstValue = values.find(v => v && v !== "");
+                        
+                        if (textValue) {
+                            displayName = String(textValue).substring(0, 50);
+                        } else if (firstValue) {
+                            displayName = String(firstValue).substring(0, 50);
+                        }
+                    }
+                    
+                    this.relationshipDisplayNames[instanceId] = displayName;
+                }
+            } catch (err) {
+                console.error(`Failed to load instance ${instanceId}:`, err);
+            }
+        });
+        
+        await Promise.all(loadPromises);
     }
 
     renderCurrentView() {
@@ -1689,9 +1756,10 @@ class App {
                     }
                 } else if (field.type === 'relationship') {
                     if (value) {
+                        const displayName = this.relationshipDisplayNames[value] || value.substring(0, 8);
                         const link = document.createElement("a");
                         link.href = "#";
-                        link.textContent = "View →";
+                        link.textContent = displayName;
                         link.style.color = "#3b82f6";
                         link.style.textDecoration = "none";
                         link.title = "Click to view related instance";
@@ -1852,9 +1920,10 @@ class App {
                         colorText.style.marginTop = "4px";
                         valueDiv.appendChild(colorText);
                     } else if (field.type === "relationship") {
+                        const displayName = this.relationshipDisplayNames[value] || value.substring(0, 8);
                         const link = document.createElement("a");
                         link.href = "#";
-                        link.textContent = "View related →";
+                        link.textContent = displayName;
                         link.style.color = "#3b82f6";
                         link.style.textDecoration = "none";
                         link.onclick = async (e) => {
@@ -1926,6 +1995,25 @@ class App {
         this.objectInstanceEditorView.classList.add("hidden");
         this.dataVisualizationView.classList.add("hidden");
         this.objectInstancesView.classList.remove("hidden");
+        
+        // Check if we need to restore previous state from navigation stack
+        if (this.navigationStack.length > 0) {
+            const previousState = this.navigationStack.pop();
+            
+            // Restore the previous object type and instances
+            this.currentObjectTypeId = previousState.objectTypeId;
+            this.currentObjectType = previousState.objectType;
+            this.currentInstances = previousState.instances;
+            this.filteredInstances = previousState.filteredInstances;
+            this.currentView = previousState.viewMode;
+            this.relationshipDisplayNames = previousState.relationshipDisplayNames;
+            
+            // Update the UI to reflect the restored state
+            this.instancesTypeName.textContent = this.currentObjectType.name;
+            
+            // Re-render the view
+            this.renderCurrentView();
+        }
     }
 
     renderInstanceForm(existingData = {}) {
@@ -2538,10 +2626,21 @@ class App {
 
     async openRelatedInstance(instanceId, targetTypeId) {
         try {
+            // Save current state to navigation stack
+            this.navigationStack.push({
+                objectTypeId: this.currentObjectTypeId,
+                objectType: this.currentObjectType,
+                instances: this.currentInstances,
+                filteredInstances: this.filteredInstances,
+                viewMode: this.currentView,
+                relationshipDisplayNames: {...this.relationshipDisplayNames}
+            });
+
             // Load the target type
             const typeSnap = await db.ref(`objectTypes/${targetTypeId}`).once("value");
             if (!typeSnap.exists()) {
                 this.showToast("Related object type not found", "error");
+                this.navigationStack.pop(); // Remove the state we just pushed
                 return;
             }
 
@@ -2549,6 +2648,7 @@ class App {
             const instanceSnap = await db.ref(`objects/${instanceId}`).once("value");
             if (!instanceSnap.exists()) {
                 this.showToast("Related instance not found", "error");
+                this.navigationStack.pop(); // Remove the state we just pushed
                 return;
             }
 
@@ -2574,6 +2674,9 @@ class App {
             this.currentInstances = instances;
             this.filteredInstances = instances;
 
+            // Load relationship display names for the new type
+            await this.loadRelationshipDisplayNames();
+
             // Open the specific instance in the editor
             this.currentInstanceId = instanceId;
             this.instanceEditorTitle.textContent = `View ${this.currentObjectType.name}`;
@@ -2585,6 +2688,10 @@ class App {
         } catch (err) {
             console.error("Failed to open related instance:", err);
             this.showToast("Failed to open related instance", "error");
+            // Try to restore state if something went wrong
+            if (this.navigationStack.length > 0) {
+                this.navigationStack.pop();
+            }
         }
     }
 
