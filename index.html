@@ -52,26 +52,48 @@
 
                 <!-- Workshop View - Clean slate -->
                 <div class="workspace-view hidden" id="workshopView">
-                    <div class="workshop-grid">
-                        <div class="workshop-card">
-                            <h3>Object Types</h3>
-                            <p>Define custom data structures</p>
+                    <!-- Workshop Home - Tool Cards -->
+                    <div class="workshop-home" id="workshopHome">
+                        <div class="workshop-grid">
+                            <div class="workshop-card" data-tool="objectTypes">
+                                <h3>Object Types</h3>
+                                <p>Define custom data structures</p>
+                            </div>
+                            <div class="workshop-card" data-tool="actions">
+                                <h3>Actions</h3>
+                                <p>Automate behaviors</p>
+                            </div>
+                            <div class="workshop-card" data-tool="modifiers">
+                                <h3>Modifiers</h3>
+                                <p>Transform data</p>
+                            </div>
+                            <div class="workshop-card" data-tool="games">
+                                <h3>Games</h3>
+                                <p>Create structured experiences</p>
+                            </div>
+                            <div class="workshop-card" data-tool="contracts">
+                                <h3>Contracts</h3>
+                                <p>Define requirements</p>
+                            </div>
                         </div>
-                        <div class="workshop-card">
-                            <h3>Actions</h3>
-                            <p>Automate behaviors</p>
+                    </div>
+
+                    <!-- Object Types View -->
+                    <div class="workshop-tool-view hidden" id="objectTypesView">
+                        <div class="tool-header">
+                            <button class="btn-back" id="backToWorkshopBtn">← Workshop</button>
+                            <h2>Object Types</h2>
+                            <button class="btn-primary" id="createObjectTypeBtn">+ New Type</button>
                         </div>
-                        <div class="workshop-card">
-                            <h3>Modifiers</h3>
-                            <p>Transform data</p>
-                        </div>
-                        <div class="workshop-card">
-                            <h3>Games</h3>
-                            <p>Create structured experiences</p>
-                        </div>
-                        <div class="workshop-card">
-                            <h3>Contracts</h3>
-                            <p>Define requirements</p>
+                        <div class="tool-content">
+                            <div class="object-types-list" id="objectTypesList">
+                                <!-- Object types will be listed here -->
+                            </div>
+                            <div class="empty-state hidden" id="objectTypesEmpty">
+                                <h3>No Object Types Yet</h3>
+                                <p>Create your first custom data structure</p>
+                                <button class="btn-primary" onclick="app.createObjectType()">+ Create Object Type</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -81,67 +103,7 @@
         <!-- Right Sidebar (Navigation & Social) -->
         <aside class="sidebar-right" id="sidebarRight">
             <div class="sidebar-content">
-                <!-- Profile Section -->
-                <div class="sidebar-section profile-section">
-                    <div class="profile-header">
-                        <div class="profile-name" id="sidebarProfileName"></div>
-                        <button class="btn-icon" id="sidebarSettingsBtn" title="Settings">⚙️</button>
-                    </div>
-                </div>
-
-                <!-- Create Menu -->
-                <div class="sidebar-section create-section">
-                    <button class="btn-create-main" id="sidebarCreateBtn">
-                        <span class="create-icon">+</span>
-                        <span>New</span>
-                    </button>
-                    <div class="create-menu hidden" id="sidebarCreateMenu">
-                        <button class="create-menu-item" data-create="document">Document</button>
-                        <button class="create-menu-item" data-create="objectType">Object Type</button>
-                        <button class="create-menu-item" data-create="objectInstance">Object Instance</button>
-                        <button class="create-menu-item" data-create="room">Room</button>
-                    </div>
-                </div>
-
-                <!-- Navigation Bubbles -->
-                <div class="sidebar-section nav-section">
-                    <h4 class="sidebar-heading">Navigate</h4>
-                    <div class="nav-bubbles">
-                        <button class="nav-bubble" data-nav="write">
-                            <span class="bubble-icon">📝</span>
-                            <span class="bubble-label">Write</span>
-                        </button>
-                        <button class="nav-bubble" data-nav="play">
-                            <span class="bubble-icon">🎮</span>
-                            <span class="bubble-label">Play</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Rooms Section -->
-                <div class="sidebar-section rooms-section">
-                    <h4 class="sidebar-heading">Rooms</h4>
-                    <div class="sidebar-list" id="sidebarRoomsList">
-                        <!-- Rooms will be populated here -->
-                    </div>
-                    <button class="btn-secondary-small" id="sidebarJoinRoomBtn">+ Join Room</button>
-                </div>
-
-                <!-- Documents Section -->
-                <div class="sidebar-section docs-section">
-                    <h4 class="sidebar-heading">Documents</h4>
-                    <div class="sidebar-list" id="sidebarDocsList">
-                        <!-- Documents will be populated here -->
-                    </div>
-                </div>
-
-                <!-- People Section -->
-                <div class="sidebar-section people-section">
-                    <h4 class="sidebar-heading">People</h4>
-                    <div class="sidebar-list" id="sidebarPeopleList">
-                        <!-- People/favorites will be populated here -->
-                    </div>
-                </div>
+                <!-- Empty for now - will be rebuilt -->
             </div>
         </aside>
     </div>

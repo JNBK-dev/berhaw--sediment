@@ -238,6 +238,14 @@ class App {
         this.deskView = document.getElementById("deskView");
         this.workshopView = document.getElementById("workshopView");
         
+        // Workshop elements
+        this.workshopHome = document.getElementById("workshopHome");
+        this.objectTypesView = document.getElementById("objectTypesView");
+        this.backToWorkshopBtn = document.getElementById("backToWorkshopBtn");
+        this.createObjectTypeBtn = document.getElementById("createObjectTypeBtn");
+        this.objectTypesList = document.getElementById("objectTypesList");
+        this.objectTypesEmpty = document.getElementById("objectTypesEmpty");
+        
         // Sidebar elements
         this.sidebarProfileName = document.getElementById("sidebarProfileName");
         this.sidebarSettingsBtn = document.getElementById("sidebarSettingsBtn");
@@ -306,37 +314,21 @@ class App {
             tab.onclick = () => this.switchWorkspace(tab.dataset.workspace);
         });
         
-        // Sidebar navigation
-        this.sidebarSettingsBtn.onclick = () => {
-            this.switchWorkspace('workshop');
-            this.switchTab('settings');
-        };
-        this.sidebarCreateBtn.onclick = () => this.toggleCreateMenu();
-        this.sidebarJoinRoomBtn.onclick = () => {
-            this.switchWorkspace('workshop');
-            this.switchTab('play');
-            this.promptJoinRoom();
-        };
-        
-        // Create menu items
-        document.querySelectorAll('.create-menu-item').forEach(item => {
-            item.onclick = () => {
-                this.handleCreate(item.dataset.create);
-                this.toggleCreateMenu();
-            };
+        // Workshop tool cards
+        document.querySelectorAll('.workshop-card').forEach(card => {
+            card.onclick = () => this.openWorkshopTool(card.dataset.tool);
         });
         
-        // Navigation bubbles
-        document.querySelectorAll('.nav-bubble').forEach(bubble => {
-            bubble.onclick = () => this.handleNavigation(bubble.dataset.nav);
-        });
+        // Workshop navigation
+        if (this.backToWorkshopBtn) {
+            this.backToWorkshopBtn.onclick = () => this.showWorkshopHome();
+        }
         
-        // Close create menu when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!this.sidebarCreateBtn.contains(e.target) && !this.sidebarCreateMenu.contains(e.target)) {
-                this.sidebarCreateMenu.classList.add('hidden');
-            }
-        });
+        if (this.createObjectTypeBtn) {
+            this.createObjectTypeBtn.onclick = () => this.createObjectType();
+        }
+        
+        // Sidebar navigation (empty for now)
         
         // Profile navigation
         this.backFromProfileBtn.onclick = () => this.closeProfile();
@@ -5110,6 +5102,101 @@ class App {
         
         this.workshopView.classList.toggle('hidden', workspace !== 'workshop');
         this.workshopView.classList.toggle('active', workspace === 'workshop');
+        
+        // Show workshop home when switching to workshop
+        if (workspace === 'workshop') {
+            this.showWorkshopHome();
+        }
+    }
+
+    // ===== WORKSHOP METHODS =====
+
+    openWorkshopTool(tool) {
+        switch(tool) {
+            case 'objectTypes':
+                this.showObjectTypesView();
+                break;
+            case 'actions':
+                this.showToast('Actions coming soon', 'info');
+                break;
+            case 'modifiers':
+                this.showToast('Modifiers coming soon', 'info');
+                break;
+            case 'games':
+                this.showToast('Games coming soon', 'info');
+                break;
+            case 'contracts':
+                this.showToast('Contracts coming soon', 'info');
+                break;
+        }
+    }
+
+    showWorkshopHome() {
+        // Hide all tool views
+        document.querySelectorAll('.workshop-tool-view').forEach(view => {
+            view.classList.add('hidden');
+        });
+        
+        // Show workshop home
+        this.workshopHome.classList.remove('hidden');
+    }
+
+    showObjectTypesView() {
+        // Hide workshop home
+        this.workshopHome.classList.add('hidden');
+        
+        // Show object types view
+        this.objectTypesView.classList.remove('hidden');
+        
+        // Load object types
+        this.loadObjectTypes();
+    }
+
+    async loadObjectTypes() {
+        if (!this.currentUser) return;
+        
+        // Listen to user's object types
+        const typesRef = db.ref('objectTypes')
+            .orderByChild('authorId')
+            .equalTo(this.currentUser.id);
+        
+        typesRef.on('value', (snapshot) => {
+            this.objectTypesList.innerHTML = '';
+            
+            if (!snapshot.exists()) {
+                this.objectTypesList.classList.add('hidden');
+                this.objectTypesEmpty.classList.remove('hidden');
+                return;
+            }
+            
+            this.objectTypesList.classList.remove('hidden');
+            this.objectTypesEmpty.classList.add('hidden');
+            
+            snapshot.forEach(typeSnap => {
+                const type = typeSnap.val();
+                const typeId = typeSnap.key;
+                
+                const card = this.createObjectTypeCard(typeId, type);
+                this.objectTypesList.appendChild(card);
+            });
+        });
+    }
+
+    createObjectTypeCard(typeId, type) {
+        const card = document.createElement('div');
+        card.className = 'object-type-card';
+        
+        const fieldCount = type.fields ? Object.keys(type.fields).length : 0;
+        
+        card.innerHTML = `
+            <h3>${type.name || 'Untitled Type'}</h3>
+            <p class="field-count">${fieldCount} field${fieldCount !== 1 ? 's' : ''}</p>
+            ${type.description ? `<p class="type-description">${type.description}</p>` : ''}
+        `;
+        
+        card.onclick = () => this.showToast('Edit/view coming soon', 'info');
+        
+        return card;
     }
 
 
@@ -5161,9 +5248,6 @@ class App {
     showAppContainer() {
         // Show new three-column layout
         this.appContainer.classList.remove('hidden');
-        
-        // Populate sidebar
-        this.populateSidebar();
     }
 
     hideAppContainer() {
