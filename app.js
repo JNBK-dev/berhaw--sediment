@@ -307,9 +307,16 @@ class App {
         });
         
         // Sidebar navigation
-        this.sidebarSettingsBtn.onclick = () => this.switchTab('settings');
+        this.sidebarSettingsBtn.onclick = () => {
+            this.switchWorkspace('workshop');
+            this.switchTab('settings');
+        };
         this.sidebarCreateBtn.onclick = () => this.toggleCreateMenu();
-        this.sidebarJoinRoomBtn.onclick = () => this.promptJoinRoom();
+        this.sidebarJoinRoomBtn.onclick = () => {
+            this.switchWorkspace('workshop');
+            this.switchTab('play');
+            this.promptJoinRoom();
+        };
         
         // Create menu items
         document.querySelectorAll('.create-menu-item').forEach(item => {
@@ -980,18 +987,10 @@ class App {
 
     showEditorView() {
         this.authView.classList.add("hidden");
-        this.homeView.classList.add("hidden");
-        this.editorView.classList.remove("hidden");
-        this.activityMenuView.classList.add("hidden");
-        this.chatView.classList.add("hidden");
-        this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
+        
+        // Switch to workshop and show editor in it
+        this.switchWorkspace('workshop');
+        this.showViewInWorkspace(this.editorView);
         
         soundManager.play('bite');
         
@@ -1257,29 +1256,17 @@ class App {
 
     showObjectTypeBuilder() {
         this.authView.classList.add("hidden");
-        this.homeView.classList.add("hidden");
-        this.editorView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.activityMenuView.classList.add("hidden");
-        this.chatView.classList.add("hidden");
-        this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.remove("hidden");
+        
+        // Switch to workshop and show builder in it
+        this.switchWorkspace('workshop');
+        this.showViewInWorkspace(this.objectTypeBuilderView);
 
         soundManager.play('bite');
     }
 
     closeObjectTypeBuilder() {
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.homeView.classList.remove("hidden");
+        // Go back to home view in workshop
+        this.showViewInWorkspace(this.homeView);
         this.switchTab('toolkit');
     }
 
@@ -1547,26 +1534,15 @@ class App {
 
     showInstancesView() {
         this.authView.classList.add("hidden");
-        this.homeView.classList.add("hidden");
-        this.editorView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.activityMenuView.classList.add("hidden");
-        this.chatView.classList.add("hidden");
-        this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.objectInstancesView.classList.remove("hidden");
+        
+        // Switch to workshop and show instances in it
+        this.switchWorkspace('workshop');
+        this.showViewInWorkspace(this.objectInstancesView);
     }
 
     closeInstancesList() {
-        this.objectInstancesView.classList.add("hidden");
-        this.homeView.classList.remove("hidden");
+        // Go back to home view in workshop
+        this.showViewInWorkspace(this.homeView);
         
         // Clean up listener
         if (this.instancesListener) {
@@ -2129,9 +2105,8 @@ class App {
     }
 
     closeInstanceEditor() {
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.objectInstancesView.classList.remove("hidden");
+        // Show instances view in workspace
+        this.showViewInWorkspace(this.objectInstancesView);
         
         // Check if we need to restore previous state from navigation stack
         if (this.navigationStack.length > 0) {
@@ -3753,18 +3728,10 @@ class App {
 
     showChatView() {
         this.authView.classList.add("hidden");
-        this.homeView.classList.add("hidden");
-        this.editorView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.activityMenuView.classList.add("hidden");
-        this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.chatView.classList.remove("hidden");
+        
+        // Switch to workshop and show chat in it
+        this.switchWorkspace('workshop');
+        this.showViewInWorkspace(this.chatView);
 
         soundManager.play('bite');
         this.chatRoomCode.textContent = this.currentRoomCode;
@@ -3877,17 +3844,10 @@ class App {
 
     showDiceView() {
         this.authView.classList.add("hidden");
-        this.homeView.classList.add("hidden");
-        this.editorView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.activityMenuView.classList.add("hidden");
-        this.chatView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.diceView.classList.remove("hidden");
+        
+        // Switch to workshop and show dice in it
+        this.switchWorkspace('workshop');
+        this.showViewInWorkspace(this.diceView);
 
         soundManager.play('bite');
         this.diceRoomCode.textContent = this.currentRoomCode;
@@ -5081,19 +5041,39 @@ class App {
         this.workshopView.classList.toggle('hidden', workspace !== 'workshop');
         this.workshopView.classList.toggle('active', workspace === 'workshop');
         
-        // Show homeView when switching to workshop
+        // Show homeView when switching to workshop (if no other view is active)
         if (workspace === 'workshop') {
             this.showViewInWorkspace(this.homeView);
         }
     }
 
     showViewInWorkspace(view) {
-        // Move the view into the workshop
+        // Move the view into the workshop if it's not already there
         if (view && this.workshopView && !this.workshopView.contains(view)) {
             this.workshopView.appendChild(view);
         }
         
-        // Make sure it's visible
+        // Hide all major views first
+        const majorViews = [
+            this.homeView,
+            this.editorView,
+            this.profileView,
+            this.chatView,
+            this.diceView,
+            this.collabDocView,
+            this.gameView,
+            this.activityMenuView,
+            this.objectTypeBuilderView,
+            this.objectInstancesView,
+            this.objectInstanceEditorView,
+            this.dataVisualizationView
+        ];
+        
+        majorViews.forEach(v => {
+            if (v) v.classList.add('hidden');
+        });
+        
+        // Show the requested view
         if (view) {
             view.classList.remove('hidden');
         }
@@ -5109,16 +5089,29 @@ class App {
         
         switch(type) {
             case 'document':
+                // Switch to workshop/write first
+                this.switchWorkspace('workshop');
+                this.switchTab('write');
+                // Then create doc
                 this.createDoc();
                 break;
             case 'objectType':
+                // Switch to workshop/toolkit first
+                this.switchWorkspace('workshop');
+                this.switchTab('toolkit');
+                // Then create type
                 this.createObjectType();
                 break;
             case 'objectInstance':
-                // Switch to workshop and show toolkit
+                // Switch to workshop/toolkit
                 this.switchWorkspace('workshop');
+                this.switchTab('toolkit');
                 break;
             case 'room':
+                // Switch to workshop/play first
+                this.switchWorkspace('workshop');
+                this.switchTab('play');
+                // Then prompt
                 this.promptCreateRoom();
                 break;
         }
@@ -5194,8 +5187,14 @@ class App {
                 item.className = 'sidebar-list-item';
                 item.textContent = `Room ${roomCode}`;
                 item.onclick = () => {
-                    this.joinRoomCode.value = roomCode;
-                    this.joinRoom(roomCode);
+                    // Switch to workshop first
+                    this.switchWorkspace('workshop');
+                    // Set the join code input
+                    if (this.joinRoomCode) {
+                        this.joinRoomCode.value = roomCode;
+                    }
+                    // Join the room
+                    this.joinExistingRoom(roomCode);
                 };
                 
                 this.sidebarRoomsList.appendChild(item);
@@ -5232,11 +5231,30 @@ class App {
                     const item = document.createElement('div');
                     item.className = 'sidebar-list-item';
                     item.textContent = doc.title || 'Untitled';
-                    item.onclick = () => this.openDoc(docId);
+                    item.onclick = () => {
+                        // Switch to workshop first
+                        this.switchWorkspace('workshop');
+                        // Open the document
+                        this.openDocFromSidebar(docId);
+                    };
                     
                     this.sidebarDocsList.appendChild(item);
                 });
             });
+    }
+
+    joinExistingRoom(roomCode) {
+        // Switch to play tab
+        this.switchTab('play');
+        // Call existing join room method
+        this.joinRoom(roomCode);
+    }
+
+    openDocFromSidebar(docId) {
+        // Switch to write tab
+        this.switchTab('write');
+        // Open the document
+        this.openDoc(docId);
     }
 }
 
