@@ -1055,7 +1055,8 @@ class App {
             this.openedFromProfile = false;
             this.showProfileView();
         } else {
-            this.showHomeView();
+            // Just show homeView in workspace
+            this.showViewInWorkspace(this.homeView);
         }
     }
 
@@ -3457,18 +3458,10 @@ class App {
 
     showActivityMenu() {
         this.authView.classList.add("hidden");
-        this.homeView.classList.add("hidden");
-        this.editorView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
-        this.chatView.classList.add("hidden");
-        this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.activityMenuView.classList.remove("hidden");
+        
+        // Switch to workshop and show activity menu in it
+        this.switchWorkspace('workshop');
+        this.showViewInWorkspace(this.activityMenuView);
 
         soundManager.play('bite');
         this.menuRoomCode.textContent = `Room: ${this.currentRoomCode}`;
