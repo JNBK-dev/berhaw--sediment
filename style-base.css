@@ -3190,14 +3190,8 @@ input:checked + .toggle-slider:before {
 .field-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     margin-bottom: 12px;
-}
-
-.field-drag-handle {
-    cursor: grab;
-    color: #6289A7;
-    font-size: 18px;
 }
 
 .field-actions {
@@ -3277,6 +3271,75 @@ input:checked + .toggle-slider:before {
     background: #F1F8FE;
     border-color: #83CAFF;
     color: #214159;
+}
+
+/* Instances Grid */
+.instances-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.instance-card {
+    background: #FFFFFF;
+    border: 2px solid #D8ECFB;
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.instance-card:hover {
+    border-color: #83CAFF;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(131, 202, 255, 0.15);
+}
+
+.instance-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #D8ECFB;
+}
+
+.instance-card h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #214159;
+}
+
+.instance-card-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.instance-field {
+    display: flex;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.instance-field-label {
+    font-weight: 600;
+    color: #6289A7;
+    min-width: 80px;
+}
+
+.instance-field-value {
+    color: #214159;
+    flex: 1;
+}
+
+.instance-card-footer {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #D8ECFB;
 }
 
 /* Desk can scroll */

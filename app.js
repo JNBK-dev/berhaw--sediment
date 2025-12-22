@@ -269,10 +269,32 @@ class App {
         this.cancelTypeBtn = document.getElementById("cancelTypeBtn");
         this.saveTypeBtn = document.getElementById("saveTypeBtn");
         
+        // Instances view elements
+        this.objectInstancesView = document.getElementById("objectInstancesView");
+        this.backToTypesBtn = document.getElementById("backToTypesBtn");
+        this.instancesTypeName = document.getElementById("instancesTypeName");
+        this.createInstanceBtn = document.getElementById("createInstanceBtn");
+        this.instanceSearch = document.getElementById("instanceSearch");
+        this.instancesGrid = document.getElementById("instancesGrid");
+        this.instancesEmpty = document.getElementById("instancesEmpty");
+        
+        // Instance panel elements
+        this.instancePanel = document.getElementById("instancePanel");
+        this.instancePanelTitle = document.getElementById("instancePanelTitle");
+        this.closeInstancePanelBtn = document.getElementById("closeInstancePanelBtn");
+        this.instanceFormContent = document.getElementById("instanceFormContent");
+        this.cancelInstanceBtn = document.getElementById("cancelInstanceBtn");
+        this.saveInstanceBtn = document.getElementById("saveInstanceBtn");
+        
         // State for editing
         this.editingTypeId = null;
         this.currentTags = [];
         this.currentFields = [];
+        
+        // State for instances
+        this.currentTypeForInstances = null;
+        this.editingInstanceId = null;
+        this.allInstances = [];
         
         // Sidebar elements (empty for now)
 
@@ -373,6 +395,31 @@ class App {
                     this.addTag();
                 }
             };
+        }
+        
+        // Instance view controls
+        if (this.backToTypesBtn) {
+            this.backToTypesBtn.onclick = () => this.showObjectTypesView();
+        }
+        
+        if (this.createInstanceBtn) {
+            this.createInstanceBtn.onclick = () => this.openCreateInstancePanel();
+        }
+        
+        if (this.closeInstancePanelBtn) {
+            this.closeInstancePanelBtn.onclick = () => this.closeInstancePanel();
+        }
+        
+        if (this.cancelInstanceBtn) {
+            this.cancelInstanceBtn.onclick = () => this.closeInstancePanel();
+        }
+        
+        if (this.saveInstanceBtn) {
+            this.saveInstanceBtn.onclick = () => this.saveInstance();
+        }
+        
+        if (this.instanceSearch) {
+            this.instanceSearch.oninput = () => this.filterInstances();
         }
         
         // Search
@@ -5433,7 +5480,7 @@ class App {
         viewBtn.textContent = 'View';
         viewBtn.onclick = (e) => {
             e.stopPropagation();
-            this.showToast('View coming soon', 'info');
+            this.viewInstances(typeId, type);
         };
         footer.appendChild(viewBtn);
         
@@ -5668,7 +5715,6 @@ class App {
         
         fieldEl.innerHTML = `
             <div class="field-header">
-                <span class="field-drag-handle">⋮⋮</span>
                 <div class="field-actions">
                     <button class="field-action-btn" data-action="delete">×</button>
                 </div>
@@ -5759,6 +5805,395 @@ class App {
         
         soundManager.play('submitted');
         this.closePanel();
+    }
+
+    // ===== INSTANCE MANAGEMENT METHODS =====
+
+    viewInstances(typeId, type) {
+        this.currentTypeForInstances = { id: typeId, ...type };
+        
+        // Update last used
+        db.ref(`objectTypes/${typeId}`).update({ lastUsed: Date.now() });
+        
+        // Hide types view, show instances view
+        this.objectTypesView.classList.add('hidden');
+        this.objectInstancesView.classList.remove('hidden');
+        
+        // Update header
+        this.instancesTypeName.textContent = type.name;
+        
+        // Load instances
+        this.loadInstances();
+        
+        soundManager.play('bite');
+    }
+
+    showObjectTypesView() {
+        this.objectInstancesView.classList.add('hidden');
+        this.objectTypesView.classList.remove('hidden');
+        this.currentTypeForInstances = null;
+    }
+
+    async loadInstances() {
+        if (!this.currentTypeForInstances) return;
+        
+        const typeId = this.currentTypeForInstances.id;
+        
+        // Listen to instances of this type
+        const instancesRef = db.ref('objects')
+            .orderByChild('typeId')
+            .equalTo(typeId);
+        
+        instancesRef.on('value', (snapshot) => {
+            this.allInstances = [];
+            
+            if (!snapshot.exists()) {
+                this.showEmptyInstancesState();
+                return;
+            }
+            
+            snapshot.forEach(instSnap => {
+                const instance = instSnap.val();
+                const instanceId = instSnap.key;
+                
+                this.allInstances.push({
+                    id: instanceId,
+                    ...instance
+                });
+            });
+            
+            this.renderInstances();
+        });
+    }
+
+    filterInstances() {
+        this.renderInstances();
+    }
+
+    renderInstances() {
+        const searchTerm = this.instanceSearch ? this.instanceSearch.value.toLowerCase() : '';
+        
+        // Filter instances
+        let filteredInstances = this.allInstances.filter(instance => {
+            if (!searchTerm) return true;
+            
+            // Search in all field values
+            const data = instance.data || {};
+            return Object.values(data).some(value => {
+                if (value === null || value === undefined) return false;
+                return String(value).toLowerCase().includes(searchTerm);
+            });
+        });
+        
+        if (filteredInstances.length === 0) {
+            this.showEmptyInstancesState();
+            return;
+        }
+        
+        this.instancesEmpty.classList.add('hidden');
+        this.instancesGrid.classList.remove('hidden');
+        this.instancesGrid.innerHTML = '';
+        
+        filteredInstances.forEach(instance => {
+            const card = this.createInstanceCard(instance);
+            this.instancesGrid.appendChild(card);
+        });
+    }
+
+    showEmptyInstancesState() {
+        this.instancesGrid.classList.add('hidden');
+        this.instancesEmpty.classList.remove('hidden');
+    }
+
+    createInstanceCard(instance) {
+        const card = document.createElement('div');
+        card.className = 'instance-card';
+        
+        const fields = this.currentTypeForInstances.fields || {};
+        const data = instance.data || {};
+        
+        // Find display name field (first text field or first field)
+        const displayField = Object.entries(fields).find(([_, field]) => field.type === 'text') || Object.entries(fields)[0];
+        const displayName = displayField ? data[displayField[0]] || 'Unnamed' : 'Unnamed';
+        
+        const header = document.createElement('div');
+        header.className = 'instance-card-header';
+        header.innerHTML = `<h4>${displayName}</h4>`;
+        card.appendChild(header);
+        
+        // Show first 3 fields
+        const fieldEntries = Object.entries(fields).slice(0, 3);
+        const fieldsDiv = document.createElement('div');
+        fieldsDiv.className = 'instance-card-fields';
+        
+        fieldEntries.forEach(([fieldId, field]) => {
+            const value = data[fieldId];
+            const displayValue = this.formatFieldValue(value, field.type);
+            
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'instance-field';
+            fieldDiv.innerHTML = `
+                <span class="instance-field-label">${field.name}:</span>
+                <span class="instance-field-value">${displayValue}</span>
+            `;
+            fieldsDiv.appendChild(fieldDiv);
+        });
+        
+        card.appendChild(fieldsDiv);
+        
+        // Footer with actions
+        const footer = document.createElement('div');
+        footer.className = 'instance-card-footer';
+        
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-card-action';
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.openEditInstancePanel(instance.id, instance);
+        };
+        footer.appendChild(editBtn);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-card-action';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.deleteInstanceWithConfirm(instance.id, displayName);
+        };
+        footer.appendChild(deleteBtn);
+        
+        card.appendChild(footer);
+        
+        return card;
+    }
+
+    formatFieldValue(value, type) {
+        if (value === null || value === undefined || value === '') return '—';
+        
+        switch (type) {
+            case 'boolean':
+                return value ? 'Yes' : 'No';
+            case 'date':
+                return new Date(value).toLocaleDateString();
+            case 'longtext':
+                return value.substring(0, 50) + (value.length > 50 ? '...' : '');
+            default:
+                return String(value);
+        }
+    }
+
+    openCreateInstancePanel() {
+        this.editingInstanceId = null;
+        
+        this.instancePanelTitle.textContent = `New ${this.currentTypeForInstances.name}`;
+        
+        // Generate form
+        this.generateInstanceForm();
+        
+        this.instancePanel.classList.remove('hidden');
+        soundManager.play('bite');
+    }
+
+    openEditInstancePanel(instanceId, instance) {
+        this.editingInstanceId = instanceId;
+        
+        this.instancePanelTitle.textContent = `Edit ${this.currentTypeForInstances.name}`;
+        
+        // Generate form with data
+        this.generateInstanceForm(instance.data);
+        
+        this.instancePanel.classList.remove('hidden');
+        soundManager.play('bite');
+    }
+
+    closeInstancePanel() {
+        this.instancePanel.classList.add('hidden');
+        this.editingInstanceId = null;
+    }
+
+    generateInstanceForm(data = {}) {
+        this.instanceFormContent.innerHTML = '';
+        
+        const fields = this.currentTypeForInstances.fields || {};
+        
+        // Group fields
+        const grouped = {};
+        Object.entries(fields).forEach(([fieldId, field]) => {
+            const group = field.group || '_ungrouped';
+            if (!grouped[group]) grouped[group] = [];
+            grouped[group].push({ id: fieldId, ...field });
+        });
+        
+        // Render ungrouped first
+        if (grouped['_ungrouped']) {
+            grouped['_ungrouped'].forEach(field => {
+                const fieldEl = this.createInstanceFieldInput(field, data[field.id]);
+                this.instanceFormContent.appendChild(fieldEl);
+            });
+        }
+        
+        // Then render grouped
+        Object.keys(grouped).forEach(groupName => {
+            if (groupName === '_ungrouped') return;
+            
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'field-group-header';
+            groupHeader.textContent = groupName;
+            this.instanceFormContent.appendChild(groupHeader);
+            
+            grouped[groupName].forEach(field => {
+                const fieldEl = this.createInstanceFieldInput(field, data[field.id]);
+                this.instanceFormContent.appendChild(fieldEl);
+            });
+        });
+    }
+
+    createInstanceFieldInput(field, value = '') {
+        const section = document.createElement('div');
+        section.className = 'panel-section';
+        
+        const label = document.createElement('label');
+        label.className = 'panel-label';
+        label.textContent = field.name + (field.required ? ' *' : '');
+        section.appendChild(label);
+        
+        let input;
+        
+        switch (field.type) {
+            case 'text':
+            case 'email':
+            case 'phone':
+            case 'url':
+                input = document.createElement('input');
+                input.type = field.type === 'text' ? 'text' : field.type;
+                input.className = 'panel-input';
+                input.value = value || '';
+                input.dataset.fieldId = field.id;
+                break;
+                
+            case 'number':
+                input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'panel-input';
+                input.value = value || '';
+                input.dataset.fieldId = field.id;
+                break;
+                
+            case 'date':
+                input = document.createElement('input');
+                input.type = 'date';
+                input.className = 'panel-input';
+                input.value = value || '';
+                input.dataset.fieldId = field.id;
+                break;
+                
+            case 'boolean':
+                input = document.createElement('select');
+                input.className = 'panel-input';
+                input.dataset.fieldId = field.id;
+                input.innerHTML = `
+                    <option value="">—</option>
+                    <option value="true" ${value === true ? 'selected' : ''}>Yes</option>
+                    <option value="false" ${value === false ? 'selected' : ''}>No</option>
+                `;
+                break;
+                
+            case 'longtext':
+                input = document.createElement('textarea');
+                input.className = 'panel-textarea';
+                input.value = value || '';
+                input.rows = 4;
+                input.dataset.fieldId = field.id;
+                break;
+                
+            case 'color':
+                input = document.createElement('input');
+                input.type = 'color';
+                input.className = 'panel-input';
+                input.value = value || '#000000';
+                input.dataset.fieldId = field.id;
+                break;
+                
+            default:
+                // For dropdown, multiselect, image, relationship - use text for now
+                input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'panel-input';
+                input.value = value || '';
+                input.dataset.fieldId = field.id;
+                input.placeholder = `${field.type} (advanced field)`;
+                break;
+        }
+        
+        section.appendChild(input);
+        return section;
+    }
+
+    async saveInstance() {
+        const fields = this.currentTypeForInstances.fields || {};
+        const data = {};
+        
+        // Collect form data
+        this.instanceFormContent.querySelectorAll('[data-field-id]').forEach(input => {
+            const fieldId = input.dataset.fieldId;
+            const field = fields[fieldId];
+            
+            let value = input.value;
+            
+            // Convert types
+            if (field.type === 'number') {
+                value = value ? parseFloat(value) : null;
+            } else if (field.type === 'boolean') {
+                value = value === 'true' ? true : value === 'false' ? false : null;
+            } else if (field.type === 'date') {
+                value = value || null;
+            }
+            
+            data[fieldId] = value;
+            
+            // Validate required fields
+            if (field.required && (value === null || value === '' || value === undefined)) {
+                this.showToast(`${field.name} is required`, 'error');
+                throw new Error('Validation failed');
+            }
+        });
+        
+        const instanceData = {
+            typeId: this.currentTypeForInstances.id,
+            authorId: this.currentUser.id,
+            data: data,
+            updatedAt: Date.now()
+        };
+        
+        try {
+            if (this.editingInstanceId) {
+                // Update existing
+                await db.ref(`objects/${this.editingInstanceId}`).update(instanceData);
+                this.showToast('Instance updated', 'success');
+            } else {
+                // Create new
+                instanceData.createdAt = Date.now();
+                const newInstanceRef = db.ref('objects').push();
+                await newInstanceRef.set(instanceData);
+                this.showToast('Instance created', 'success');
+            }
+            
+            soundManager.play('submitted');
+            this.closeInstancePanel();
+        } catch (error) {
+            // Error already shown via toast
+        }
+    }
+
+    async deleteInstanceWithConfirm(instanceId, displayName) {
+        if (!confirm(`Delete "${displayName}"? This cannot be undone.`)) {
+            return;
+        }
+        
+        await db.ref(`objects/${instanceId}`).remove();
+        soundManager.play('alert');
+        this.showToast(`Deleted "${displayName}"`, 'success');
     }
 
 

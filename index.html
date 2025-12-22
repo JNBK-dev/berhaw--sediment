@@ -99,19 +99,19 @@
                         <div class="tool-content">
                             <!-- Pinned Types -->
                             <div class="type-group hidden" id="pinnedGroup">
-                                <h3 class="group-heading">📌 Pinned</h3>
+                                <h3 class="group-heading">Pinned</h3>
                                 <div class="object-types-grid" id="pinnedTypesList"></div>
                             </div>
                             
                             <!-- Recent Types -->
                             <div class="type-group hidden" id="recentGroup">
-                                <h3 class="group-heading">🕒 Recent</h3>
+                                <h3 class="group-heading">Recent</h3>
                                 <div class="object-types-grid" id="recentTypesList"></div>
                             </div>
                             
                             <!-- Favorites -->
                             <div class="type-group hidden" id="favoritesGroup">
-                                <h3 class="group-heading">⭐ Favorites</h3>
+                                <h3 class="group-heading">Favorites</h3>
                                 <div class="object-types-grid" id="favoritesTypesList"></div>
                             </div>
                             
@@ -129,7 +129,7 @@
                             </div>
                         </div>
                         
-                        <!-- Slide-out Panel -->
+                        <!-- Slide-out Panel for Type Creation/Editing -->
                         <div class="slide-panel hidden" id="objectTypePanel">
                             <div class="slide-panel-header">
                                 <h2 id="panelTitle">New Object Type</h2>
@@ -175,6 +175,52 @@
                             <div class="slide-panel-footer">
                                 <button class="btn-secondary" id="cancelTypeBtn">Cancel</button>
                                 <button class="btn-primary" id="saveTypeBtn">Save Type</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Object Instances View -->
+                    <div class="workshop-tool-view hidden" id="objectInstancesView">
+                        <div class="tool-header">
+                            <button class="btn-back" id="backToTypesBtn">← Object Types</button>
+                            <h2 id="instancesTypeName">Instances</h2>
+                            <button class="btn-primary" id="createInstanceBtn">+ New Instance</button>
+                        </div>
+                        
+                        <!-- Search & Filters -->
+                        <div class="tool-filters">
+                            <div class="search-box">
+                                <input type="text" id="instanceSearch" placeholder="Search instances..." />
+                            </div>
+                        </div>
+                        
+                        <div class="tool-content">
+                            <div class="instances-grid" id="instancesGrid">
+                                <!-- Instance cards will appear here -->
+                            </div>
+                            
+                            <!-- Empty State -->
+                            <div class="empty-state hidden" id="instancesEmpty">
+                                <h3>No Instances Yet</h3>
+                                <p>Create your first instance of this type</p>
+                                <button class="btn-primary" onclick="app.openCreateInstancePanel()">+ Create Instance</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Slide-out Panel for Instance Creation/Editing -->
+                        <div class="slide-panel hidden" id="instancePanel">
+                            <div class="slide-panel-header">
+                                <h2 id="instancePanelTitle">New Instance</h2>
+                                <button class="btn-icon-close" id="closeInstancePanelBtn">×</button>
+                            </div>
+                            
+                            <div class="slide-panel-content" id="instanceFormContent">
+                                <!-- Dynamic form fields will be generated here -->
+                            </div>
+                            
+                            <div class="slide-panel-footer">
+                                <button class="btn-secondary" id="cancelInstanceBtn">Cancel</button>
+                                <button class="btn-primary" id="saveInstanceBtn">Save Instance</button>
                             </div>
                         </div>
                     </div>
