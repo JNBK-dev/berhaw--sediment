@@ -3105,6 +3105,11 @@ input:checked + .toggle-slider:before {
     min-height: 80px;
 }
 
+.panel-multiselect {
+    min-height: 100px !important;
+    height: auto !important;
+}
+
 .panel-hint {
     margin-top: 6px;
     font-size: 12px;

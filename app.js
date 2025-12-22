@@ -5646,7 +5646,8 @@ class App {
             type: 'text',
             required: false,
             group: '',
-            targetType: null
+            targetType: null,
+            options: []
         };
         
         this.currentFields.push(field);
@@ -5710,6 +5711,7 @@ class App {
         fieldEl.className = 'field-item';
         
         const hasRelationship = field.type === 'relationship';
+        const hasOptions = field.type === 'dropdown' || field.type === 'multiselect';
         
         fieldEl.innerHTML = `
             <div class="field-header">
@@ -5741,6 +5743,9 @@ class App {
                         <option value="">Select Object Type...</option>
                     </select>
                 </div>
+                <div class="field-row ${hasOptions ? '' : 'hidden'}" data-options-row="${field.id}">
+                    <input type="text" placeholder="Options (comma-separated)" value="${field.options ? field.options.join(', ') : ''}" data-field="${field.id}" data-prop="options" data-options-input="true" />
+                </div>
                 <div class="field-row">
                     <input type="text" placeholder="Group (optional)" value="${field.group || ''}" data-field="${field.id}" data-prop="group" />
                 </div>
@@ -5758,17 +5763,31 @@ class App {
             input.oninput = () => {
                 const fieldId = input.dataset.field;
                 const prop = input.dataset.prop;
-                this.updateField(fieldId, prop, input.value);
+                
+                // Handle options input specially
+                if (input.dataset.optionsInput) {
+                    const optionsArray = input.value.split(',').map(o => o.trim()).filter(o => o);
+                    this.updateField(fieldId, 'options', optionsArray);
+                } else {
+                    this.updateField(fieldId, prop, input.value);
+                }
                 
                 // Show/hide relationship row when type changes
                 if (input.dataset.fieldTypeSelect) {
                     const relationshipRow = fieldEl.querySelector(`[data-relationship-row="${fieldId}"]`);
+                    const optionsRow = fieldEl.querySelector(`[data-options-row="${fieldId}"]`);
+                    
                     if (input.value === 'relationship') {
                         relationshipRow.classList.remove('hidden');
+                        optionsRow.classList.add('hidden');
                         const targetSelect = relationshipRow.querySelector('select');
                         this.populateTargetTypeDropdown(targetSelect, null);
+                    } else if (input.value === 'dropdown' || input.value === 'multiselect') {
+                        relationshipRow.classList.add('hidden');
+                        optionsRow.classList.remove('hidden');
                     } else {
                         relationshipRow.classList.add('hidden');
+                        optionsRow.classList.add('hidden');
                     }
                 }
             };
@@ -5835,6 +5854,16 @@ class App {
         );
         if (hasInvalidRelationships) {
             this.showToast('Relationship fields must have a target type selected', 'error');
+            return;
+        }
+        
+        // Validate dropdown/multiselect fields have options
+        const hasInvalidOptions = this.currentFields.some(f => 
+            (f.type === 'dropdown' || f.type === 'multiselect') && 
+            (!f.options || f.options.length === 0)
+        );
+        if (hasInvalidOptions) {
+            this.showToast('Dropdown and Multi-Select fields must have options defined', 'error');
             return;
         }
         
@@ -6051,6 +6080,15 @@ class App {
                 return new Date(value).toLocaleDateString();
             case 'longtext':
                 return value.substring(0, 50) + (value.length > 50 ? '...' : '');
+            case 'multiselect':
+                if (Array.isArray(value)) {
+                    return value.join(', ');
+                }
+                return String(value);
+            case 'dropdown':
+                return String(value);
+            case 'image':
+                return '🖼️ Image';
             case 'relationship':
                 // For relationship fields, we'll store the display name in a cache
                 // This will be populated asynchronously
@@ -6235,6 +6273,81 @@ class App {
                 input.dataset.fieldId = field.id;
                 break;
                 
+            case 'dropdown':
+                input = document.createElement('select');
+                input.className = 'panel-input';
+                input.dataset.fieldId = field.id;
+                
+                let options = '<option value="">— Select —</option>';
+                if (field.options && Array.isArray(field.options)) {
+                    field.options.forEach(option => {
+                        const selected = value === option ? 'selected' : '';
+                        options += `<option value="${option}" ${selected}>${option}</option>`;
+                    });
+                } else {
+                    options += '<option value="">No options configured</option>';
+                }
+                input.innerHTML = options;
+                break;
+                
+            case 'multiselect':
+                input = document.createElement('select');
+                input.className = 'panel-input panel-multiselect';
+                input.dataset.fieldId = field.id;
+                input.multiple = true;
+                input.size = Math.min((field.options || []).length, 5);
+                input.dataset.multiselect = 'true';
+                
+                if (field.options && Array.isArray(field.options)) {
+                    field.options.forEach(option => {
+                        const selected = Array.isArray(value) && value.includes(option) ? 'selected' : '';
+                        const optEl = document.createElement('option');
+                        optEl.value = option;
+                        optEl.textContent = option;
+                        if (selected) optEl.selected = true;
+                        input.appendChild(optEl);
+                    });
+                } else {
+                    input.innerHTML = '<option disabled>No options configured</option>';
+                }
+                
+                section.appendChild(input);
+                
+                // Add hint for multiselect
+                const hint = document.createElement('div');
+                hint.className = 'panel-hint';
+                hint.textContent = 'Hold Ctrl (Cmd on Mac) to select multiple';
+                section.appendChild(hint);
+                
+                return section;
+                
+            case 'image':
+                // Image URL input
+                input = document.createElement('input');
+                input.type = 'url';
+                input.className = 'panel-input';
+                input.value = value || '';
+                input.placeholder = 'Enter image URL';
+                input.dataset.fieldId = field.id;
+                
+                // Show preview if URL exists
+                if (value) {
+                    const preview = document.createElement('div');
+                    preview.className = 'image-preview';
+                    preview.innerHTML = `<img src="${value}" alt="Preview" style="max-width: 200px; max-height: 200px; margin-top: 8px; border-radius: 8px;" />`;
+                    section.appendChild(preview);
+                    
+                    // Update preview on input
+                    input.oninput = () => {
+                        if (input.value) {
+                            preview.innerHTML = `<img src="${input.value}" alt="Preview" style="max-width: 200px; max-height: 200px; margin-top: 8px; border-radius: 8px;" onerror="this.style.display='none'" />`;
+                        } else {
+                            preview.innerHTML = '';
+                        }
+                    };
+                }
+                break;
+                
             case 'relationship':
                 input = document.createElement('select');
                 input.className = 'panel-input';
@@ -6250,13 +6363,13 @@ class App {
                 break;
                 
             default:
-                // For dropdown, multiselect, image - use text for now
+                // Fallback for unknown types
                 input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'panel-input';
                 input.value = value || '';
                 input.dataset.fieldId = field.id;
-                input.placeholder = `${field.type} (advanced field)`;
+                input.placeholder = `${field.type} (not yet supported)`;
                 break;
         }
         
@@ -6325,8 +6438,13 @@ class App {
             
             let value = input.value;
             
+            // Handle multiselect specially
+            if (input.dataset.multiselect) {
+                const selected = Array.from(input.selectedOptions).map(opt => opt.value);
+                value = selected.length > 0 ? selected : null;
+            }
             // Convert types
-            if (field.type === 'number') {
+            else if (field.type === 'number') {
                 value = value ? parseFloat(value) : null;
             } else if (field.type === 'boolean') {
                 value = value === 'true' ? true : value === 'false' ? false : null;
