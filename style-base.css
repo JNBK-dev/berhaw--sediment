@@ -2657,8 +2657,44 @@ input:checked + .toggle-slider:before {
 
 /* Workshop has NO padding - views inside handle their own layout */
 #workshopView {
-    padding: 0;
-    overflow-y: hidden; /* Workshop views have their own scrolling */
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.workshop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+}
+
+.workshop-card {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 32px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.workshop-card:hover {
+    border-color: #3b82f6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.workshop-card h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.workshop-card p {
+    margin: 0;
+    font-size: 14px;
+    color: #64748b;
 }
 
 /* Desk can scroll */
@@ -2675,15 +2711,6 @@ input:checked + .toggle-slider:before {
     border: none;
     display: flex;
     flex-direction: column;
-}
-
-/* Editor in desk - full height */
-#deskView .card {
-    margin: 0;
-    max-width: 1100px;
-    margin-left: auto;
-    margin-right: auto;
-    height: auto;
 }
 
 /* Hide old container when using new layout */
@@ -2729,6 +2756,7 @@ input:checked + .toggle-slider:before {
     transform: translate(-50%, -50%);
     text-align: center;
     color: #64748b;
+    z-index: 1;
 }
 
 .desk-empty h2 {
@@ -2740,6 +2768,14 @@ input:checked + .toggle-slider:before {
 .desk-empty p {
     margin: 0;
     font-size: 14px;
+}
+
+/* Editor in desk - should be above canvas */
+#deskView .card {
+    position: relative;
+    z-index: 10;
+    margin: 0 auto;
+    max-width: 900px;
 }
 
 /* Sidebar Sections */

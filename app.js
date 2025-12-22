@@ -988,7 +988,7 @@ class App {
     showEditorView() {
         this.authView.classList.add("hidden");
         
-        // Switch to Desk and show editor in it
+        // Switch to Desk
         this.switchWorkspace('desk');
         
         // Move editor to desk if needed
@@ -1003,13 +1003,16 @@ class App {
         // Show editor
         this.editorView.classList.remove('hidden');
         
+        // Make sure it's visible (remove any inline styles)
+        this.editorView.style.display = '';
+        
         soundManager.play('bite');
         
         // Update back button text
         if (this.openedFromProfile) {
             this.backToHomeBtn.textContent = "Back to Profile";
         } else {
-            this.backToHomeBtn.textContent = "Back to Home";
+            this.backToHomeBtn.textContent = "Close";
         }
         
         // Set up the correct mode
@@ -5107,44 +5110,8 @@ class App {
         
         this.workshopView.classList.toggle('hidden', workspace !== 'workshop');
         this.workshopView.classList.toggle('active', workspace === 'workshop');
-        
-        // Show homeView when switching to workshop (if no other view is active)
-        if (workspace === 'workshop') {
-            this.showViewInWorkspace(this.homeView);
-        }
     }
 
-    showViewInWorkspace(view) {
-        // Move the view into the workshop if it's not already there
-        if (view && this.workshopView && !this.workshopView.contains(view)) {
-            this.workshopView.appendChild(view);
-        }
-        
-        // Hide all major views first
-        const majorViews = [
-            this.homeView,
-            this.editorView,
-            this.profileView,
-            this.chatView,
-            this.diceView,
-            this.collabDocView,
-            this.gameView,
-            this.activityMenuView,
-            this.objectTypeBuilderView,
-            this.objectInstancesView,
-            this.objectInstanceEditorView,
-            this.dataVisualizationView
-        ];
-        
-        majorViews.forEach(v => {
-            if (v) v.classList.add('hidden');
-        });
-        
-        // Show the requested view
-        if (view) {
-            view.classList.remove('hidden');
-        }
-    }
 
     toggleCreateMenu() {
         this.sidebarCreateMenu.classList.toggle('hidden');
@@ -5158,27 +5125,21 @@ class App {
             case 'document':
                 // Switch to Desk for writing
                 this.switchWorkspace('desk');
-                // Create doc
                 this.createDoc();
                 break;
             case 'objectType':
-                // Switch to workshop/toolkit
+                // Switch to workshop (placeholder for now)
                 this.switchWorkspace('workshop');
-                this.switchTab('toolkit');
-                // Then create type
-                this.createObjectType();
+                this.showToast('Object Type builder coming soon', 'info');
                 break;
             case 'objectInstance':
-                // Switch to workshop/toolkit
+                // Switch to workshop (placeholder for now)
                 this.switchWorkspace('workshop');
-                this.switchTab('toolkit');
+                this.showToast('Object Instance creator coming soon', 'info');
                 break;
             case 'room':
-                // Switch to workshop/play
-                this.switchWorkspace('workshop');
-                this.switchTab('play');
-                // Then prompt
-                this.promptCreateRoom();
+                // For now, just show message
+                this.showToast('Room creation coming soon', 'info');
                 break;
         }
     }
@@ -5188,13 +5149,11 @@ class App {
             case 'write':
                 // Switch to Desk for writing
                 this.switchWorkspace('desk');
-                // Show message or editor
                 this.showDeskWriting();
                 break;
             case 'play':
-                // Switch to Workshop and show Play tab
-                this.switchWorkspace('workshop');
-                this.switchTab('play');
+                // Placeholder for now
+                this.showToast('Activities coming soon', 'info');
                 break;
         }
     }
@@ -5202,11 +5161,6 @@ class App {
     showAppContainer() {
         // Show new three-column layout
         this.appContainer.classList.remove('hidden');
-        
-        // Move homeView into workshop on first show
-        if (!this.workshopView.contains(this.homeView)) {
-            this.workshopView.appendChild(this.homeView);
-        }
         
         // Populate sidebar
         this.populateSidebar();
@@ -5254,14 +5208,7 @@ class App {
                 item.className = 'sidebar-list-item';
                 item.textContent = `Room ${roomCode}`;
                 item.onclick = () => {
-                    // Switch to workshop first
-                    this.switchWorkspace('workshop');
-                    // Set the join code input
-                    if (this.joinRoomCode) {
-                        this.joinRoomCode.value = roomCode;
-                    }
-                    // Join the room
-                    this.joinExistingRoom(roomCode);
+                    this.showToast('Room activities coming soon', 'info');
                 };
                 
                 this.sidebarRoomsList.appendChild(item);
@@ -5299,10 +5246,8 @@ class App {
                     item.className = 'sidebar-list-item';
                     item.textContent = doc.title || 'Untitled';
                     item.onclick = () => {
-                        // Switch to workshop first
-                        this.switchWorkspace('workshop');
-                        // Open the document
-                        this.openDocFromSidebar(docId);
+                        this.switchWorkspace('desk');
+                        this.openDoc(docId);
                     };
                     
                     this.sidebarDocsList.appendChild(item);
@@ -5311,10 +5256,7 @@ class App {
     }
 
     joinExistingRoom(roomCode) {
-        // Switch to play tab
-        this.switchTab('play');
-        // Call existing join room method
-        this.joinRoom(roomCode);
+        this.showToast('Room activities coming soon', 'info');
     }
 
     openDocFromSidebar(docId) {
