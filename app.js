@@ -2222,11 +2222,8 @@ class App {
     }
 
     createInstance() {
-        this.currentInstanceId = null;
-        this.instanceEditorTitle.textContent = `New ${this.currentObjectType.name}`;
-        this.deleteInstanceBtn.style.display = "none";
-        this.showInstanceEditor();
-        this.renderInstanceForm();
+        // Redirect to new panel-based creation
+        this.openCreateInstancePanel();
     }
 
     async openInstance(instanceId) {
