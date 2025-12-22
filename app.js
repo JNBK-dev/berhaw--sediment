@@ -988,9 +988,20 @@ class App {
     showEditorView() {
         this.authView.classList.add("hidden");
         
-        // Switch to workshop and show editor in it
-        this.switchWorkspace('workshop');
-        this.showViewInWorkspace(this.editorView);
+        // Switch to Desk and show editor in it
+        this.switchWorkspace('desk');
+        
+        // Move editor to desk if needed
+        if (!this.deskView.contains(this.editorView)) {
+            this.deskView.appendChild(this.editorView);
+        }
+        
+        // Hide desk empty message
+        const deskEmpty = this.deskView.querySelector('.desk-empty');
+        if (deskEmpty) deskEmpty.style.display = 'none';
+        
+        // Show editor
+        this.editorView.classList.remove('hidden');
         
         soundManager.play('bite');
         
@@ -1050,13 +1061,17 @@ class App {
         this.deleteDocBtnReader.style.display = 'block';
         this.modeToggleBtn.style.display = 'inline-block';
         
-        // Navigate back to where we came from
+        // Hide editor
+        this.editorView.classList.add('hidden');
+        
+        // Show desk empty message
+        const deskEmpty = this.deskView.querySelector('.desk-empty');
+        if (deskEmpty) deskEmpty.style.display = 'block';
+        
+        // Navigate back if needed
         if (this.openedFromProfile && this.currentProfileUserId) {
             this.openedFromProfile = false;
             this.showProfileView();
-        } else {
-            // Just show homeView in workspace
-            this.showViewInWorkspace(this.homeView);
         }
     }
 
@@ -1258,16 +1273,45 @@ class App {
     showObjectTypeBuilder() {
         this.authView.classList.add("hidden");
         
-        // Switch to workshop and show builder in it
+        // Switch to workshop
         this.switchWorkspace('workshop');
-        this.showViewInWorkspace(this.objectTypeBuilderView);
+        
+        // Move builder to workshop if needed
+        if (!this.workshopView.contains(this.objectTypeBuilderView)) {
+            this.workshopView.appendChild(this.objectTypeBuilderView);
+        }
+        
+        // Hide all other views in workshop
+        const workshopViews = [
+            this.homeView,
+            this.objectInstancesView,
+            this.objectInstanceEditorView,
+            this.dataVisualizationView
+        ];
+        
+        workshopViews.forEach(v => {
+            if (v && this.workshopView.contains(v)) {
+                v.classList.add('hidden');
+            }
+        });
+        
+        // Show builder
+        this.objectTypeBuilderView.classList.remove('hidden');
 
         soundManager.play('bite');
     }
 
     closeObjectTypeBuilder() {
-        // Go back to home view in workshop
-        this.showViewInWorkspace(this.homeView);
+        // Hide builder
+        this.objectTypeBuilderView.classList.add('hidden');
+        
+        // Show homeView in workshop
+        if (!this.workshopView.contains(this.homeView)) {
+            this.workshopView.appendChild(this.homeView);
+        }
+        this.homeView.classList.remove('hidden');
+        
+        // Make sure we're on toolkit tab
         this.switchTab('toolkit');
     }
 
@@ -1536,14 +1580,41 @@ class App {
     showInstancesView() {
         this.authView.classList.add("hidden");
         
-        // Switch to workshop and show instances in it
+        // Switch to workshop
         this.switchWorkspace('workshop');
-        this.showViewInWorkspace(this.objectInstancesView);
+        
+        // Move instances view to workshop if needed
+        if (!this.workshopView.contains(this.objectInstancesView)) {
+            this.workshopView.appendChild(this.objectInstancesView);
+        }
+        
+        // Hide all other views in workshop
+        const workshopViews = [
+            this.homeView,
+            this.objectTypeBuilderView,
+            this.objectInstanceEditorView,
+            this.dataVisualizationView
+        ];
+        
+        workshopViews.forEach(v => {
+            if (v && this.workshopView.contains(v)) {
+                v.classList.add('hidden');
+            }
+        });
+        
+        // Show instances view
+        this.objectInstancesView.classList.remove('hidden');
     }
 
     closeInstancesList() {
-        // Go back to home view in workshop
-        this.showViewInWorkspace(this.homeView);
+        // Hide instances view
+        this.objectInstancesView.classList.add('hidden');
+        
+        // Show homeView in workshop
+        if (!this.workshopView.contains(this.homeView)) {
+            this.workshopView.appendChild(this.homeView);
+        }
+        this.homeView.classList.remove('hidden');
         
         // Clean up listener
         if (this.instancesListener) {
@@ -2106,8 +2177,11 @@ class App {
     }
 
     closeInstanceEditor() {
-        // Show instances view in workspace
-        this.showViewInWorkspace(this.objectInstancesView);
+        // Hide editor
+        this.objectInstanceEditorView.classList.add('hidden');
+        
+        // Show instances view
+        this.objectInstancesView.classList.remove('hidden');
         
         // Check if we need to restore previous state from navigation stack
         if (this.navigationStack.length > 0) {
@@ -5082,14 +5156,13 @@ class App {
         
         switch(type) {
             case 'document':
-                // Switch to workshop/write first
-                this.switchWorkspace('workshop');
-                this.switchTab('write');
-                // Then create doc
+                // Switch to Desk for writing
+                this.switchWorkspace('desk');
+                // Create doc
                 this.createDoc();
                 break;
             case 'objectType':
-                // Switch to workshop/toolkit first
+                // Switch to workshop/toolkit
                 this.switchWorkspace('workshop');
                 this.switchTab('toolkit');
                 // Then create type
@@ -5101,7 +5174,7 @@ class App {
                 this.switchTab('toolkit');
                 break;
             case 'room':
-                // Switch to workshop/play first
+                // Switch to workshop/play
                 this.switchWorkspace('workshop');
                 this.switchTab('play');
                 // Then prompt
@@ -5111,15 +5184,16 @@ class App {
     }
 
     handleNavigation(destination) {
-        // Switch to workshop first
-        this.switchWorkspace('workshop');
-        
-        // Then switch to the appropriate tab
         switch(destination) {
             case 'write':
-                this.switchTab('write');
+                // Switch to Desk for writing
+                this.switchWorkspace('desk');
+                // Show message or editor
+                this.showDeskWriting();
                 break;
             case 'play':
+                // Switch to Workshop and show Play tab
+                this.switchWorkspace('workshop');
                 this.switchTab('play');
                 break;
         }
@@ -5244,10 +5318,29 @@ class App {
     }
 
     openDocFromSidebar(docId) {
-        // Switch to write tab
-        this.switchTab('write');
+        // Switch to Desk for writing
+        this.switchWorkspace('desk');
         // Open the document
         this.openDoc(docId);
+    }
+
+    showDeskWriting() {
+        // Show desk workspace
+        this.switchWorkspace('desk');
+        
+        // Move editor into desk if not already there
+        if (!this.deskView.contains(this.editorView)) {
+            this.deskView.appendChild(this.editorView);
+        }
+        
+        // Check if we have documents
+        if (this.currentDocId) {
+            // Show current doc
+            this.editorView.classList.remove('hidden');
+        } else {
+            // Show empty state or prompt
+            this.deskView.querySelector('.desk-empty').style.display = 'block';
+        }
     }
 }
 
