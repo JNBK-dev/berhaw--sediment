@@ -3285,6 +3285,98 @@ input:checked + .toggle-slider:before {
     gap: 16px;
 }
 
+/* Data Visualization Styles */
+.viz-section {
+    margin-bottom: 32px;
+}
+
+.viz-section h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #214159;
+    margin: 0 0 16px 0;
+}
+
+.chart-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.chart-type-option {
+    background: #FFFFFF;
+    border: 2px solid #D8ECFB;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chart-type-option:hover {
+    border-color: #83CAFF;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(131, 202, 255, 0.15);
+}
+
+.chart-type-option.selected {
+    border-color: #83CAFF;
+    background: #F1F8FE;
+}
+
+.chart-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.chart-type-option span {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #214159;
+}
+
+.viz-row {
+    margin-bottom: 16px;
+}
+
+.viz-row label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #214159;
+}
+
+.viz-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 32px;
+}
+
+#chartCanvas {
+    background: #FFFFFF;
+    border: 2px solid #D8ECFB;
+    border-radius: 12px;
+    padding: 24px;
+    min-height: 400px;
+}
+
+.chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.chart-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #214159;
+}
+
+/* Instance Card Styles */
 .instance-card {
     background: #FFFFFF;
     border: 2px solid #D8ECFB;

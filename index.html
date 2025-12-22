@@ -75,6 +75,10 @@
                                 <h3>Contracts</h3>
                                 <p>Define requirements</p>
                             </div>
+                            <div class="workshop-card" data-tool="dataVisualization">
+                                <h3>Data Visualization</h3>
+                                <p>Charts and insights</p>
+                            </div>
                         </div>
                     </div>
 
@@ -221,6 +225,90 @@
                             <div class="slide-panel-footer">
                                 <button class="btn-secondary" id="cancelInstanceBtn">Cancel</button>
                                 <button class="btn-primary" id="saveInstanceBtn">Save Instance</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Visualization View -->
+                    <div class="workshop-tool-view hidden" id="dataVizView">
+                        <div class="tool-header">
+                            <button class="btn-back" id="backFromDataVizBtn">← Workshop</button>
+                            <h2>Data Visualization</h2>
+                            <button class="btn-primary" id="createChartBtn">+ New Chart</button>
+                        </div>
+                        
+                        <div class="tool-content">
+                            <!-- Chart Builder (initially shown) -->
+                            <div id="chartBuilder">
+                                <div class="viz-section">
+                                    <h3>Select Data Source</h3>
+                                    <select id="vizTypeSelect" class="panel-input">
+                                        <option value="">Select an Object Type...</option>
+                                    </select>
+                                </div>
+                                
+                                <div id="chartConfigSection" class="hidden">
+                                    <div class="viz-section">
+                                        <h3>Chart Type</h3>
+                                        <div class="chart-type-grid">
+                                            <div class="chart-type-option" data-chart="bar">
+                                                <div class="chart-icon">📊</div>
+                                                <span>Bar Chart</span>
+                                            </div>
+                                            <div class="chart-type-option" data-chart="line">
+                                                <div class="chart-icon">📈</div>
+                                                <span>Line Chart</span>
+                                            </div>
+                                            <div class="chart-type-option" data-chart="pie">
+                                                <div class="chart-icon">🍰</div>
+                                                <span>Pie Chart</span>
+                                            </div>
+                                            <div class="chart-type-option" data-chart="scatter">
+                                                <div class="chart-icon">⚪</div>
+                                                <span>Scatter Plot</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="viz-section" id="barLineSection" class="hidden">
+                                        <h3>Configure Chart</h3>
+                                        <div class="viz-row">
+                                            <label>X-Axis (Label)</label>
+                                            <select id="xAxisField" class="panel-input">
+                                                <option value="">Select field...</option>
+                                            </select>
+                                        </div>
+                                        <div class="viz-row">
+                                            <label>Y-Axis (Value)</label>
+                                            <select id="yAxisField" class="panel-input">
+                                                <option value="">Select field...</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="viz-section" id="pieSection" class="hidden">
+                                        <h3>Configure Chart</h3>
+                                        <div class="viz-row">
+                                            <label>Category Field</label>
+                                            <select id="categoryField" class="panel-input">
+                                                <option value="">Select field...</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="viz-actions">
+                                        <button class="btn-primary" id="generateChartBtn">Generate Chart</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Chart Display Area -->
+                            <div id="chartDisplay" class="hidden">
+                                <div class="chart-header">
+                                    <h3 id="chartTitle">Chart</h3>
+                                    <button class="btn-secondary" id="backToBuilderBtn">← Configure</button>
+                                </div>
+                                <div id="chartCanvas"></div>
                             </div>
                         </div>
                     </div>

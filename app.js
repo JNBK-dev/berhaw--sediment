@@ -297,6 +297,29 @@ class App {
         this.allInstances = [];
         this.relationshipDisplayCache = {};
         
+        // Data Visualization elements
+        this.dataVizView = document.getElementById("dataVizView");
+        this.backFromDataVizBtn = document.getElementById("backFromDataVizBtn");
+        this.createChartBtn = document.getElementById("createChartBtn");
+        this.vizTypeSelect = document.getElementById("vizTypeSelect");
+        this.chartConfigSection = document.getElementById("chartConfigSection");
+        this.xAxisField = document.getElementById("xAxisField");
+        this.yAxisField = document.getElementById("yAxisField");
+        this.categoryField = document.getElementById("categoryField");
+        this.generateChartBtn = document.getElementById("generateChartBtn");
+        this.chartBuilder = document.getElementById("chartBuilder");
+        this.chartDisplay = document.getElementById("chartDisplay");
+        this.chartCanvas = document.getElementById("chartCanvas");
+        this.chartTitle = document.getElementById("chartTitle");
+        this.backToBuilderBtn = document.getElementById("backToBuilderBtn");
+        this.barLineSection = document.getElementById("barLineSection");
+        this.pieSection = document.getElementById("pieSection");
+        
+        // State for visualization
+        this.selectedChartType = null;
+        this.currentVizType = null;
+        this.currentVizInstances = [];
+        
         // Sidebar elements (empty for now)
 
         this.currentUser = null;
@@ -422,6 +445,32 @@ class App {
         if (this.instanceSearch) {
             this.instanceSearch.oninput = () => this.filterInstances();
         }
+        
+        // Data Visualization controls
+        if (this.backFromDataVizBtn) {
+            this.backFromDataVizBtn.onclick = () => this.showWorkshopHome();
+        }
+        
+        if (this.createChartBtn) {
+            this.createChartBtn.onclick = () => this.resetChartBuilder();
+        }
+        
+        if (this.vizTypeSelect) {
+            this.vizTypeSelect.onchange = () => this.loadVizTypeData();
+        }
+        
+        if (this.generateChartBtn) {
+            this.generateChartBtn.onclick = () => this.generateChart();
+        }
+        
+        if (this.backToBuilderBtn) {
+            this.backToBuilderBtn.onclick = () => this.showChartBuilder();
+        }
+        
+        // Chart type selection
+        document.querySelectorAll('.chart-type-option').forEach(option => {
+            option.onclick = () => this.selectChartType(option.dataset.chart);
+        });
         
         // Search
         if (this.objectTypeSearch) {
@@ -5207,6 +5256,9 @@ class App {
             case 'objectTypes':
                 this.showObjectTypesView();
                 break;
+            case 'dataVisualization':
+                this.showDataVizView();
+                break;
             case 'actions':
                 this.showToast('Actions coming soon', 'info');
                 break;
@@ -6496,6 +6548,289 @@ class App {
         await db.ref(`objects/${instanceId}`).remove();
         soundManager.play('alert');
         this.showToast(`Deleted "${displayName}"`, 'success');
+    }
+
+    // ===== DATA VISUALIZATION METHODS =====
+
+    async showDataVizView() {
+        // Hide workshop home and other views
+        this.workshopHome.classList.add('hidden');
+        this.objectTypesView.classList.add('hidden');
+        this.objectInstancesView.classList.add('hidden');
+        
+        // Show data viz view
+        this.dataVizView.classList.remove('hidden');
+        
+        // Load object types for selection
+        await this.loadVizTypes();
+        
+        // Reset builder
+        this.resetChartBuilder();
+        
+        soundManager.play('bite');
+    }
+
+    async loadVizTypes() {
+        if (!this.currentUser) return;
+        
+        const typesSnap = await db.ref('objectTypes')
+            .orderByChild('authorId')
+            .equalTo(this.currentUser.id)
+            .once('value');
+        
+        this.vizTypeSelect.innerHTML = '<option value="">Select an Object Type...</option>';
+        
+        if (typesSnap.exists()) {
+            typesSnap.forEach(typeSnap => {
+                const type = typeSnap.val();
+                const typeId = typeSnap.key;
+                
+                const option = document.createElement('option');
+                option.value = typeId;
+                option.textContent = type.name || 'Untitled';
+                this.vizTypeSelect.appendChild(option);
+            });
+        }
+    }
+
+    async loadVizTypeData() {
+        const typeId = this.vizTypeSelect.value;
+        
+        if (!typeId) {
+            this.chartConfigSection.classList.add('hidden');
+            return;
+        }
+        
+        // Get type data
+        const typeSnap = await db.ref(`objectTypes/${typeId}`).once('value');
+        if (!typeSnap.exists()) return;
+        
+        this.currentVizType = { id: typeId, ...typeSnap.val() };
+        
+        // Get instances
+        const instancesSnap = await db.ref('objects')
+            .orderByChild('typeId')
+            .equalTo(typeId)
+            .once('value');
+        
+        this.currentVizInstances = [];
+        if (instancesSnap.exists()) {
+            instancesSnap.forEach(instSnap => {
+                this.currentVizInstances.push({
+                    id: instSnap.key,
+                    ...instSnap.val()
+                });
+            });
+        }
+        
+        // Populate field dropdowns
+        this.populateVizFields();
+        
+        // Show config section
+        this.chartConfigSection.classList.remove('hidden');
+    }
+
+    populateVizFields() {
+        const fields = this.currentVizType.fields || {};
+        
+        // Clear dropdowns
+        this.xAxisField.innerHTML = '<option value="">Select field...</option>';
+        this.yAxisField.innerHTML = '<option value="">Select field...</option>';
+        this.categoryField.innerHTML = '<option value="">Select field...</option>';
+        
+        Object.entries(fields).forEach(([fieldId, field]) => {
+            // X-axis: text fields for labels
+            if (field.type === 'text' || field.type === 'dropdown') {
+                const opt = document.createElement('option');
+                opt.value = fieldId;
+                opt.textContent = field.name;
+                this.xAxisField.appendChild(opt.cloneNode(true));
+                this.categoryField.appendChild(opt);
+            }
+            
+            // Y-axis: number fields for values
+            if (field.type === 'number') {
+                const opt = document.createElement('option');
+                opt.value = fieldId;
+                opt.textContent = field.name;
+                this.yAxisField.appendChild(opt);
+            }
+        });
+    }
+
+    selectChartType(chartType) {
+        this.selectedChartType = chartType;
+        
+        // Update UI
+        document.querySelectorAll('.chart-type-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        document.querySelector(`[data-chart="${chartType}"]`).classList.add('selected');
+        
+        // Show/hide relevant config sections
+        if (chartType === 'pie') {
+            this.barLineSection.classList.add('hidden');
+            this.pieSection.classList.remove('hidden');
+        } else {
+            this.barLineSection.classList.remove('hidden');
+            this.pieSection.classList.add('hidden');
+        }
+    }
+
+    generateChart() {
+        if (!this.selectedChartType) {
+            this.showToast('Select a chart type', 'error');
+            return;
+        }
+        
+        if (this.selectedChartType === 'pie') {
+            const categoryFieldId = this.categoryField.value;
+            if (!categoryFieldId) {
+                this.showToast('Select a category field', 'error');
+                return;
+            }
+            this.renderPieChart(categoryFieldId);
+        } else {
+            const xFieldId = this.xAxisField.value;
+            const yFieldId = this.yAxisField.value;
+            
+            if (!xFieldId || !yFieldId) {
+                this.showToast('Select both X and Y axis fields', 'error');
+                return;
+            }
+            
+            if (this.selectedChartType === 'bar') {
+                this.renderBarChart(xFieldId, yFieldId);
+            } else if (this.selectedChartType === 'line') {
+                this.renderLineChart(xFieldId, yFieldId);
+            } else if (this.selectedChartType === 'scatter') {
+                this.renderScatterChart(xFieldId, yFieldId);
+            }
+        }
+    }
+
+    renderBarChart(xFieldId, yFieldId) {
+        const fields = this.currentVizType.fields;
+        const xField = fields[xFieldId];
+        const yField = fields[yFieldId];
+        
+        // Extract data
+        const data = this.currentVizInstances.map(inst => ({
+            x: inst.data[xFieldId] || 'Unnamed',
+            y: parseFloat(inst.data[yFieldId]) || 0
+        }));
+        
+        // Show chart display
+        this.chartBuilder.classList.add('hidden');
+        this.chartDisplay.classList.remove('hidden');
+        this.chartTitle.textContent = `${this.currentVizType.name}: ${yField.name} by ${xField.name}`;
+        
+        // Render simple bar chart (HTML/CSS based)
+        let html = '<div style="display: flex; align-items: flex-end; gap: 12px; height: 300px; padding: 20px;">';
+        const maxValue = Math.max(...data.map(d => d.y));
+        
+        data.forEach(d => {
+            const height = (d.y / maxValue) * 100;
+            html += `
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                    <div style="font-size: 12px; margin-bottom: 4px; font-weight: 600; color: #214159;">${d.y}</div>
+                    <div style="width: 100%; background: #83CAFF; border-radius: 8px 8px 0 0; height: ${height}%;"></div>
+                    <div style="font-size: 12px; margin-top: 8px; color: #6289A7; text-align: center;">${d.x}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        this.chartCanvas.innerHTML = html;
+        soundManager.play('submitted');
+    }
+
+    renderLineChart(xFieldId, yFieldId) {
+        this.showToast('Line charts coming soon!', 'info');
+    }
+
+    renderScatterChart(xFieldId, yFieldId) {
+        this.showToast('Scatter plots coming soon!', 'info');
+    }
+
+    renderPieChart(categoryFieldId) {
+        const fields = this.currentVizType.fields;
+        const categoryField = fields[categoryFieldId];
+        
+        // Count instances by category
+        const counts = {};
+        this.currentVizInstances.forEach(inst => {
+            const value = inst.data[categoryFieldId] || 'Unknown';
+            counts[value] = (counts[value] || 0) + 1;
+        });
+        
+        // Show chart display
+        this.chartBuilder.classList.add('hidden');
+        this.chartDisplay.classList.remove('hidden');
+        this.chartTitle.textContent = `${this.currentVizType.name}: Distribution by ${categoryField.name}`;
+        
+        // Render simple pie chart visualization
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const colors = ['#83CAFF', '#71A7CF', '#6289A7', '#EBB820', '#D8ECFB'];
+        
+        let html = '<div style="padding: 20px;">';
+        html += '<div style="display: flex; gap: 40px; align-items: center;">';
+        
+        // Legend
+        html += '<div style="flex: 1;">';
+        Object.entries(counts).forEach(([category, count], i) => {
+            const percentage = ((count / total) * 100).toFixed(1);
+            const color = colors[i % colors.length];
+            html += `
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="width: 24px; height: 24px; background: ${color}; border-radius: 4px;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #214159;">${category}</div>
+                        <div style="font-size: 12px; color: #6289A7;">${count} (${percentage}%)</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        // Simple visualization bars
+        html += '<div style="flex: 1;">';
+        Object.entries(counts).forEach(([category, count], i) => {
+            const percentage = (count / total) * 100;
+            const color = colors[i % colors.length];
+            html += `
+                <div style="margin-bottom: 8px;">
+                    <div style="height: 30px; background: ${color}; border-radius: 8px; width: ${percentage}%; display: flex; align-items: center; padding: 0 12px; color: white; font-weight: 600; font-size: 14px;">
+                        ${percentage.toFixed(0)}%
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        html += '</div></div>';
+        
+        this.chartCanvas.innerHTML = html;
+        soundManager.play('submitted');
+    }
+
+    showChartBuilder() {
+        this.chartDisplay.classList.add('hidden');
+        this.chartBuilder.classList.remove('hidden');
+    }
+
+    resetChartBuilder() {
+        this.vizTypeSelect.value = '';
+        this.chartConfigSection.classList.add('hidden');
+        this.selectedChartType = null;
+        this.currentVizType = null;
+        this.currentVizInstances = [];
+        
+        document.querySelectorAll('.chart-type-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        
+        this.showChartBuilder();
     }
 
 
