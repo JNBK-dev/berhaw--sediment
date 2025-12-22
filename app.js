@@ -278,6 +278,19 @@ class App {
         this.instancesGrid = document.getElementById("instancesGrid");
         this.instancesEmpty = document.getElementById("instancesEmpty");
         
+        // Inline visualization elements
+        this.visualizeInstancesBtn = document.getElementById("visualizeInstancesBtn");
+        this.inlineVizPanel = document.getElementById("inlineVizPanel");
+        this.closeInlineVizBtn = document.getElementById("closeInlineVizBtn");
+        this.inlineXAxisField = document.getElementById("inlineXAxisField");
+        this.inlineYAxisField = document.getElementById("inlineYAxisField");
+        this.inlineCategoryField = document.getElementById("inlineCategoryField");
+        this.generateInlineChartBtn = document.getElementById("generateInlineChartBtn");
+        this.inlineBarConfig = document.getElementById("inlineBarConfig");
+        this.inlinePieConfig = document.getElementById("inlinePieConfig");
+        this.inlineChartDisplay = document.getElementById("inlineChartDisplay");
+        this.inlineChartCanvas = document.getElementById("inlineChartCanvas");
+        
         // Instance panel elements
         this.instancePanel = document.getElementById("instancePanel");
         this.instancePanelTitle = document.getElementById("instancePanelTitle");
@@ -317,6 +330,7 @@ class App {
         
         // State for visualization
         this.selectedChartType = null;
+        this.selectedInlineChartType = null;
         this.currentVizType = null;
         this.currentVizInstances = [];
         
@@ -445,6 +459,24 @@ class App {
         if (this.instanceSearch) {
             this.instanceSearch.oninput = () => this.filterInstances();
         }
+        
+        // Inline visualization controls
+        if (this.visualizeInstancesBtn) {
+            this.visualizeInstancesBtn.onclick = () => this.toggleInlineViz();
+        }
+        
+        if (this.closeInlineVizBtn) {
+            this.closeInlineVizBtn.onclick = () => this.hideInlineViz();
+        }
+        
+        if (this.generateInlineChartBtn) {
+            this.generateInlineChartBtn.onclick = () => this.generateInlineChart();
+        }
+        
+        // Inline chart type selection
+        document.querySelectorAll('.chart-type-option[data-inline]').forEach(option => {
+            option.onclick = () => this.selectInlineChartType(option.dataset.chart);
+        });
         
         // Data Visualization controls
         if (this.backFromDataVizBtn) {
@@ -6129,6 +6161,12 @@ class App {
             case 'boolean':
                 return value ? 'Yes' : 'No';
             case 'date':
+                // Parse as local date to avoid timezone issues
+                if (value.includes('-')) {
+                    // Format: YYYY-MM-DD
+                    const [year, month, day] = value.split('-');
+                    return new Date(year, month - 1, day).toLocaleDateString();
+                }
                 return new Date(value).toLocaleDateString();
             case 'longtext':
                 return value.substring(0, 50) + (value.length > 50 ? '...' : '');
@@ -6550,6 +6588,224 @@ class App {
         this.showToast(`Deleted "${displayName}"`, 'success');
     }
 
+    // ===== INLINE VISUALIZATION METHODS =====
+
+    toggleInlineViz() {
+        if (this.inlineVizPanel.classList.contains('hidden')) {
+            this.showInlineViz();
+        } else {
+            this.hideInlineViz();
+        }
+    }
+
+    showInlineViz() {
+        this.inlineVizPanel.classList.remove('hidden');
+        this.populateInlineVizFields();
+        this.selectedInlineChartType = null;
+        this.inlineChartDisplay.classList.add('hidden');
+        
+        // Reset selections
+        document.querySelectorAll('.chart-type-option[data-inline]').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+    }
+
+    hideInlineViz() {
+        this.inlineVizPanel.classList.add('hidden');
+    }
+
+    populateInlineVizFields() {
+        const fields = this.currentTypeForInstances.fields || {};
+        
+        // Clear dropdowns
+        this.inlineXAxisField.innerHTML = '<option value="">Select field...</option>';
+        this.inlineYAxisField.innerHTML = '<option value="">Select field...</option>';
+        this.inlineCategoryField.innerHTML = '<option value="">Select field...</option>';
+        
+        Object.entries(fields).forEach(([fieldId, field]) => {
+            // X-axis: text, dropdown, date, boolean for labels/categories
+            if (['text', 'dropdown', 'date', 'boolean'].includes(field.type)) {
+                const opt = document.createElement('option');
+                opt.value = fieldId;
+                opt.textContent = field.name;
+                opt.dataset.fieldType = field.type;
+                this.inlineXAxisField.appendChild(opt.cloneNode(true));
+                this.inlineCategoryField.appendChild(opt);
+            }
+            
+            // Y-axis: number fields OR count of booleans
+            if (field.type === 'number') {
+                const opt = document.createElement('option');
+                opt.value = fieldId;
+                opt.textContent = field.name;
+                opt.dataset.fieldType = field.type;
+                this.inlineYAxisField.appendChild(opt);
+            } else if (field.type === 'boolean') {
+                const opt = document.createElement('option');
+                opt.value = fieldId + ':count';
+                opt.textContent = field.name + ' (Count)';
+                opt.dataset.fieldType = 'boolean-count';
+                this.inlineYAxisField.appendChild(opt);
+            }
+        });
+    }
+
+    selectInlineChartType(chartType) {
+        this.selectedInlineChartType = chartType;
+        
+        // Update UI
+        document.querySelectorAll('.chart-type-option[data-inline]').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        document.querySelector(`.chart-type-option[data-inline][data-chart="${chartType}"]`).classList.add('selected');
+        
+        // Show/hide relevant config sections
+        if (chartType === 'pie') {
+            this.inlineBarConfig.classList.add('hidden');
+            this.inlinePieConfig.classList.remove('hidden');
+        } else {
+            this.inlineBarConfig.classList.remove('hidden');
+            this.inlinePieConfig.classList.add('hidden');
+        }
+    }
+
+    generateInlineChart() {
+        if (!this.selectedInlineChartType) {
+            this.showToast('Select a chart type', 'error');
+            return;
+        }
+        
+        if (this.selectedInlineChartType === 'pie') {
+            const categoryFieldId = this.inlineCategoryField.value;
+            if (!categoryFieldId) {
+                this.showToast('Select a category field', 'error');
+                return;
+            }
+            this.renderInlinePieChart(categoryFieldId);
+        } else if (this.selectedInlineChartType === 'bar') {
+            const xFieldId = this.inlineXAxisField.value;
+            const yFieldId = this.inlineYAxisField.value;
+            
+            if (!xFieldId || !yFieldId) {
+                this.showToast('Select both X and Y axis fields', 'error');
+                return;
+            }
+            
+            this.renderInlineBarChart(xFieldId, yFieldId);
+        }
+    }
+
+    renderInlineBarChart(xFieldId, yFieldId) {
+        const fields = this.currentTypeForInstances.fields;
+        
+        // Handle boolean count aggregation
+        const isBooleanCount = yFieldId.includes(':count');
+        const actualYFieldId = isBooleanCount ? yFieldId.split(':')[0] : yFieldId;
+        
+        const xField = fields[xFieldId];
+        const yField = fields[actualYFieldId];
+        
+        let data;
+        
+        if (isBooleanCount) {
+            // Aggregate boolean counts by X-axis category
+            const grouped = {};
+            this.allInstances.forEach(inst => {
+                const xValue = this.formatXAxisValue(inst.data[xFieldId], xField.type);
+                const yValue = inst.data[actualYFieldId];
+                
+                if (!grouped[xValue]) {
+                    grouped[xValue] = { total: 0, trueCount: 0, falseCount: 0 };
+                }
+                grouped[xValue].total++;
+                if (yValue === true) grouped[xValue].trueCount++;
+                if (yValue === false) grouped[xValue].falseCount++;
+            });
+            
+            // Convert to data array (showing true count)
+            data = Object.entries(grouped).map(([x, counts]) => ({
+                x: x,
+                y: counts.trueCount,
+                total: counts.total,
+                percentage: ((counts.trueCount / counts.total) * 100).toFixed(1)
+            }));
+        } else {
+            // Extract data normally
+            data = this.allInstances.map(inst => ({
+                x: this.formatXAxisValue(inst.data[xFieldId], xField.type),
+                y: parseFloat(inst.data[actualYFieldId]) || 0
+            }));
+        }
+        
+        // Sort data by X-axis (especially important for dates)
+        if (xField.type === 'date') {
+            data.sort((a, b) => new Date(a.x) - new Date(b.x));
+        }
+        
+        // Render chart
+        let html = '<div style="display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 12px;">';
+        const maxValue = Math.max(...data.map(d => d.y));
+        
+        data.forEach(d => {
+            const height = maxValue > 0 ? (d.y / maxValue) * 100 : 0;
+            const displayValue = isBooleanCount ? `${d.y}/${d.total}` : d.y;
+            html += `
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                    <div style="font-size: 10px; margin-bottom: 4px; font-weight: 600; color: #214159;">${displayValue}</div>
+                    <div style="width: 100%; background: #83CAFF; border-radius: 6px 6px 0 0; height: ${height}%; min-height: 4px;"></div>
+                    <div style="font-size: 10px; margin-top: 6px; color: #6289A7; text-align: center; max-width: 60px; word-wrap: break-word;">${d.x}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        this.inlineChartCanvas.innerHTML = html;
+        this.inlineChartDisplay.classList.remove('hidden');
+        soundManager.play('bite');
+    }
+
+    renderInlinePieChart(categoryFieldId) {
+        const fields = this.currentTypeForInstances.fields;
+        const categoryField = fields[categoryFieldId];
+        
+        // Count instances by category
+        const counts = {};
+        this.allInstances.forEach(inst => {
+            const rawValue = inst.data[categoryFieldId];
+            const value = this.formatXAxisValue(rawValue, categoryField.type) || 'Unknown';
+            counts[value] = (counts[value] || 0) + 1;
+        });
+        
+        // Render
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const colors = ['#83CAFF', '#71A7CF', '#6289A7', '#EBB820', '#D8ECFB'];
+        
+        let html = '<div style="padding: 12px;">';
+        
+        Object.entries(counts).forEach(([category, count], i) => {
+            const percentage = (count / total) * 100;
+            const color = colors[i % colors.length];
+            html += `
+                <div style="margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <div style="width: 16px; height: 16px; background: ${color}; border-radius: 3px;"></div>
+                        <div style="font-size: 13px; font-weight: 600; color: #214159;">${category}</div>
+                        <div style="font-size: 12px; color: #6289A7;">(${count})</div>
+                    </div>
+                    <div style="height: 20px; background: ${color}; border-radius: 6px; width: ${percentage}%; display: flex; align-items: center; padding: 0 8px; color: white; font-weight: 600; font-size: 11px; min-width: 40px;">
+                        ${percentage.toFixed(0)}%
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        this.inlineChartCanvas.innerHTML = html;
+        this.inlineChartDisplay.classList.remove('hidden');
+        soundManager.play('bite');
+    }
+
     // ===== DATA VISUALIZATION METHODS =====
 
     async showDataVizView() {
@@ -6639,20 +6895,28 @@ class App {
         this.categoryField.innerHTML = '<option value="">Select field...</option>';
         
         Object.entries(fields).forEach(([fieldId, field]) => {
-            // X-axis: text fields for labels
-            if (field.type === 'text' || field.type === 'dropdown') {
+            // X-axis: text, dropdown, date, boolean for labels/categories
+            if (['text', 'dropdown', 'date', 'boolean'].includes(field.type)) {
                 const opt = document.createElement('option');
                 opt.value = fieldId;
                 opt.textContent = field.name;
+                opt.dataset.fieldType = field.type;
                 this.xAxisField.appendChild(opt.cloneNode(true));
                 this.categoryField.appendChild(opt);
             }
             
-            // Y-axis: number fields for values
+            // Y-axis: number fields OR count of booleans
             if (field.type === 'number') {
                 const opt = document.createElement('option');
                 opt.value = fieldId;
                 opt.textContent = field.name;
+                opt.dataset.fieldType = field.type;
+                this.yAxisField.appendChild(opt);
+            } else if (field.type === 'boolean') {
+                const opt = document.createElement('option');
+                opt.value = fieldId + ':count';
+                opt.textContent = field.name + ' (Count)';
+                opt.dataset.fieldType = 'boolean-count';
                 this.yAxisField.appendChild(opt);
             }
         });
@@ -6711,31 +6975,70 @@ class App {
 
     renderBarChart(xFieldId, yFieldId) {
         const fields = this.currentVizType.fields;
-        const xField = fields[xFieldId];
-        const yField = fields[yFieldId];
         
-        // Extract data
-        const data = this.currentVizInstances.map(inst => ({
-            x: inst.data[xFieldId] || 'Unnamed',
-            y: parseFloat(inst.data[yFieldId]) || 0
-        }));
+        // Handle boolean count aggregation
+        const isBooleanCount = yFieldId.includes(':count');
+        const actualYFieldId = isBooleanCount ? yFieldId.split(':')[0] : yFieldId;
+        
+        const xField = fields[xFieldId];
+        const yField = fields[actualYFieldId];
+        
+        let data;
+        
+        if (isBooleanCount) {
+            // Aggregate boolean counts by X-axis category
+            const grouped = {};
+            this.currentVizInstances.forEach(inst => {
+                const xValue = this.formatXAxisValue(inst.data[xFieldId], xField.type);
+                const yValue = inst.data[actualYFieldId];
+                
+                if (!grouped[xValue]) {
+                    grouped[xValue] = { total: 0, trueCount: 0, falseCount: 0 };
+                }
+                grouped[xValue].total++;
+                if (yValue === true) grouped[xValue].trueCount++;
+                if (yValue === false) grouped[xValue].falseCount++;
+            });
+            
+            // Convert to data array (showing true count)
+            data = Object.entries(grouped).map(([x, counts]) => ({
+                x: x,
+                y: counts.trueCount,
+                total: counts.total,
+                percentage: ((counts.trueCount / counts.total) * 100).toFixed(1)
+            }));
+        } else {
+            // Extract data normally
+            data = this.currentVizInstances.map(inst => ({
+                x: this.formatXAxisValue(inst.data[xFieldId], xField.type),
+                y: parseFloat(inst.data[actualYFieldId]) || 0
+            }));
+        }
+        
+        // Sort data by X-axis (especially important for dates)
+        if (xField.type === 'date') {
+            data.sort((a, b) => new Date(a.x) - new Date(b.x));
+        }
         
         // Show chart display
         this.chartBuilder.classList.add('hidden');
         this.chartDisplay.classList.remove('hidden');
-        this.chartTitle.textContent = `${this.currentVizType.name}: ${yField.name} by ${xField.name}`;
+        
+        const yLabel = isBooleanCount ? `${yField.name} (True Count)` : yField.name;
+        this.chartTitle.textContent = `${this.currentVizType.name}: ${yLabel} by ${xField.name}`;
         
         // Render simple bar chart (HTML/CSS based)
         let html = '<div style="display: flex; align-items: flex-end; gap: 12px; height: 300px; padding: 20px;">';
         const maxValue = Math.max(...data.map(d => d.y));
         
         data.forEach(d => {
-            const height = (d.y / maxValue) * 100;
+            const height = maxValue > 0 ? (d.y / maxValue) * 100 : 0;
+            const displayValue = isBooleanCount ? `${d.y}/${d.total} (${d.percentage}%)` : d.y;
             html += `
                 <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                    <div style="font-size: 12px; margin-bottom: 4px; font-weight: 600; color: #214159;">${d.y}</div>
-                    <div style="width: 100%; background: #83CAFF; border-radius: 8px 8px 0 0; height: ${height}%;"></div>
-                    <div style="font-size: 12px; margin-top: 8px; color: #6289A7; text-align: center;">${d.x}</div>
+                    <div style="font-size: 12px; margin-bottom: 4px; font-weight: 600; color: #214159;">${displayValue}</div>
+                    <div style="width: 100%; background: #83CAFF; border-radius: 8px 8px 0 0; height: ${height}%; min-height: 4px;"></div>
+                    <div style="font-size: 12px; margin-top: 8px; color: #6289A7; text-align: center; max-width: 80px; word-wrap: break-word;">${d.x}</div>
                 </div>
             `;
         });
@@ -6743,6 +7046,23 @@ class App {
         
         this.chartCanvas.innerHTML = html;
         soundManager.play('submitted');
+    }
+
+    formatXAxisValue(value, fieldType) {
+        if (value === null || value === undefined) return 'Unknown';
+        
+        switch (fieldType) {
+            case 'date':
+                if (value.includes('-')) {
+                    const [year, month, day] = value.split('-');
+                    return new Date(year, month - 1, day).toLocaleDateString();
+                }
+                return new Date(value).toLocaleDateString();
+            case 'boolean':
+                return value ? 'Yes' : 'No';
+            default:
+                return String(value);
+        }
     }
 
     renderLineChart(xFieldId, yFieldId) {
@@ -6760,7 +7080,8 @@ class App {
         // Count instances by category
         const counts = {};
         this.currentVizInstances.forEach(inst => {
-            const value = inst.data[categoryFieldId] || 'Unknown';
+            const rawValue = inst.data[categoryFieldId];
+            const value = this.formatXAxisValue(rawValue, categoryField.type) || 'Unknown';
             counts[value] = (counts[value] || 0) + 1;
         });
         
@@ -6800,7 +7121,7 @@ class App {
             const color = colors[i % colors.length];
             html += `
                 <div style="margin-bottom: 8px;">
-                    <div style="height: 30px; background: ${color}; border-radius: 8px; width: ${percentage}%; display: flex; align-items: center; padding: 0 12px; color: white; font-weight: 600; font-size: 14px;">
+                    <div style="height: 30px; background: ${color}; border-radius: 8px; width: ${percentage}%; display: flex; align-items: center; padding: 0 12px; color: white; font-weight: 600; font-size: 14px; min-width: 60px;">
                         ${percentage.toFixed(0)}%
                     </div>
                 </div>

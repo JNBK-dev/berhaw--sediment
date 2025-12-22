@@ -188,7 +188,62 @@
                         <div class="tool-header">
                             <button class="btn-back" id="backToTypesBtn">← Object Types</button>
                             <h2 id="instancesTypeName">Instances</h2>
-                            <button class="btn-primary" id="createInstanceBtn">+ New Instance</button>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-secondary" id="visualizeInstancesBtn">📊 Visualize</button>
+                                <button class="btn-primary" id="createInstanceBtn">+ New Instance</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Inline Visualization Panel -->
+                        <div id="inlineVizPanel" class="hidden" style="background: #F1F8FE; border: 2px solid #D8ECFB; border-radius: 12px; padding: 20px; margin: 0 20px 20px 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #214159;">Quick Visualization</h3>
+                                <button class="btn-icon-close" id="closeInlineVizBtn" style="width: 28px; height: 28px; font-size: 18px;">×</button>
+                            </div>
+                            
+                            <div class="viz-row">
+                                <label>Chart Type</label>
+                                <div class="chart-type-grid">
+                                    <div class="chart-type-option chart-type-small" data-chart="bar" data-inline="true">
+                                        <div class="chart-icon" style="font-size: 20px;">📊</div>
+                                        <span style="font-size: 12px;">Bar</span>
+                                    </div>
+                                    <div class="chart-type-option chart-type-small" data-chart="pie" data-inline="true">
+                                        <div class="chart-icon" style="font-size: 20px;">🍰</div>
+                                        <span style="font-size: 12px;">Pie</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="inlineBarConfig" class="hidden">
+                                <div class="viz-row">
+                                    <label>X-Axis</label>
+                                    <select id="inlineXAxisField" class="panel-input">
+                                        <option value="">Select field...</option>
+                                    </select>
+                                </div>
+                                <div class="viz-row">
+                                    <label>Y-Axis</label>
+                                    <select id="inlineYAxisField" class="panel-input">
+                                        <option value="">Select field...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="inlinePieConfig" class="hidden">
+                                <div class="viz-row">
+                                    <label>Category</label>
+                                    <select id="inlineCategoryField" class="panel-input">
+                                        <option value="">Select field...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button class="btn-primary" id="generateInlineChartBtn" style="margin-top: 12px;">Generate</button>
+                            
+                            <div id="inlineChartDisplay" class="hidden" style="margin-top: 20px;">
+                                <div id="inlineChartCanvas" style="background: #FFFFFF; border: 2px solid #D8ECFB; border-radius: 12px; padding: 20px; min-height: 250px;"></div>
+                            </div>
                         </div>
                         
                         <!-- Search & Filters -->

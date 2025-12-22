@@ -3336,6 +3336,11 @@ input:checked + .toggle-slider:before {
     color: #214159;
 }
 
+.chart-type-small {
+    padding: 12px;
+    min-width: 80px;
+}
+
 .viz-row {
     margin-bottom: 16px;
 }
