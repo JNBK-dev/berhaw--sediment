@@ -399,7 +399,7 @@ class App {
         
         // Instance view controls
         if (this.backToTypesBtn) {
-            this.backToTypesBtn.onclick = () => this.showObjectTypesView();
+            this.backToTypesBtn.onclick = () => this.showObjectTypesViewFromInstances();
         }
         
         if (this.createInstanceBtn) {
@@ -1321,14 +1321,8 @@ class App {
     }
 
     createObjectType() {
-        this.currentObjectTypeId = null;
-        this.fieldIdCounter = 0;
-        this.objectTypeName.value = "";
-        this.objectTypeTags.value = "";
-        this.fieldsList.innerHTML = "";
-        this.deleteObjectTypeBtn.style.display = "none";
-        this.objectTypeBuilderTitle.textContent = "New Object Type";
-        this.showObjectTypeBuilder();
+        // Redirect to new panel-based creation
+        this.openCreatePanel();
     }
 
     async openObjectType(typeId) {
@@ -5244,6 +5238,9 @@ class App {
         // Hide workshop home
         this.workshopHome.classList.add('hidden');
         
+        // Hide instances view if showing
+        this.objectInstancesView.classList.add('hidden');
+        
         // Show object types view
         this.objectTypesView.classList.remove('hidden');
         
@@ -5828,7 +5825,7 @@ class App {
         soundManager.play('bite');
     }
 
-    showObjectTypesView() {
+    showObjectTypesViewFromInstances() {
         this.objectInstancesView.classList.add('hidden');
         this.objectTypesView.classList.remove('hidden');
         this.currentTypeForInstances = null;

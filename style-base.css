@@ -3358,8 +3358,8 @@ input:checked + .toggle-slider:before {
     flex-direction: column;
 }
 
-/* Hide old container when using new layout */
-.app-container ~ .container {
+/* Hide old container only when new layout is visible */
+.app-container:not(.hidden) ~ .container {
     display: none !important;
 }
 
