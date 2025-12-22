@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 12 12" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1,0,0,1,-1208,0)">
+        <g id="Icon---Settings" serif:id="Icon | Settings" transform="matrix(0.307692,0,0,0.352941,844.615,0)">
+            <rect x="1181" y="0" width="39" height="34" style="fill:none;"/>
+            <clipPath id="_clip1">
+                <rect x="1181" y="0" width="39" height="34"/>
+            </clipPath>
+            <g clip-path="url(#_clip1)">
+                <g transform="matrix(2.42608,0,0,2.11505,453.358,-97.1329)">
+                    <g transform="matrix(1.03794,0,0,1.03794,14.0641,3.98353)">
+                        <circle cx="283.192" cy="48.188" r="7.708" style="fill:rgb(131,202,255);"/>
+                    </g>
+                    <g transform="matrix(1,0,0,0.828774,-0.321092,-17.5462)">
+                        <path d="M306.981,87.944L304.321,87.944C303.582,87.944 302.981,87.22 302.981,86.328C302.981,85.436 303.582,84.711 304.321,84.711L306.981,84.711L306.981,81.501C306.981,80.609 307.582,79.885 308.321,79.885C309.06,79.885 309.661,80.609 309.661,81.501L309.661,84.711L312.321,84.711C313.06,84.711 313.661,85.436 313.661,86.328C313.661,87.22 313.06,87.944 312.321,87.944L309.661,87.944L309.661,91.154C309.661,92.046 309.06,92.771 308.321,92.771C307.582,92.771 306.981,92.046 306.981,91.154L306.981,87.944Z" style="fill:rgb(241,248,254);"/>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

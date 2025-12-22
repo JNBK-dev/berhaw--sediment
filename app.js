@@ -255,6 +255,25 @@ class App {
         this.allTypesList = document.getElementById("allTypesList");
         this.objectTypesEmpty = document.getElementById("objectTypesEmpty");
         
+        // Panel elements
+        this.objectTypePanel = document.getElementById("objectTypePanel");
+        this.panelTitle = document.getElementById("panelTitle");
+        this.closePanelBtn = document.getElementById("closePanelBtn");
+        this.typeName = document.getElementById("typeName");
+        this.typeDescription = document.getElementById("typeDescription");
+        this.typeTagInput = document.getElementById("typeTagInput");
+        this.typeTagsList = document.getElementById("typeTagsList");
+        this.addFieldBtn = document.getElementById("addFieldBtn");
+        this.fieldsList = document.getElementById("fieldsList");
+        this.emptyFieldsMessage = document.getElementById("emptyFieldsMessage");
+        this.cancelTypeBtn = document.getElementById("cancelTypeBtn");
+        this.saveTypeBtn = document.getElementById("saveTypeBtn");
+        
+        // State for editing
+        this.editingTypeId = null;
+        this.currentTags = [];
+        this.currentFields = [];
+        
         // Sidebar elements (empty for now)
 
         this.currentUser = null;
@@ -326,7 +345,34 @@ class App {
         }
         
         if (this.createObjectTypeBtn) {
-            this.createObjectTypeBtn.onclick = () => this.createObjectType();
+            this.createObjectTypeBtn.onclick = () => this.openCreatePanel();
+        }
+        
+        // Panel controls
+        if (this.closePanelBtn) {
+            this.closePanelBtn.onclick = () => this.closePanel();
+        }
+        
+        if (this.cancelTypeBtn) {
+            this.cancelTypeBtn.onclick = () => this.closePanel();
+        }
+        
+        if (this.saveTypeBtn) {
+            this.saveTypeBtn.onclick = () => this.saveObjectType();
+        }
+        
+        if (this.addFieldBtn) {
+            this.addFieldBtn.onclick = () => this.addField();
+        }
+        
+        // Tag input
+        if (this.typeTagInput) {
+            this.typeTagInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addTag();
+                }
+            };
         }
         
         // Search
@@ -5328,7 +5374,7 @@ class App {
         // Pin button
         const pinBtn = document.createElement('button');
         pinBtn.className = 'card-action-btn' + (type.pinned ? ' pinned' : '');
-        pinBtn.innerHTML = '📌';
+        pinBtn.innerHTML = '<img src="berhaw--icon--pin.svg" alt="Pin" />';
         pinBtn.title = type.pinned ? 'Unpin' : 'Pin';
         pinBtn.onclick = (e) => {
             e.stopPropagation();
@@ -5339,7 +5385,7 @@ class App {
         // Favorite button
         const favBtn = document.createElement('button');
         favBtn.className = 'card-action-btn' + (type.favorited ? ' favorited' : '');
-        favBtn.innerHTML = '⭐';
+        favBtn.innerHTML = '<img src="berhaw--icon--favorite.svg" alt="Favorite" />';
         favBtn.title = type.favorited ? 'Unfavorite' : 'Favorite';
         favBtn.onclick = (e) => {
             e.stopPropagation();
@@ -5396,7 +5442,7 @@ class App {
         editBtn.textContent = 'Edit';
         editBtn.onclick = (e) => {
             e.stopPropagation();
-            this.showToast('Edit coming soon', 'info');
+            this.openEditPanel(typeId, type);
         };
         footer.appendChild(editBtn);
         
@@ -5461,6 +5507,258 @@ class App {
         await db.ref(`objectTypes/${typeId}`).remove();
         soundManager.play('alert');
         this.showToast(`Deleted "${typeName}"`, 'success');
+    }
+
+    // ===== PANEL METHODS =====
+
+    openCreatePanel() {
+        this.editingTypeId = null;
+        this.currentTags = [];
+        this.currentFields = [];
+        
+        this.panelTitle.textContent = 'New Object Type';
+        this.typeName.value = '';
+        this.typeDescription.value = '';
+        this.typeTagInput.value = '';
+        this.typeTagsList.innerHTML = '';
+        this.fieldsList.innerHTML = '';
+        this.emptyFieldsMessage.classList.remove('hidden');
+        
+        this.objectTypePanel.classList.remove('hidden');
+        soundManager.play('bite');
+    }
+
+    openEditPanel(typeId, type) {
+        this.editingTypeId = typeId;
+        this.currentTags = type.tags || [];
+        this.currentFields = [];
+        
+        // Convert fields object to array
+        if (type.fields) {
+            Object.entries(type.fields).forEach(([fieldId, field]) => {
+                this.currentFields.push({
+                    id: fieldId,
+                    ...field
+                });
+            });
+        }
+        
+        this.panelTitle.textContent = 'Edit Object Type';
+        this.typeName.value = type.name || '';
+        this.typeDescription.value = type.description || '';
+        this.typeTagInput.value = '';
+        
+        this.renderTags();
+        this.renderFields();
+        
+        this.objectTypePanel.classList.remove('hidden');
+        soundManager.play('bite');
+    }
+
+    closePanel() {
+        this.objectTypePanel.classList.add('hidden');
+        this.editingTypeId = null;
+        this.currentTags = [];
+        this.currentFields = [];
+    }
+
+    addTag() {
+        const tag = this.typeTagInput.value.trim();
+        if (!tag) return;
+        
+        if (this.currentTags.includes(tag)) {
+            this.showToast('Tag already added', 'info');
+            return;
+        }
+        
+        this.currentTags.push(tag);
+        this.typeTagInput.value = '';
+        this.renderTags();
+    }
+
+    removeTag(tag) {
+        this.currentTags = this.currentTags.filter(t => t !== tag);
+        this.renderTags();
+    }
+
+    renderTags() {
+        this.typeTagsList.innerHTML = '';
+        
+        this.currentTags.forEach(tag => {
+            const tagEl = document.createElement('div');
+            tagEl.className = 'tag-item';
+            tagEl.innerHTML = `
+                <span>${tag}</span>
+                <span class="tag-remove">×</span>
+            `;
+            tagEl.querySelector('.tag-remove').onclick = () => this.removeTag(tag);
+            this.typeTagsList.appendChild(tagEl);
+        });
+    }
+
+    addField() {
+        const fieldId = 'field_' + Date.now();
+        const field = {
+            id: fieldId,
+            name: '',
+            type: 'text',
+            required: false,
+            group: ''
+        };
+        
+        this.currentFields.push(field);
+        this.renderFields();
+    }
+
+    removeField(fieldId) {
+        this.currentFields = this.currentFields.filter(f => f.id !== fieldId);
+        this.renderFields();
+    }
+
+    updateField(fieldId, prop, value) {
+        const field = this.currentFields.find(f => f.id === fieldId);
+        if (field) {
+            field[prop] = value;
+        }
+    }
+
+    renderFields() {
+        this.fieldsList.innerHTML = '';
+        
+        if (this.currentFields.length === 0) {
+            this.emptyFieldsMessage.classList.remove('hidden');
+            return;
+        }
+        
+        this.emptyFieldsMessage.classList.add('hidden');
+        
+        // Group fields
+        const grouped = {};
+        this.currentFields.forEach(field => {
+            const group = field.group || '_ungrouped';
+            if (!grouped[group]) grouped[group] = [];
+            grouped[group].push(field);
+        });
+        
+        // Render ungrouped first
+        if (grouped['_ungrouped']) {
+            grouped['_ungrouped'].forEach(field => {
+                this.fieldsList.appendChild(this.createFieldElement(field));
+            });
+        }
+        
+        // Then render grouped
+        Object.keys(grouped).forEach(groupName => {
+            if (groupName === '_ungrouped') return;
+            
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'field-group-header';
+            groupHeader.textContent = groupName;
+            this.fieldsList.appendChild(groupHeader);
+            
+            grouped[groupName].forEach(field => {
+                this.fieldsList.appendChild(this.createFieldElement(field));
+            });
+        });
+    }
+
+    createFieldElement(field) {
+        const fieldEl = document.createElement('div');
+        fieldEl.className = 'field-item';
+        
+        fieldEl.innerHTML = `
+            <div class="field-header">
+                <span class="field-drag-handle">⋮⋮</span>
+                <div class="field-actions">
+                    <button class="field-action-btn" data-action="delete">×</button>
+                </div>
+            </div>
+            <div class="field-inputs">
+                <div class="field-row">
+                    <input type="text" placeholder="Field name" value="${field.name || ''}" data-field="${field.id}" data-prop="name" />
+                    <select data-field="${field.id}" data-prop="type">
+                        <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
+                        <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
+                        <option value="boolean" ${field.type === 'boolean' ? 'selected' : ''}>Yes/No</option>
+                        <option value="date" ${field.type === 'date' ? 'selected' : ''}>Date</option>
+                        <option value="longtext" ${field.type === 'longtext' ? 'selected' : ''}>Long Text</option>
+                        <option value="dropdown" ${field.type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                        <option value="multiselect" ${field.type === 'multiselect' ? 'selected' : ''}>Multi-Select</option>
+                        <option value="url" ${field.type === 'url' ? 'selected' : ''}>URL</option>
+                        <option value="image" ${field.type === 'image' ? 'selected' : ''}>Image</option>
+                        <option value="email" ${field.type === 'email' ? 'selected' : ''}>Email</option>
+                        <option value="phone" ${field.type === 'phone' ? 'selected' : ''}>Phone</option>
+                        <option value="color" ${field.type === 'color' ? 'selected' : ''}>Color</option>
+                        <option value="relationship" ${field.type === 'relationship' ? 'selected' : ''}>Relationship</option>
+                    </select>
+                </div>
+                <div class="field-row">
+                    <input type="text" placeholder="Group (optional)" value="${field.group || ''}" data-field="${field.id}" data-prop="group" />
+                </div>
+            </div>
+        `;
+        
+        // Wire up events
+        fieldEl.querySelectorAll('input, select').forEach(input => {
+            input.oninput = () => {
+                const fieldId = input.dataset.field;
+                const prop = input.dataset.prop;
+                this.updateField(fieldId, prop, input.value);
+            };
+        });
+        
+        fieldEl.querySelector('[data-action="delete"]').onclick = () => {
+            this.removeField(field.id);
+        };
+        
+        return fieldEl;
+    }
+
+    async saveObjectType() {
+        const name = this.typeName.value.trim();
+        
+        if (!name) {
+            this.showToast('Name is required', 'error');
+            return;
+        }
+        
+        // Validate fields have names
+        const hasInvalidFields = this.currentFields.some(f => !f.name.trim());
+        if (hasInvalidFields) {
+            this.showToast('All fields must have names', 'error');
+            return;
+        }
+        
+        // Convert fields array to object
+        const fieldsObj = {};
+        this.currentFields.forEach(field => {
+            const { id, ...fieldData } = field;
+            fieldsObj[id] = fieldData;
+        });
+        
+        const typeData = {
+            name,
+            description: this.typeDescription.value.trim(),
+            tags: this.currentTags,
+            fields: fieldsObj,
+            authorId: this.currentUser.id,
+            lastUsed: Date.now()
+        };
+        
+        if (this.editingTypeId) {
+            // Update existing
+            await db.ref(`objectTypes/${this.editingTypeId}`).update(typeData);
+            this.showToast('Object Type updated', 'success');
+        } else {
+            // Create new
+            typeData.createdAt = Date.now();
+            const newTypeRef = db.ref('objectTypes').push();
+            await newTypeRef.set(typeData);
+            this.showToast('Object Type created', 'success');
+        }
+        
+        soundManager.play('submitted');
+        this.closePanel();
     }
 
 

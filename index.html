@@ -128,6 +128,55 @@
                                 <button class="btn-primary" onclick="app.createObjectType()">+ Create Object Type</button>
                             </div>
                         </div>
+                        
+                        <!-- Slide-out Panel -->
+                        <div class="slide-panel hidden" id="objectTypePanel">
+                            <div class="slide-panel-header">
+                                <h2 id="panelTitle">New Object Type</h2>
+                                <button class="btn-icon-close" id="closePanelBtn">×</button>
+                            </div>
+                            
+                            <div class="slide-panel-content">
+                                <!-- Basic Info Section -->
+                                <div class="panel-section">
+                                    <label class="panel-label">Name *</label>
+                                    <input type="text" id="typeName" class="panel-input" placeholder="e.g., Character, Item, Location" />
+                                </div>
+                                
+                                <div class="panel-section">
+                                    <label class="panel-label">Description</label>
+                                    <textarea id="typeDescription" class="panel-textarea" placeholder="What is this type used for?" rows="3"></textarea>
+                                </div>
+                                
+                                <div class="panel-section">
+                                    <label class="panel-label">Tags</label>
+                                    <div class="tags-input-wrapper">
+                                        <div class="tags-list" id="typeTagsList"></div>
+                                        <input type="text" id="typeTagInput" class="panel-input" placeholder="Add tag..." />
+                                    </div>
+                                    <div class="panel-hint">Press Enter to add a tag</div>
+                                </div>
+                                
+                                <!-- Fields Section -->
+                                <div class="panel-section">
+                                    <div class="section-header">
+                                        <label class="panel-label">Fields</label>
+                                        <button class="btn-secondary-small" id="addFieldBtn">+ Add Field</button>
+                                    </div>
+                                    <div class="fields-list" id="fieldsList">
+                                        <!-- Fields will appear here -->
+                                        <div class="empty-fields-message" id="emptyFieldsMessage">
+                                            No fields yet. Click "+ Add Field" to get started.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="slide-panel-footer">
+                                <button class="btn-secondary" id="cancelTypeBtn">Cancel</button>
+                                <button class="btn-primary" id="saveTypeBtn">Save Type</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
