@@ -295,6 +295,7 @@ class App {
         this.currentTypeForInstances = null;
         this.editingInstanceId = null;
         this.allInstances = [];
+        this.relationshipDisplayCache = {};
         
         // Sidebar elements (empty for now)
 
@@ -5647,7 +5648,8 @@ class App {
             name: '',
             type: 'text',
             required: false,
-            group: ''
+            group: '',
+            targetType: null
         };
         
         this.currentFields.push(field);
@@ -5710,6 +5712,8 @@ class App {
         const fieldEl = document.createElement('div');
         fieldEl.className = 'field-item';
         
+        const hasRelationship = field.type === 'relationship';
+        
         fieldEl.innerHTML = `
             <div class="field-header">
                 <div class="field-actions">
@@ -5719,7 +5723,7 @@ class App {
             <div class="field-inputs">
                 <div class="field-row">
                     <input type="text" placeholder="Field name" value="${field.name || ''}" data-field="${field.id}" data-prop="name" />
-                    <select data-field="${field.id}" data-prop="type">
+                    <select data-field="${field.id}" data-prop="type" data-field-type-select="true">
                         <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
                         <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
                         <option value="boolean" ${field.type === 'boolean' ? 'selected' : ''}>Yes/No</option>
@@ -5735,11 +5739,22 @@ class App {
                         <option value="relationship" ${field.type === 'relationship' ? 'selected' : ''}>Relationship</option>
                     </select>
                 </div>
+                <div class="field-row ${hasRelationship ? '' : 'hidden'}" data-relationship-row="${field.id}">
+                    <select data-field="${field.id}" data-prop="targetType" data-target-type-select="true">
+                        <option value="">Select Object Type...</option>
+                    </select>
+                </div>
                 <div class="field-row">
                     <input type="text" placeholder="Group (optional)" value="${field.group || ''}" data-field="${field.id}" data-prop="group" />
                 </div>
             </div>
         `;
+        
+        // Populate target type dropdown if relationship field
+        const targetTypeSelect = fieldEl.querySelector('[data-target-type-select]');
+        if (hasRelationship && targetTypeSelect) {
+            this.populateTargetTypeDropdown(targetTypeSelect, field.targetType);
+        }
         
         // Wire up events
         fieldEl.querySelectorAll('input, select').forEach(input => {
@@ -5747,6 +5762,18 @@ class App {
                 const fieldId = input.dataset.field;
                 const prop = input.dataset.prop;
                 this.updateField(fieldId, prop, input.value);
+                
+                // Show/hide relationship row when type changes
+                if (input.dataset.fieldTypeSelect) {
+                    const relationshipRow = fieldEl.querySelector(`[data-relationship-row="${fieldId}"]`);
+                    if (input.value === 'relationship') {
+                        relationshipRow.classList.remove('hidden');
+                        const targetSelect = relationshipRow.querySelector('select');
+                        this.populateTargetTypeDropdown(targetSelect, null);
+                    } else {
+                        relationshipRow.classList.add('hidden');
+                    }
+                }
             };
         });
         
@@ -5755,6 +5782,39 @@ class App {
         };
         
         return fieldEl;
+    }
+
+    async populateTargetTypeDropdown(selectEl, selectedValue) {
+        if (!this.currentUser) return;
+        
+        // Get all object types
+        const typesSnap = await db.ref('objectTypes')
+            .orderByChild('authorId')
+            .equalTo(this.currentUser.id)
+            .once('value');
+        
+        // Clear and populate
+        selectEl.innerHTML = '<option value="">Select Object Type...</option>';
+        
+        if (typesSnap.exists()) {
+            typesSnap.forEach(typeSnap => {
+                const type = typeSnap.val();
+                const typeId = typeSnap.key;
+                
+                // Don't allow self-reference if editing existing type
+                if (this.editingTypeId && typeId === this.editingTypeId) {
+                    return;
+                }
+                
+                const option = document.createElement('option');
+                option.value = typeId;
+                option.textContent = type.name || 'Untitled';
+                if (typeId === selectedValue) {
+                    option.selected = true;
+                }
+                selectEl.appendChild(option);
+            });
+        }
     }
 
     async saveObjectType() {
@@ -5769,6 +5829,15 @@ class App {
         const hasInvalidFields = this.currentFields.some(f => !f.name.trim());
         if (hasInvalidFields) {
             this.showToast('All fields must have names', 'error');
+            return;
+        }
+        
+        // Validate relationship fields have targetType
+        const hasInvalidRelationships = this.currentFields.some(f => 
+            f.type === 'relationship' && !f.targetType
+        );
+        if (hasInvalidRelationships) {
+            this.showToast('Relationship fields must have a target type selected', 'error');
             return;
         }
         
@@ -5925,15 +5994,25 @@ class App {
         
         fieldEntries.forEach(([fieldId, field]) => {
             const value = data[fieldId];
-            const displayValue = this.formatFieldValue(value, field.type);
+            const displayValue = this.formatFieldValue(value, field.type, field);
             
             const fieldDiv = document.createElement('div');
             fieldDiv.className = 'instance-field';
             fieldDiv.innerHTML = `
                 <span class="instance-field-label">${field.name}:</span>
-                <span class="instance-field-value">${displayValue}</span>
+                <span class="instance-field-value" data-field-type="${field.type}" data-field-id="${fieldId}">${displayValue}</span>
             `;
             fieldsDiv.appendChild(fieldDiv);
+            
+            // Load relationship display name asynchronously
+            if (field.type === 'relationship' && value && field.targetType) {
+                this.loadRelationshipDisplayName(value, field.targetType).then(displayName => {
+                    const valueSpan = fieldDiv.querySelector('.instance-field-value');
+                    if (valueSpan) {
+                        valueSpan.textContent = displayName;
+                    }
+                });
+            }
         });
         
         card.appendChild(fieldsDiv);
@@ -5965,7 +6044,7 @@ class App {
         return card;
     }
 
-    formatFieldValue(value, type) {
+    formatFieldValue(value, type, field = null) {
         if (value === null || value === undefined || value === '') return '—';
         
         switch (type) {
@@ -5975,8 +6054,55 @@ class App {
                 return new Date(value).toLocaleDateString();
             case 'longtext':
                 return value.substring(0, 50) + (value.length > 50 ? '...' : '');
+            case 'relationship':
+                // For relationship fields, we'll store the display name in a cache
+                // This will be populated asynchronously
+                return this.relationshipDisplayCache[value] || 'Loading...';
             default:
                 return String(value);
+        }
+    }
+
+    async loadRelationshipDisplayName(instanceId, targetTypeId) {
+        if (this.relationshipDisplayCache[instanceId]) {
+            return this.relationshipDisplayCache[instanceId];
+        }
+        
+        try {
+            // Get the instance
+            const instSnap = await db.ref(`objects/${instanceId}`).once('value');
+            if (!instSnap.exists()) {
+                this.relationshipDisplayCache[instanceId] = 'Not found';
+                return 'Not found';
+            }
+            
+            const instance = instSnap.val();
+            const data = instance.data || {};
+            
+            // Get the target type to find display field
+            const typeSnap = await db.ref(`objectTypes/${targetTypeId}`).once('value');
+            if (!typeSnap.exists()) {
+                this.relationshipDisplayCache[instanceId] = 'Type not found';
+                return 'Type not found';
+            }
+            
+            const targetType = typeSnap.val();
+            const fields = targetType.fields || {};
+            
+            // Find display field (first text field or first field)
+            const displayField = Object.entries(fields).find(([_, f]) => f.type === 'text') || Object.entries(fields)[0];
+            const displayFieldId = displayField ? displayField[0] : null;
+            
+            const displayName = displayFieldId && data[displayFieldId] 
+                ? data[displayFieldId] 
+                : 'Unnamed';
+            
+            this.relationshipDisplayCache[instanceId] = displayName;
+            return displayName;
+        } catch (error) {
+            console.error('Error loading relationship:', error);
+            this.relationshipDisplayCache[instanceId] = 'Error';
+            return 'Error';
         }
     }
 
@@ -6009,7 +6135,7 @@ class App {
         this.editingInstanceId = null;
     }
 
-    generateInstanceForm(data = {}) {
+    async generateInstanceForm(data = {}) {
         this.instanceFormContent.innerHTML = '';
         
         const fields = this.currentTypeForInstances.fields || {};
@@ -6024,29 +6150,29 @@ class App {
         
         // Render ungrouped first
         if (grouped['_ungrouped']) {
-            grouped['_ungrouped'].forEach(field => {
-                const fieldEl = this.createInstanceFieldInput(field, data[field.id]);
+            for (const field of grouped['_ungrouped']) {
+                const fieldEl = await this.createInstanceFieldInput(field, data[field.id]);
                 this.instanceFormContent.appendChild(fieldEl);
-            });
+            }
         }
         
         // Then render grouped
-        Object.keys(grouped).forEach(groupName => {
-            if (groupName === '_ungrouped') return;
+        for (const groupName of Object.keys(grouped)) {
+            if (groupName === '_ungrouped') continue;
             
             const groupHeader = document.createElement('div');
             groupHeader.className = 'field-group-header';
             groupHeader.textContent = groupName;
             this.instanceFormContent.appendChild(groupHeader);
             
-            grouped[groupName].forEach(field => {
-                const fieldEl = this.createInstanceFieldInput(field, data[field.id]);
+            for (const field of grouped[groupName]) {
+                const fieldEl = await this.createInstanceFieldInput(field, data[field.id]);
                 this.instanceFormContent.appendChild(fieldEl);
-            });
-        });
+            }
+        }
     }
 
-    createInstanceFieldInput(field, value = '') {
+    async createInstanceFieldInput(field, value = '') {
         const section = document.createElement('div');
         section.className = 'panel-section';
         
@@ -6112,8 +6238,22 @@ class App {
                 input.dataset.fieldId = field.id;
                 break;
                 
+            case 'relationship':
+                input = document.createElement('select');
+                input.className = 'panel-input';
+                input.dataset.fieldId = field.id;
+                input.innerHTML = '<option value="">Loading...</option>';
+                
+                // Populate with instances from target type
+                if (field.targetType) {
+                    await this.populateRelationshipDropdown(input, field.targetType, value);
+                } else {
+                    input.innerHTML = '<option value="">No target type configured</option>';
+                }
+                break;
+                
             default:
-                // For dropdown, multiselect, image, relationship - use text for now
+                // For dropdown, multiselect, image - use text for now
                 input = document.createElement('input');
                 input.type = 'text';
                 input.className = 'panel-input';
@@ -6125,6 +6265,56 @@ class App {
         
         section.appendChild(input);
         return section;
+    }
+
+    async populateRelationshipDropdown(selectEl, targetTypeId, selectedValue) {
+        // Get target type to know its fields
+        const typeSnap = await db.ref(`objectTypes/${targetTypeId}`).once('value');
+        if (!typeSnap.exists()) {
+            selectEl.innerHTML = '<option value="">Target type not found</option>';
+            return;
+        }
+        
+        const targetType = typeSnap.val();
+        const fields = targetType.fields || {};
+        
+        // Find display field (first text field or first field)
+        const displayField = Object.entries(fields).find(([_, f]) => f.type === 'text') || Object.entries(fields)[0];
+        const displayFieldId = displayField ? displayField[0] : null;
+        
+        // Get all instances of target type
+        const instancesSnap = await db.ref('objects')
+            .orderByChild('typeId')
+            .equalTo(targetTypeId)
+            .once('value');
+        
+        selectEl.innerHTML = '<option value="">— Select —</option>';
+        
+        if (instancesSnap.exists()) {
+            instancesSnap.forEach(instSnap => {
+                const instance = instSnap.val();
+                const instanceId = instSnap.key;
+                const data = instance.data || {};
+                
+                // Get display name
+                const displayName = displayFieldId && data[displayFieldId] 
+                    ? data[displayFieldId] 
+                    : 'Unnamed';
+                
+                const option = document.createElement('option');
+                option.value = instanceId;
+                option.textContent = displayName;
+                if (instanceId === selectedValue) {
+                    option.selected = true;
+                }
+                selectEl.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = `No ${targetType.name} instances yet`;
+            selectEl.appendChild(option);
+        }
     }
 
     async saveInstance() {
