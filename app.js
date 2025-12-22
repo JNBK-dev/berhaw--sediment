@@ -6623,8 +6623,8 @@ class App {
         this.inlineCategoryField.innerHTML = '<option value="">Select field...</option>';
         
         Object.entries(fields).forEach(([fieldId, field]) => {
-            // X-axis: text, dropdown, date, boolean for labels/categories
-            if (['text', 'dropdown', 'date', 'boolean'].includes(field.type)) {
+            // X-axis: text, dropdown, date, boolean, relationship for labels/categories
+            if (['text', 'dropdown', 'date', 'boolean', 'relationship'].includes(field.type)) {
                 const opt = document.createElement('option');
                 opt.value = fieldId;
                 opt.textContent = field.name;
@@ -6648,6 +6648,26 @@ class App {
                 this.inlineYAxisField.appendChild(opt);
             }
         });
+        
+        // Auto-generate when fields change
+        this.inlineXAxisField.onchange = () => this.autoGenerateInlineChart();
+        this.inlineYAxisField.onchange = () => this.autoGenerateInlineChart();
+        this.inlineCategoryField.onchange = () => this.autoGenerateInlineChart();
+    }
+
+    autoGenerateInlineChart() {
+        // Only auto-generate if chart type is selected and fields are set
+        if (!this.selectedInlineChartType) return;
+        
+        if (this.selectedInlineChartType === 'pie') {
+            if (this.inlineCategoryField.value) {
+                this.generateInlineChart();
+            }
+        } else {
+            if (this.inlineXAxisField.value && this.inlineYAxisField.value) {
+                this.generateInlineChart();
+            }
+        }
     }
 
     selectInlineChartType(chartType) {
@@ -6657,7 +6677,10 @@ class App {
         document.querySelectorAll('.chart-type-option[data-inline]').forEach(opt => {
             opt.classList.remove('selected');
         });
-        document.querySelector(`.chart-type-option[data-inline][data-chart="${chartType}"]`).classList.add('selected');
+        const selectedOpt = document.querySelector(`.chart-type-option[data-inline][data-chart="${chartType}"]`);
+        if (selectedOpt) {
+            selectedOpt.classList.add('selected');
+        }
         
         // Show/hide relevant config sections
         if (chartType === 'pie') {
@@ -6667,6 +6690,9 @@ class App {
             this.inlineBarConfig.classList.remove('hidden');
             this.inlinePieConfig.classList.add('hidden');
         }
+        
+        // Auto-generate if fields are already selected
+        this.autoGenerateInlineChart();
     }
 
     generateInlineChart() {
@@ -6695,7 +6721,7 @@ class App {
         }
     }
 
-    renderInlineBarChart(xFieldId, yFieldId) {
+    async renderInlineBarChart(xFieldId, yFieldId) {
         const fields = this.currentTypeForInstances.fields;
         
         // Handle boolean count aggregation
@@ -6704,6 +6730,11 @@ class App {
         
         const xField = fields[xFieldId];
         const yField = fields[actualYFieldId];
+        
+        // Load relationship display names if needed
+        if (xField.type === 'relationship' && xField.targetType) {
+            await this.loadRelationshipDisplayNamesForChart(this.allInstances, xFieldId, xField.type, xField.targetType);
+        }
         
         let data;
         
@@ -6744,7 +6775,7 @@ class App {
         
         // Render chart
         let html = '<div style="display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 12px;">';
-        const maxValue = Math.max(...data.map(d => d.y));
+        const maxValue = Math.max(...data.map(d => d.y), 1); // Ensure at least 1
         
         data.forEach(d => {
             const height = maxValue > 0 ? (d.y / maxValue) * 100 : 0;
@@ -6752,7 +6783,7 @@ class App {
             html += `
                 <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
                     <div style="font-size: 10px; margin-bottom: 4px; font-weight: 600; color: #214159;">${displayValue}</div>
-                    <div style="width: 100%; background: #83CAFF; border-radius: 6px 6px 0 0; height: ${height}%; min-height: 4px;"></div>
+                    <div style="width: 100%; background: #83CAFF; border-radius: 6px 6px 0 0; height: ${height}%; min-height: ${d.y > 0 ? '15px' : '4px'};"></div>
                     <div style="font-size: 10px; margin-top: 6px; color: #6289A7; text-align: center; max-width: 60px; word-wrap: break-word;">${d.x}</div>
                 </div>
             `;
@@ -6764,9 +6795,14 @@ class App {
         soundManager.play('bite');
     }
 
-    renderInlinePieChart(categoryFieldId) {
+    async renderInlinePieChart(categoryFieldId) {
         const fields = this.currentTypeForInstances.fields;
         const categoryField = fields[categoryFieldId];
+        
+        // Load relationship display names if needed
+        if (categoryField.type === 'relationship' && categoryField.targetType) {
+            await this.loadRelationshipDisplayNamesForChart(this.allInstances, categoryFieldId, categoryField.type, categoryField.targetType);
+        }
         
         // Count instances by category
         const counts = {};
@@ -6895,8 +6931,8 @@ class App {
         this.categoryField.innerHTML = '<option value="">Select field...</option>';
         
         Object.entries(fields).forEach(([fieldId, field]) => {
-            // X-axis: text, dropdown, date, boolean for labels/categories
-            if (['text', 'dropdown', 'date', 'boolean'].includes(field.type)) {
+            // X-axis: text, dropdown, date, boolean, relationship for labels/categories
+            if (['text', 'dropdown', 'date', 'boolean', 'relationship'].includes(field.type)) {
                 const opt = document.createElement('option');
                 opt.value = fieldId;
                 opt.textContent = field.name;
@@ -6920,16 +6956,39 @@ class App {
                 this.yAxisField.appendChild(opt);
             }
         });
+        
+        // Auto-generate when fields change
+        this.xAxisField.onchange = () => this.autoGenerateChart();
+        this.yAxisField.onchange = () => this.autoGenerateChart();
+        this.categoryField.onchange = () => this.autoGenerateChart();
+    }
+
+    autoGenerateChart() {
+        // Only auto-generate if chart type is selected and fields are set
+        if (!this.selectedChartType) return;
+        
+        if (this.selectedChartType === 'pie') {
+            if (this.categoryField.value) {
+                this.generateChart();
+            }
+        } else {
+            if (this.xAxisField.value && this.yAxisField.value) {
+                this.generateChart();
+            }
+        }
     }
 
     selectChartType(chartType) {
         this.selectedChartType = chartType;
         
-        // Update UI
-        document.querySelectorAll('.chart-type-option').forEach(opt => {
+        // Update UI - only for non-inline chart options
+        document.querySelectorAll('.chart-type-option:not([data-inline])').forEach(opt => {
             opt.classList.remove('selected');
         });
-        document.querySelector(`[data-chart="${chartType}"]`).classList.add('selected');
+        const selectedOpt = document.querySelector(`.chart-type-option[data-chart="${chartType}"]:not([data-inline])`);
+        if (selectedOpt) {
+            selectedOpt.classList.add('selected');
+        }
         
         // Show/hide relevant config sections
         if (chartType === 'pie') {
@@ -6939,6 +6998,9 @@ class App {
             this.barLineSection.classList.remove('hidden');
             this.pieSection.classList.add('hidden');
         }
+        
+        // Auto-generate if fields are already selected
+        this.autoGenerateChart();
     }
 
     generateChart() {
@@ -6973,7 +7035,7 @@ class App {
         }
     }
 
-    renderBarChart(xFieldId, yFieldId) {
+    async renderBarChart(xFieldId, yFieldId) {
         const fields = this.currentVizType.fields;
         
         // Handle boolean count aggregation
@@ -6982,6 +7044,11 @@ class App {
         
         const xField = fields[xFieldId];
         const yField = fields[actualYFieldId];
+        
+        // Load relationship display names if needed
+        if (xField.type === 'relationship' && xField.targetType) {
+            await this.loadRelationshipDisplayNamesForChart(this.currentVizInstances, xFieldId, xField.type, xField.targetType);
+        }
         
         let data;
         
@@ -7029,7 +7096,7 @@ class App {
         
         // Render simple bar chart (HTML/CSS based)
         let html = '<div style="display: flex; align-items: flex-end; gap: 12px; height: 300px; padding: 20px;">';
-        const maxValue = Math.max(...data.map(d => d.y));
+        const maxValue = Math.max(...data.map(d => d.y), 1); // Ensure at least 1 to avoid division by zero
         
         data.forEach(d => {
             const height = maxValue > 0 ? (d.y / maxValue) * 100 : 0;
@@ -7037,7 +7104,7 @@ class App {
             html += `
                 <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
                     <div style="font-size: 12px; margin-bottom: 4px; font-weight: 600; color: #214159;">${displayValue}</div>
-                    <div style="width: 100%; background: #83CAFF; border-radius: 8px 8px 0 0; height: ${height}%; min-height: 4px;"></div>
+                    <div style="width: 100%; background: #83CAFF; border-radius: 8px 8px 0 0; height: ${height}%; min-height: ${d.y > 0 ? '20px' : '4px'};"></div>
                     <div style="font-size: 12px; margin-top: 8px; color: #6289A7; text-align: center; max-width: 80px; word-wrap: break-word;">${d.x}</div>
                 </div>
             `;
@@ -7060,8 +7127,25 @@ class App {
                 return new Date(value).toLocaleDateString();
             case 'boolean':
                 return value ? 'Yes' : 'No';
+            case 'relationship':
+                // For relationships, use cached display name or return the ID
+                return this.relationshipDisplayCache[value] || value;
             default:
                 return String(value);
+        }
+    }
+
+    async loadRelationshipDisplayNamesForChart(instances, fieldId, fieldType, targetTypeId) {
+        if (fieldType !== 'relationship' || !targetTypeId) return;
+        
+        // Get all unique instance IDs
+        const instanceIds = [...new Set(instances.map(inst => inst.data[fieldId]).filter(id => id))];
+        
+        // Load display names for all
+        for (const instanceId of instanceIds) {
+            if (!this.relationshipDisplayCache[instanceId]) {
+                await this.loadRelationshipDisplayName(instanceId, targetTypeId);
+            }
         }
     }
 
@@ -7073,9 +7157,14 @@ class App {
         this.showToast('Scatter plots coming soon!', 'info');
     }
 
-    renderPieChart(categoryFieldId) {
+    async renderPieChart(categoryFieldId) {
         const fields = this.currentVizType.fields;
         const categoryField = fields[categoryFieldId];
+        
+        // Load relationship display names if needed
+        if (categoryField.type === 'relationship' && categoryField.targetType) {
+            await this.loadRelationshipDisplayNamesForChart(this.currentVizInstances, categoryFieldId, categoryField.type, categoryField.targetType);
+        }
         
         // Count instances by category
         const counts = {};
