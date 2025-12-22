@@ -85,10 +85,43 @@
                             <h2>Object Types</h2>
                             <button class="btn-primary" id="createObjectTypeBtn">+ New Type</button>
                         </div>
-                        <div class="tool-content">
-                            <div class="object-types-list" id="objectTypesList">
-                                <!-- Object types will be listed here -->
+                        
+                        <!-- Search & Filters -->
+                        <div class="tool-filters">
+                            <div class="search-box">
+                                <input type="text" id="objectTypeSearch" placeholder="Search types..." />
                             </div>
+                            <div class="filter-chips" id="tagFilters">
+                                <!-- Tag filters will appear here -->
+                            </div>
+                        </div>
+                        
+                        <div class="tool-content">
+                            <!-- Pinned Types -->
+                            <div class="type-group hidden" id="pinnedGroup">
+                                <h3 class="group-heading">📌 Pinned</h3>
+                                <div class="object-types-grid" id="pinnedTypesList"></div>
+                            </div>
+                            
+                            <!-- Recent Types -->
+                            <div class="type-group hidden" id="recentGroup">
+                                <h3 class="group-heading">🕒 Recent</h3>
+                                <div class="object-types-grid" id="recentTypesList"></div>
+                            </div>
+                            
+                            <!-- Favorites -->
+                            <div class="type-group hidden" id="favoritesGroup">
+                                <h3 class="group-heading">⭐ Favorites</h3>
+                                <div class="object-types-grid" id="favoritesTypesList"></div>
+                            </div>
+                            
+                            <!-- All Types -->
+                            <div class="type-group hidden" id="allGroup">
+                                <h3 class="group-heading">All Types</h3>
+                                <div class="object-types-grid" id="allTypesList"></div>
+                            </div>
+                            
+                            <!-- Empty State -->
                             <div class="empty-state hidden" id="objectTypesEmpty">
                                 <h3>No Object Types Yet</h3>
                                 <p>Create your first custom data structure</p>

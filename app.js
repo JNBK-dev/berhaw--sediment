@@ -243,18 +243,19 @@ class App {
         this.objectTypesView = document.getElementById("objectTypesView");
         this.backToWorkshopBtn = document.getElementById("backToWorkshopBtn");
         this.createObjectTypeBtn = document.getElementById("createObjectTypeBtn");
-        this.objectTypesList = document.getElementById("objectTypesList");
+        this.objectTypeSearch = document.getElementById("objectTypeSearch");
+        this.tagFilters = document.getElementById("tagFilters");
+        this.pinnedGroup = document.getElementById("pinnedGroup");
+        this.pinnedTypesList = document.getElementById("pinnedTypesList");
+        this.recentGroup = document.getElementById("recentGroup");
+        this.recentTypesList = document.getElementById("recentTypesList");
+        this.favoritesGroup = document.getElementById("favoritesGroup");
+        this.favoritesTypesList = document.getElementById("favoritesTypesList");
+        this.allGroup = document.getElementById("allGroup");
+        this.allTypesList = document.getElementById("allTypesList");
         this.objectTypesEmpty = document.getElementById("objectTypesEmpty");
         
-        // Sidebar elements
-        this.sidebarProfileName = document.getElementById("sidebarProfileName");
-        this.sidebarSettingsBtn = document.getElementById("sidebarSettingsBtn");
-        this.sidebarCreateBtn = document.getElementById("sidebarCreateBtn");
-        this.sidebarCreateMenu = document.getElementById("sidebarCreateMenu");
-        this.sidebarRoomsList = document.getElementById("sidebarRoomsList");
-        this.sidebarDocsList = document.getElementById("sidebarDocsList");
-        this.sidebarPeopleList = document.getElementById("sidebarPeopleList");
-        this.sidebarJoinRoomBtn = document.getElementById("sidebarJoinRoomBtn");
+        // Sidebar elements (empty for now)
 
         this.currentUser = null;
         this.currentRoomCode = null;
@@ -326,6 +327,11 @@ class App {
         
         if (this.createObjectTypeBtn) {
             this.createObjectTypeBtn.onclick = () => this.createObjectType();
+        }
+        
+        // Search
+        if (this.objectTypeSearch) {
+            this.objectTypeSearch.oninput = () => this.filterObjectTypes();
         }
         
         // Sidebar navigation (empty for now)
@@ -5155,31 +5161,151 @@ class App {
     async loadObjectTypes() {
         if (!this.currentUser) return;
         
+        // Store all types for filtering
+        this.allObjectTypes = [];
+        this.allTags = new Set();
+        
         // Listen to user's object types
         const typesRef = db.ref('objectTypes')
             .orderByChild('authorId')
             .equalTo(this.currentUser.id);
         
         typesRef.on('value', (snapshot) => {
-            this.objectTypesList.innerHTML = '';
+            this.allObjectTypes = [];
+            this.allTags = new Set();
             
             if (!snapshot.exists()) {
-                this.objectTypesList.classList.add('hidden');
-                this.objectTypesEmpty.classList.remove('hidden');
+                this.showEmptyState();
                 return;
             }
             
-            this.objectTypesList.classList.remove('hidden');
-            this.objectTypesEmpty.classList.add('hidden');
-            
+            // Collect all types
             snapshot.forEach(typeSnap => {
                 const type = typeSnap.val();
                 const typeId = typeSnap.key;
                 
-                const card = this.createObjectTypeCard(typeId, type);
-                this.objectTypesList.appendChild(card);
+                this.allObjectTypes.push({
+                    id: typeId,
+                    ...type
+                });
+                
+                // Collect tags
+                if (type.tags && Array.isArray(type.tags)) {
+                    type.tags.forEach(tag => this.allTags.add(tag));
+                }
             });
+            
+            // Render tag filters
+            this.renderTagFilters();
+            
+            // Render grouped types
+            this.renderGroupedTypes();
         });
+    }
+
+    renderTagFilters() {
+        if (this.allTags.size === 0) {
+            this.tagFilters.innerHTML = '';
+            return;
+        }
+        
+        this.tagFilters.innerHTML = '';
+        
+        // Add "All" chip
+        const allChip = document.createElement('div');
+        allChip.className = 'filter-chip active';
+        allChip.textContent = 'All';
+        allChip.onclick = () => {
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            allChip.classList.add('active');
+            this.currentTagFilter = null;
+            this.renderGroupedTypes();
+        };
+        this.tagFilters.appendChild(allChip);
+        
+        // Add tag chips
+        Array.from(this.allTags).sort().forEach(tag => {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            chip.textContent = tag;
+            chip.onclick = () => {
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                this.currentTagFilter = tag;
+                this.renderGroupedTypes();
+            };
+            this.tagFilters.appendChild(chip);
+        });
+    }
+
+    filterObjectTypes() {
+        this.renderGroupedTypes();
+    }
+
+    renderGroupedTypes() {
+        const searchTerm = this.objectTypeSearch ? this.objectTypeSearch.value.toLowerCase() : '';
+        
+        // Filter types
+        let filteredTypes = this.allObjectTypes.filter(type => {
+            // Search filter
+            if (searchTerm && !type.name.toLowerCase().includes(searchTerm)) {
+                return false;
+            }
+            
+            // Tag filter
+            if (this.currentTagFilter && (!type.tags || !type.tags.includes(this.currentTagFilter))) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        if (filteredTypes.length === 0) {
+            this.showEmptyState();
+            return;
+        }
+        
+        this.objectTypesEmpty.classList.add('hidden');
+        
+        // Group types
+        const pinned = filteredTypes.filter(t => t.pinned);
+        const favorited = filteredTypes.filter(t => t.favorited && !t.pinned);
+        const recent = filteredTypes
+            .filter(t => !t.pinned && !t.favorited && t.lastUsed)
+            .sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0))
+            .slice(0, 5);
+        const all = filteredTypes
+            .filter(t => !t.pinned)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        
+        // Render each group
+        this.renderGroup(this.pinnedGroup, this.pinnedTypesList, pinned, '📌 Pinned');
+        this.renderGroup(this.recentGroup, this.recentTypesList, recent, '🕒 Recent');
+        this.renderGroup(this.favoritesGroup, this.favoritesTypesList, favorited, '⭐ Favorites');
+        this.renderGroup(this.allGroup, this.allTypesList, all, 'All Types');
+    }
+
+    renderGroup(groupEl, listEl, types, heading) {
+        if (!types || types.length === 0) {
+            groupEl.classList.add('hidden');
+            return;
+        }
+        
+        groupEl.classList.remove('hidden');
+        listEl.innerHTML = '';
+        
+        types.forEach(type => {
+            const card = this.createObjectTypeCard(type.id, type);
+            listEl.appendChild(card);
+        });
+    }
+
+    showEmptyState() {
+        this.pinnedGroup.classList.add('hidden');
+        this.recentGroup.classList.add('hidden');
+        this.favoritesGroup.classList.add('hidden');
+        this.allGroup.classList.add('hidden');
+        this.objectTypesEmpty.classList.remove('hidden');
     }
 
     createObjectTypeCard(typeId, type) {
@@ -5188,15 +5314,153 @@ class App {
         
         const fieldCount = type.fields ? Object.keys(type.fields).length : 0;
         
-        card.innerHTML = `
-            <h3>${type.name || 'Untitled Type'}</h3>
-            <p class="field-count">${fieldCount} field${fieldCount !== 1 ? 's' : ''}</p>
-            ${type.description ? `<p class="type-description">${type.description}</p>` : ''}
-        `;
+        // Card header with actions
+        const header = document.createElement('div');
+        header.className = 'card-header';
         
-        card.onclick = () => this.showToast('Edit/view coming soon', 'info');
+        const titleArea = document.createElement('div');
+        titleArea.className = 'card-title-area';
+        titleArea.innerHTML = `<h3>${type.name || 'Untitled Type'}</h3>`;
+        
+        const actions = document.createElement('div');
+        actions.className = 'card-actions';
+        
+        // Pin button
+        const pinBtn = document.createElement('button');
+        pinBtn.className = 'card-action-btn' + (type.pinned ? ' pinned' : '');
+        pinBtn.innerHTML = '📌';
+        pinBtn.title = type.pinned ? 'Unpin' : 'Pin';
+        pinBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.togglePin(typeId, !type.pinned);
+        };
+        actions.appendChild(pinBtn);
+        
+        // Favorite button
+        const favBtn = document.createElement('button');
+        favBtn.className = 'card-action-btn' + (type.favorited ? ' favorited' : '');
+        favBtn.innerHTML = '⭐';
+        favBtn.title = type.favorited ? 'Unfavorite' : 'Favorite';
+        favBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.toggleFavorite(typeId, !type.favorited);
+        };
+        actions.appendChild(favBtn);
+        
+        header.appendChild(titleArea);
+        header.appendChild(actions);
+        card.appendChild(header);
+        
+        // Field count
+        const count = document.createElement('p');
+        count.className = 'field-count';
+        count.textContent = `${fieldCount} field${fieldCount !== 1 ? 's' : ''}`;
+        card.appendChild(count);
+        
+        // Description
+        if (type.description) {
+            const desc = document.createElement('p');
+            desc.className = 'type-description';
+            desc.textContent = type.description;
+            card.appendChild(desc);
+        }
+        
+        // Tags
+        if (type.tags && type.tags.length > 0) {
+            const tagsDiv = document.createElement('div');
+            tagsDiv.className = 'type-tags';
+            type.tags.forEach(tag => {
+                const tagEl = document.createElement('span');
+                tagEl.className = 'type-tag';
+                tagEl.textContent = tag;
+                tagsDiv.appendChild(tagEl);
+            });
+            card.appendChild(tagsDiv);
+        }
+        
+        // Footer with actions
+        const footer = document.createElement('div');
+        footer.className = 'card-footer';
+        
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'btn-card-action';
+        viewBtn.textContent = 'View';
+        viewBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.showToast('View coming soon', 'info');
+        };
+        footer.appendChild(viewBtn);
+        
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-card-action';
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.showToast('Edit coming soon', 'info');
+        };
+        footer.appendChild(editBtn);
+        
+        const cloneBtn = document.createElement('button');
+        cloneBtn.className = 'btn-card-action';
+        cloneBtn.textContent = 'Clone';
+        cloneBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.cloneObjectType(typeId, type);
+        };
+        footer.appendChild(cloneBtn);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-card-action';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.deleteObjectTypeWithConfirm(typeId, type.name);
+        };
+        footer.appendChild(deleteBtn);
+        
+        card.appendChild(footer);
         
         return card;
+    }
+
+    async togglePin(typeId, pinned) {
+        await db.ref(`objectTypes/${typeId}`).update({ pinned });
+        soundManager.play('bite');
+    }
+
+    async toggleFavorite(typeId, favorited) {
+        await db.ref(`objectTypes/${typeId}`).update({ favorited });
+        soundManager.play('bite');
+    }
+
+    async cloneObjectType(typeId, type) {
+        if (!this.currentUser) return;
+        
+        const clonedType = {
+            name: `${type.name} (Copy)`,
+            description: type.description || '',
+            fields: type.fields || {},
+            tags: type.tags || [],
+            authorId: this.currentUser.id,
+            createdAt: Date.now(),
+            lastUsed: Date.now()
+        };
+        
+        const newTypeRef = db.ref('objectTypes').push();
+        await newTypeRef.set(clonedType);
+        
+        soundManager.play('submitted');
+        this.showToast(`Cloned "${type.name}"`, 'success');
+    }
+
+    async deleteObjectTypeWithConfirm(typeId, typeName) {
+        if (!confirm(`Delete "${typeName}"? This cannot be undone.`)) {
+            return;
+        }
+        
+        await db.ref(`objectTypes/${typeId}`).remove();
+        soundManager.play('alert');
+        this.showToast(`Deleted "${typeName}"`, 'success');
     }
 
 
