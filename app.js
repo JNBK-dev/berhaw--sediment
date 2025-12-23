@@ -383,17 +383,17 @@ class App {
         this.fieldIdCounter = 0;
         this.roundStartTime = null;
 
-        // Bind events
-        this.loginBtn.onclick = () => this.handleLogin();
-        this.quickPlayBtn.onclick = () => this.handleQuickPlay();
-        this.logoutBtn.onclick = () => this.handleLogout();
+        // Bind events (conditional for old elements)
+        if (this.loginBtn) this.loginBtn.onclick = () => this.handleLogin();
+        if (this.quickPlayBtn) this.quickPlayBtn.onclick = () => this.handleQuickPlay();
+        if (this.logoutBtn) this.logoutBtn.onclick = () => this.handleLogout();
         
-        // Tab navigation
-        this.writeTab.onclick = () => this.switchTab('write');
-        this.toolkitTab.onclick = () => this.switchTab('toolkit');
-        this.playTab.onclick = () => this.switchTab('play');
-        this.peopleTab.onclick = () => this.switchTab('people');
-        this.settingsTab.onclick = () => this.switchTab('settings');
+        // Tab navigation (old UI)
+        if (this.writeTab) this.writeTab.onclick = () => this.switchTab('write');
+        if (this.toolkitTab) this.toolkitTab.onclick = () => this.switchTab('toolkit');
+        if (this.playTab) this.playTab.onclick = () => this.switchTab('play');
+        if (this.peopleTab) this.peopleTab.onclick = () => this.switchTab('people');
+        if (this.settingsTab) this.settingsTab.onclick = () => this.switchTab('settings');
         
         // Workspace tabs
         document.querySelectorAll('.workspace-tab').forEach(tab => {
@@ -838,61 +838,70 @@ class App {
     }
 
     showAuthView() {
-        this.authView.classList.remove("hidden");
-        this.homeView.classList.add("hidden");
-        this.editorView.classList.add("hidden");
-        this.activityMenuView.classList.add("hidden");
-        this.chatView.classList.add("hidden");
-        this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
+        // For now, just hide the app container and show a simple message
+        // TODO: Build proper auth UI in new layout
+        if (this.appContainer) {
+            this.appContainer.classList.add("hidden");
+        }
+        
+        // If authView exists (old UI), show it
+        if (this.authView) {
+            this.authView.classList.remove("hidden");
+        } else {
+            // Create temporary auth prompt
+            document.body.innerHTML += `
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                            background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+                            text-align: center; z-index: 10000;">
+                    <h2 style="margin: 0 0 20px 0; color: #214159;">Welcome!</h2>
+                    <p style="margin: 0 0 20px 0; color: #6289A7;">Please log in to continue</p>
+                    <input id="tempAuthName" placeholder="Enter your name" 
+                           style="width: 100%; padding: 12px; border: 2px solid #D8ECFB; border-radius: 8px; margin-bottom: 12px;"/>
+                    <input id="tempAuthKey" placeholder="Enter your key (or leave blank)" 
+                           style="width: 100%; padding: 12px; border: 2px solid #D8ECFB; border-radius: 8px; margin-bottom: 16px;"/>
+                    <button id="tempLoginBtn" 
+                            style="width: 100%; padding: 12px; background: #83CAFF; color: white; border: none; border-radius: 8px; 
+                                   font-weight: 600; cursor: pointer;">
+                        Log In
+                    </button>
+                </div>
+            `;
+            
+            // Wire up temp auth
+            document.getElementById('tempLoginBtn').onclick = () => {
+                const name = document.getElementById('tempAuthName').value;
+                const key = document.getElementById('tempAuthKey').value;
+                this.authName = {value: name};
+                this.authKey = {value: key};
+                this.handleLogin();
+            };
+        }
         
         // Stop listening to rooms
         db.ref("rooms").off();
     }
 
     showHomeView() {
-        this.authView.classList.add("hidden");
+        // Hide auth view if it exists (old UI)
+        if (this.authView) this.authView.classList.add("hidden");
         
         // Show new three-column layout
         this.showAppContainer();
         
-        // Make sure homeView is visible (it's now in workshop)
-        this.homeView.classList.remove("hidden");
-        
-        // Hide other major views initially
-        this.editorView.classList.add("hidden");
-        this.activityMenuView.classList.add("hidden");
-        this.chatView.classList.add("hidden");
-        this.diceView.classList.add("hidden");
-        this.collabDocView.classList.add("hidden");
-        this.gameView.classList.add("hidden");
-        this.profileView.classList.add("hidden");
-        this.objectTypeBuilderView.classList.add("hidden");
-        this.objectInstancesView.classList.add("hidden");
-        this.objectInstanceEditorView.classList.add("hidden");
-        this.dataVisualizationView.classList.add("hidden");
+        // Make sure workshop home is visible
+        this.showWorkshopHome();
         
         soundManager.play('bite');
         
         if (!this.currentUser) {
             console.error("showHomeView called but currentUser is null!");
-            this.showAuthView();
             return;
         }
         
-        // Update UI
-        this.homePlayerName.textContent = this.currentUser.name;
-        this.homePlayerKey.textContent = this.currentUser.key;
-        
-        // Populate settings
-        this.settingsName.textContent = this.currentUser.name;
+        // Update settings if they exist (old UI elements)
+        if (this.homePlayerName) this.homePlayerName.textContent = this.currentUser.name;
+        if (this.homePlayerKey) this.homePlayerKey.textContent = this.currentUser.key;
+        if (this.settingsName) this.settingsName.textContent = this.currentUser.name;
         this.settingsKey.textContent = this.currentUser.key;
         
         // Initialize sound controls from saved preferences
@@ -922,6 +931,9 @@ class App {
     }
 
     switchTab(tabName) {
+        // Old UI tab switching - make conditional
+        if (!this.writeTab) return; // Old UI not present
+        
         // Remove active class from all tabs
         this.writeTab.classList.remove('active');
         this.toolkitTab.classList.remove('active');
