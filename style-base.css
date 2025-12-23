@@ -3341,6 +3341,29 @@ input:checked + .toggle-slider:before {
     min-width: 80px;
 }
 
+.agg-btn {
+    background: #FFFFFF;
+    border: 2px solid #D8ECFB;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6289A7;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.agg-btn:hover {
+    border-color: #83CAFF;
+    color: #214159;
+}
+
+.agg-btn.active {
+    background: #83CAFF;
+    border-color: #83CAFF;
+    color: #FFFFFF;
+}
+
 .viz-row {
     margin-bottom: 16px;
 }

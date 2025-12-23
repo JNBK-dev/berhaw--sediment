@@ -285,11 +285,17 @@ class App {
         this.inlineXAxisField = document.getElementById("inlineXAxisField");
         this.inlineYAxisField = document.getElementById("inlineYAxisField");
         this.inlineCategoryField = document.getElementById("inlineCategoryField");
+        this.inlineLineXField = document.getElementById("inlineLineXField");
+        this.inlineLineYField = document.getElementById("inlineLineYField");
         this.generateInlineChartBtn = document.getElementById("generateInlineChartBtn");
         this.inlineBarConfig = document.getElementById("inlineBarConfig");
+        this.inlineLineConfig = document.getElementById("inlineLineConfig");
         this.inlinePieConfig = document.getElementById("inlinePieConfig");
         this.inlineChartDisplay = document.getElementById("inlineChartDisplay");
         this.inlineChartCanvas = document.getElementById("inlineChartCanvas");
+        
+        // State for inline viz
+        this.currentAggregation = 'points';
         
         // Instance panel elements
         this.instancePanel = document.getElementById("instancePanel");
@@ -473,10 +479,27 @@ class App {
             this.generateInlineChartBtn.onclick = () => this.generateInlineChart();
         }
         
-        // Inline chart type selection
-        document.querySelectorAll('.chart-type-option[data-inline]').forEach(option => {
-            option.onclick = () => this.selectInlineChartType(option.dataset.chart);
+        // Inline chart type selection - use event delegation since elements are in hidden panel
+        document.addEventListener('click', (e) => {
+            const chartOption = e.target.closest('.chart-type-option[data-inline]');
+            if (chartOption && chartOption.dataset.chart) {
+                this.selectInlineChartType(chartOption.dataset.chart);
+            }
+            
+            // Aggregation button clicks
+            const aggBtn = e.target.closest('.agg-btn');
+            if (aggBtn && aggBtn.dataset.agg) {
+                this.setAggregation(aggBtn.dataset.agg);
+            }
         });
+        
+        // Line chart field changes for auto-generation
+        if (this.inlineLineXField) {
+            this.inlineLineXField.onchange = () => this.autoGenerateInlineChart();
+        }
+        if (this.inlineLineYField) {
+            this.inlineLineYField.onchange = () => this.autoGenerateInlineChart();
+        }
         
         // Data Visualization controls
         if (this.backFromDataVizBtn) {
@@ -6663,6 +6686,10 @@ class App {
             if (this.inlineCategoryField.value) {
                 this.generateInlineChart();
             }
+        } else if (this.selectedInlineChartType === 'line') {
+            if (this.inlineLineXField.value && this.inlineLineYField.value) {
+                this.generateInlineChart();
+            }
         } else {
             if (this.inlineXAxisField.value && this.inlineYAxisField.value) {
                 this.generateInlineChart();
@@ -6685,14 +6712,74 @@ class App {
         // Show/hide relevant config sections
         if (chartType === 'pie') {
             this.inlineBarConfig.classList.add('hidden');
+            this.inlineLineConfig.classList.add('hidden');
             this.inlinePieConfig.classList.remove('hidden');
-        } else {
-            this.inlineBarConfig.classList.remove('hidden');
+        } else if (chartType === 'line') {
+            this.inlineBarConfig.classList.add('hidden');
             this.inlinePieConfig.classList.add('hidden');
+            this.inlineLineConfig.classList.remove('hidden');
+            this.populateLineVizFields();
+        } else {
+            this.inlinePieConfig.classList.add('hidden');
+            this.inlineLineConfig.classList.add('hidden');
+            this.inlineBarConfig.classList.remove('hidden');
         }
         
         // Auto-generate if fields are already selected
         this.autoGenerateInlineChart();
+    }
+
+    setAggregation(mode) {
+        this.currentAggregation = mode;
+        
+        // Update button states
+        document.querySelectorAll('.agg-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const activeBtn = document.querySelector(`.agg-btn[data-agg="${mode}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+        
+        // Re-render chart with new aggregation
+        if (this.selectedInlineChartType === 'line' && this.inlineLineXField.value && this.inlineLineYField.value) {
+            this.renderInlineLineChart(this.inlineLineXField.value, this.inlineLineYField.value);
+        }
+    }
+
+    populateLineVizFields() {
+        const fields = this.currentTypeForInstances.fields || {};
+        
+        // Clear dropdowns
+        this.inlineLineXField.innerHTML = '<option value="">Select field...</option>';
+        this.inlineLineYField.innerHTML = '<option value="">Select field...</option>';
+        
+        Object.entries(fields).forEach(([fieldId, field]) => {
+            // X-axis: date fields for timeline
+            if (field.type === 'date') {
+                const opt = document.createElement('option');
+                opt.value = fieldId;
+                opt.textContent = field.name;
+                this.inlineLineXField.appendChild(opt);
+            }
+            
+            // Y-axis: number fields or booleans
+            if (field.type === 'number') {
+                const opt = document.createElement('option');
+                opt.value = fieldId;
+                opt.textContent = field.name;
+                this.inlineLineYField.appendChild(opt);
+            } else if (field.type === 'boolean') {
+                const opt = document.createElement('option');
+                opt.value = fieldId;
+                opt.textContent = field.name;
+                this.inlineLineYField.appendChild(opt);
+            }
+        });
+        
+        // Auto-generate when fields change
+        this.inlineLineXField.onchange = () => this.autoGenerateInlineChart();
+        this.inlineLineYField.onchange = () => this.autoGenerateInlineChart();
     }
 
     generateInlineChart() {
@@ -6708,6 +6795,16 @@ class App {
                 return;
             }
             this.renderInlinePieChart(categoryFieldId);
+        } else if (this.selectedInlineChartType === 'line') {
+            const xFieldId = this.inlineLineXField.value;
+            const yFieldId = this.inlineLineYField.value;
+            
+            if (!xFieldId || !yFieldId) {
+                this.showToast('Select both X and Y axis fields', 'error');
+                return;
+            }
+            
+            this.renderInlineLineChart(xFieldId, yFieldId);
         } else if (this.selectedInlineChartType === 'bar') {
             const xFieldId = this.inlineXAxisField.value;
             const yFieldId = this.inlineYAxisField.value;
@@ -6719,6 +6816,150 @@ class App {
             
             this.renderInlineBarChart(xFieldId, yFieldId);
         }
+    }
+
+    async renderInlineLineChart(xFieldId, yFieldId) {
+        const fields = this.currentTypeForInstances.fields;
+        const xField = fields[xFieldId];
+        const yField = fields[yFieldId];
+        
+        // Load relationship display names if needed
+        if (xField.type === 'relationship' && xField.targetType) {
+            await this.loadRelationshipDisplayNamesForChart(this.allInstances, xFieldId, xField.type, xField.targetType);
+        }
+        
+        // Prepare data based on aggregation mode
+        let data = [];
+        
+        if (this.currentAggregation === 'points') {
+            // All individual points
+            data = this.allInstances.map(inst => ({
+                x: this.formatXAxisValue(inst.data[xFieldId], xField.type),
+                xRaw: inst.data[xFieldId],
+                y: yField.type === 'boolean' ? (inst.data[yFieldId] ? 1 : 0) : (parseFloat(inst.data[yFieldId]) || 0)
+            }));
+        } else {
+            // Aggregate by X-axis value
+            const grouped = {};
+            this.allInstances.forEach(inst => {
+                const xValue = this.formatXAxisValue(inst.data[xFieldId], xField.type);
+                const xRaw = inst.data[xFieldId];
+                const yValue = yField.type === 'boolean' ? (inst.data[yFieldId] ? 1 : 0) : (parseFloat(inst.data[yFieldId]) || 0);
+                
+                if (!grouped[xValue]) {
+                    grouped[xValue] = { xRaw, values: [], sum: 0, count: 0 };
+                }
+                grouped[xValue].values.push(yValue);
+                grouped[xValue].sum += yValue;
+                grouped[xValue].count++;
+            });
+            
+            // Convert to data array based on mode
+            data = Object.entries(grouped).map(([x, g]) => {
+                let y;
+                if (this.currentAggregation === 'sum') {
+                    y = g.sum;
+                } else if (this.currentAggregation === 'average') {
+                    y = g.sum / g.count;
+                } else if (this.currentAggregation === 'count') {
+                    y = g.count;
+                }
+                return { x, xRaw: g.xRaw, y };
+            });
+        }
+        
+        // Sort by X-axis (especially for dates)
+        if (xField.type === 'date') {
+            data.sort((a, b) => new Date(a.xRaw) - new Date(b.xRaw));
+        }
+        
+        // Render SVG line chart
+        this.renderSVGLineChart(data, xField, yField);
+    }
+
+    renderSVGLineChart(data, xField, yField) {
+        if (data.length === 0) {
+            this.inlineChartCanvas.innerHTML = '<p style="text-align: center; color: #6289A7; padding: 40px;">No data to display</p>';
+            this.inlineChartDisplay.classList.remove('hidden');
+            return;
+        }
+        
+        const width = this.inlineChartCanvas.offsetWidth - 40;
+        const height = 200;
+        const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
+        
+        // Calculate scales
+        const maxY = Math.max(...data.map(d => d.y), 1);
+        const minY = Math.min(...data.map(d => d.y), 0);
+        const yRange = maxY - minY || 1;
+        
+        // Generate path data
+        const points = data.map((d, i) => {
+            const x = padding.left + (i / (data.length - 1 || 1)) * chartWidth;
+            const y = padding.top + chartHeight - ((d.y - minY) / yRange) * chartHeight;
+            return { x, y, value: d.y, label: d.x };
+        });
+        
+        const linePath = points.map((p, i) => 
+            `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+        ).join(' ');
+        
+        // Build SVG
+        let svg = `
+            <svg width="${width}" height="${height}" style="background: transparent;">
+                <!-- Grid lines -->
+                <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" 
+                      stroke="#D8ECFB" stroke-width="2"/>
+                <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" 
+                      stroke="#D8ECFB" stroke-width="2"/>
+                
+                <!-- Y-axis labels -->
+                <text x="${padding.left - 10}" y="${padding.top}" text-anchor="end" fill="#6289A7" font-size="11" font-weight="600">
+                    ${maxY.toFixed(1)}
+                </text>
+                <text x="${padding.left - 10}" y="${height - padding.bottom + 5}" text-anchor="end" fill="#6289A7" font-size="11" font-weight="600">
+                    ${minY.toFixed(1)}
+                </text>
+                
+                <!-- Line -->
+                <path d="${linePath}" fill="none" stroke="#83CAFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+                      style="transition: d 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);">
+                    <animate attributeName="stroke-dasharray" from="0,1000" to="1000,0" dur="1s" fill="freeze"/>
+                </path>
+                
+                <!-- Points -->
+                ${points.map(p => `
+                    <circle cx="${p.x}" cy="${p.y}" r="4" fill="#FFFFFF" stroke="#83CAFF" stroke-width="2"
+                            style="transition: all 0.5s cubic-bezier(0.4, 0.0, 0.2, 1); cursor: pointer;"
+                            onmouseover="this.setAttribute('r', '6')" onmouseout="this.setAttribute('r', '4')">
+                        <title>${p.label}: ${p.value.toFixed(2)}</title>
+                    </circle>
+                `).join('')}
+                
+                <!-- X-axis labels (show first, middle, last) -->
+                ${data.length > 0 ? `
+                    <text x="${points[0].x}" y="${height - padding.bottom + 20}" text-anchor="middle" fill="#6289A7" font-size="10">
+                        ${data[0].x}
+                    </text>
+                ` : ''}
+                ${data.length > 2 ? `
+                    <text x="${points[Math.floor(points.length / 2)].x}" y="${height - padding.bottom + 20}" text-anchor="middle" fill="#6289A7" font-size="10">
+                        ${data[Math.floor(data.length / 2)].x}
+                    </text>
+                ` : ''}
+                ${data.length > 1 ? `
+                    <text x="${points[points.length - 1].x}" y="${height - padding.bottom + 20}" text-anchor="middle" fill="#6289A7" font-size="10">
+                        ${data[data.length - 1].x}
+                    </text>
+                ` : ''}
+            </svg>
+        `;
+        
+        this.inlineChartCanvas.innerHTML = svg;
+        this.inlineChartDisplay.classList.remove('hidden');
+        soundManager.play('bite');
     }
 
     async renderInlineBarChart(xFieldId, yFieldId) {
