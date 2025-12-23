@@ -378,33 +378,769 @@
                                             </select>
                                         </div>
                                     </div>
-                                    
-                                    <div class="viz-actions">
-                                        <button class="btn-primary" id="generateChartBtn">Generate Chart</button>
-                                    </div>
-                                </div>
+    <div class="container" id="oldContainer">
+        
+        <!-- Authentication View -->
+        <div id="authView" class="card">
+            <div class="header">
+                <h1 class="player-name">Welcome!</h1>
+                <p class="subtitle">Log in or create a new account</p>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label" for="authName">Player name:</label>
+                <input id="authName" placeholder="Enter your name">
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label" for="authKey">Registration key:</label>
+                <input id="authKey" placeholder="Your 3-character key" maxlength="3">
+                <div class="input-hint">Enter your key to log in, or leave blank to create new account</div>
+            </div>
+            
+            <button class="btn-create" id="loginBtn">Continue</button>
+            
+            <div class="divider"></div>
+            
+            <button class="btn-secondary" id="quickPlayBtn">Quick Play (No Account)</button>
+        </div>
+        
+        <!-- Room Activity Menu -->
+        <div id="activityMenuView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="menuRoomCode"></h1>
+                <div class="user-info">
+                    <span class="user-key">Room Activity Menu</span>
+                    <button class="btn-logout" id="leaveRoomFromMenuBtn">Leave Room</button>
+                </div>
+            </div>
+            
+            <div class="activity-menu-content">
+                <div class="section-header">
+                    <div class="section-title">Players in Room</div>
+                </div>
+                
+                <div class="player-chips" id="menuPlayerChips"></div>
+                
+                <div class="section-header" style="margin-top: 24px;">
+                    <div class="section-title">Activities</div>
+                    <button class="btn-create" id="newActivityBtn">Start New Activity</button>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="activities-grid" id="activitiesList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Activity Creator Modal -->
+        <div id="activityCreatorModal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Start New Activity</h2>
+                <div class="activity-options">
+                    <button class="activity-option" data-type="chat">
+                        <div class="activity-option-name">Chat</div>
+                        <div class="activity-option-desc">Text conversation with everyone</div>
+                    </button>
+                    <button class="activity-option" data-type="quick_draw">
+                        <div class="activity-option-name">Quick Draw</div>
+                        <div class="activity-option-desc">Reaction time game</div>
+                    </button>
+                    <button class="activity-option" data-type="dice">
+                        <div class="activity-option-name">Dice Roller</div>
+                        <div class="activity-option-desc">Roll d4, d20, and more</div>
+                    </button>
+                    <button class="activity-option" data-type="collab_doc">
+                        <div class="activity-option-name">Collaborative Story</div>
+                        <div class="activity-option-desc">Take turns writing together</div>
+                    </button>
+                </div>
+                <button class="btn-secondary" id="cancelActivityBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
+            </div>
+        </div>
+        
+        <!-- Chat Activity View -->
+        <div id="chatView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Chat</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="chatRoomCode"></span>
+                    <button class="btn-logout" id="leaveChatBtn">Leave Activity</button>
+                </div>
+            </div>
+            
+            <div class="chat-content">
+                <div class="scrollable-list">
+                    <div class="chat-messages" id="chatMessages"></div>
+                </div>
+                
+                <div class="section-footer">
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" placeholder="Type a message...">
+                        <button class="btn-create" id="sendChatBtn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dice Activity View -->
+        <div id="diceView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Dice Roller</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="diceRoomCode"></span>
+                    <button class="btn-logout" id="leaveDiceBtn">Leave Activity</button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab active" id="diceRollTab">Roll</button>
+                <button class="tab" id="diceHistoryTab">History</button>
+                <button class="tab" id="diceActionsTab">⚡ Actions</button>
+            </div>
+            
+            <div class="dice-content">
+                <!-- Roll Tab -->
+                <div class="dice-tab-content" id="diceRollContent">
+                    <div class="section-header">
+                        <div class="dice-controls">
+                            <button class="dice-btn dice-d4" id="rollD4Btn">
+                                <span class="dice-label">d4</span>
+                            </button>
+                            <button class="dice-btn dice-d6" id="rollD6Btn">
+                                <span class="dice-label">d6</span>
+                            </button>
+                            <button class="dice-btn dice-d8" id="rollD8Btn">
+                                <span class="dice-label">d8</span>
+                            </button>
+                            <button class="dice-btn dice-d10" id="rollD10Btn">
+                                <span class="dice-label">d10</span>
+                            </button>
+                            <button class="dice-btn dice-d12" id="rollD12Btn">
+                                <span class="dice-label">d12</span>
+                            </button>
+                            <button class="dice-btn dice-d20" id="rollD20Btn">
+                                <span class="dice-label">d20</span>
+                            </button>
+                            <button class="dice-btn dice-d100" id="rollD100Btn">
+                                <span class="dice-label">d100</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="scrollable-list">
+                        <div class="dice-rolls" id="diceRolls"></div>
+                    </div>
+                </div>
+                
+                <!-- History Tab (same as Roll for now) -->
+                <div class="dice-tab-content hidden" id="diceHistoryContent">
+                    <div class="scrollable-list">
+                        <div class="dice-rolls" id="diceHistory"></div>
+                    </div>
+                </div>
+                
+                <!-- Actions Tab -->
+                <div class="dice-tab-content hidden" id="diceActionsContent">
+                    <div class="actions-header">
+                        <h3>Connected Actions</h3>
+                        <button class="btn-create" id="createDiceActionBtn">+ Connect Action</button>
+                    </div>
+                    
+                    <div class="scrollable-list">
+                        <div class="actions-list" id="diceActionsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dice Action Builder Modal -->
+        <div id="diceActionBuilder" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="actionBuilderTitle">Connect New Action</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="closeDiceActionBuilderBtn">Cancel</button>
+                </div>
+            </div>
+            
+            <div class="action-builder-content">
+                <div class="builder-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="actionProgressFill"></div>
+                    </div>
+                    <div class="progress-text" id="actionProgressText">Step 1 of 3</div>
+                </div>
+                
+                <!-- Step 1: Target -->
+                <div class="builder-step" id="actionStep1">
+                    <div class="builder-section">
+                        <label class="builder-label">Action Name</label>
+                        <input type="text" class="builder-input" id="actionNameInput" placeholder="e.g., Combat Damage">
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Target Object Type</label>
+                        <select class="builder-input" id="actionTargetTypeSelect">
+                            <option value="">-- Select Type --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Target Instance</label>
+                        <select class="builder-input" id="actionTargetInstanceSelect">
+                            <option value="">-- Select Instance --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-create" id="actionStep1NextBtn">Next: Set Condition</button>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Condition -->
+                <div class="builder-step hidden" id="actionStep2">
+                    <div class="builder-section">
+                        <label class="builder-label">When should this trigger?</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="conditionType" value="always" checked>
+                                Always (trigger on every roll)
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="conditionType" value="comparison">
+                                If roll meets condition
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="builder-section hidden" id="conditionDetails">
+                        <div class="condition-inputs">
+                            <select class="builder-input" id="conditionOperatorSelect" style="flex: 1;">
+                                <option value="<">Less than (<)</option>
+                                <option value="<=">Less than or equal (≤)</option>
+                                <option value="==">Equal to (=)</option>
+                                <option value=">=">Greater than or equal (≥)</option>
+                                <option value=">">Greater than (>)</option>
+                            </select>
+                            <input type="number" class="builder-input" id="conditionValueInput" placeholder="Value" style="flex: 1;">
+                        </div>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-secondary" id="actionStep2BackBtn">Back</button>
+                        <button class="btn-create" id="actionStep2NextBtn">Next: Define Action</button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Operation -->
+                <div class="builder-step hidden" id="actionStep3">
+                    <div class="builder-section">
+                        <label class="builder-label">Update Field</label>
+                        <select class="builder-input" id="actionFieldSelect">
+                            <option value="">-- Select Field --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Operation</label>
+                        <select class="builder-input" id="actionOperatorSelect">
+                            <option value="set">Set to value</option>
+                            <option value="add">Add to current</option>
+                            <option value="subtract">Subtract from current</option>
+                            <option value="multiply">Multiply current</option>
+                            <option value="divide">Divide current</option>
+                        </select>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Value Source</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="valueSource" value="roll" checked>
+                                Use roll value
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="valueSource" value="fixed">
+                                Fixed amount
+                            </label>
+                        </div>
+                        <input type="number" class="builder-input hidden" id="actionFixedValueInput" placeholder="Enter amount">
+                    </div>
+                    
+                    <div class="builder-section">
+                        <label class="builder-label">Constraints (optional)</label>
+                        <div style="display: flex; gap: 12px;">
+                            <div style="flex: 1;">
+                                <label class="builder-label-small">Min value</label>
+                                <input type="number" class="builder-input" id="actionMinValueInput" placeholder="None">
                             </div>
-                            
-                            <!-- Chart Display Area -->
-                            <div id="chartDisplay" class="hidden">
-                                <div class="chart-header">
-                                    <h3 id="chartTitle">Chart</h3>
-                                    <button class="btn-secondary" id="backToBuilderBtn">← Configure</button>
-                                </div>
-                                <div id="chartCanvas"></div>
+                            <div style="flex: 1;">
+                                <label class="builder-label-small">Max value</label>
+                                <input type="number" class="builder-input" id="actionMaxValueInput" placeholder="None">
                             </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-secondary" id="actionStep3BackBtn">Back</button>
+                        <button class="btn-create" id="actionStep3SaveBtn">Activate Action!</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Collaborative Doc Activity View -->
+        <div id="collabDocView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Collaborative Story</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="collabDocRoomCode"></span>
+                    <button class="btn-logout" id="leaveCollabDocBtn">Leave Activity</button>
+                </div>
+            </div>
+            
+            <div class="collab-doc-content">
+                <div class="section-header">
+                    <div class="turn-indicator" id="turnIndicator">
+                        <div class="turn-label">Current Turn:</div>
+                        <div class="turn-player" id="turnPlayer">Waiting...</div>
+                    </div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="story-blocks" id="storyBlocks"></div>
+                </div>
+                
+                <div class="section-footer">
+                    <div class="your-turn-section" id="yourTurnSection">
+                        <div class="your-turn-label">Your Turn:</div>
+                        <textarea 
+                            id="yourTurnInput" 
+                            class="turn-textarea" 
+                            placeholder="Write your part of the story..."
+                            maxlength="500"
+                        ></textarea>
+                        <div class="turn-actions">
+                            <div class="char-count" id="charCount">0 / 500</div>
+                            <div class="button-group">
+                                <button class="btn-secondary" id="passBtn">Pass</button>
+                                <button class="btn-create" id="submitBlockBtn">Submit</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="waiting-turn-section hidden" id="waitingTurnSection">
+                        <div class="waiting-message">
+                            <div class="waiting-icon">⏳</div>
+                            <div class="waiting-text" id="waitingText">Waiting for others to write...</div>
                         </div>
                     </div>
                 </div>
             </div>
-        </main>
-
-        <!-- Right Sidebar (Navigation & Social) -->
-        <aside class="sidebar-right" id="sidebarRight">
-            <div class="sidebar-content">
-                <!-- Empty for now - will be rebuilt -->
+        </div>
+        
+        <!-- Game View -->
+        <div id="gameView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Quick Draw!</h1>
+                <div class="user-info">
+                    <span class="room-code-badge" id="gameRoomCode"></span>
+                    <button class="btn-logout" id="leaveGameBtn">Leave Activity</button>
+                </div>
             </div>
-        </aside>
+            
+            <div class="game-content">
+                <div class="section-header">
+                    <div class="button-group">
+                        <button class="btn-watch" id="watchBtn">Watch</button>
+                        <button class="btn-play" id="playBtn">Play</button>
+                    </div>
+                    
+                    <div class="game-status" id="gameStatus">Waiting for next round...</div>
+                    
+                    <div class="game-area" id="gameArea">
+                        <div class="game-prompt" id="gamePrompt">Get Ready!</div>
+                        <button class="game-button" id="gameButton">DRAW!</button>
+                    </div>
+                    
+                    <div class="section-title" style="margin-top: 24px;">Scoreboard</div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="scoreboard" id="scoreboard"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Home View -->
+        <div id="homeView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="homePlayerName"></h1>
+                <div class="user-info">
+                    <span class="user-key">Key: <strong id="homePlayerKey"></strong></span>
+                </div>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab active" id="writeTab">Write</button>
+                <button class="tab" id="toolkitTab">Toolkit</button>
+                <button class="tab" id="playTab">Play</button>
+                <button class="tab" id="peopleTab">People</button>
+                <button class="tab" id="settingsTab">Settings</button>
+            </div>
+            
+            <!-- Scrollable Content Area -->
+            <div class="tab-content">
+                
+                <!-- Write Section -->
+                <div id="writeSection" class="tab-section active">
+                    <div class="section-header">
+                        <div class="section-title">My Documents</div>
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="documents-grid" id="documentsList"></div>
+                    </div>
+                    <div class="section-footer">
+                        <button class="btn-create" id="createDocBtn">New Document</button>
+                    </div>
+                </div>
+                
+                <!-- Toolkit Section -->
+                <div id="toolkitSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">Object Types</div>
+                        <button class="btn-create" id="createObjectTypeBtn">New Object Type</button>
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="object-types-grid" id="objectTypesList"></div>
+                    </div>
+                </div>
+                
+                <!-- Play Section -->
+                <div id="playSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">Rooms</div>
+                        <button class="btn-create" id="createRoomBtn">Create New Room</button>
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="rooms-grid" id="roomsList"></div>
+                    </div>
+                </div>
+                
+                <!-- People Section -->
+                <div id="peopleSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">People</div>
+                        <input type="text" id="userSearch" placeholder="Search users...">
+                    </div>
+                    <div class="scrollable-list">
+                        <div class="users-grid" id="usersList"></div>
+                    </div>
+                </div>
+                
+                <!-- Settings Section -->
+                <div id="settingsSection" class="tab-section hidden">
+                    <div class="section-header">
+                        <div class="section-title">Profile</div>
+                    </div>
+                    
+                    <div class="scrollable-list">
+                        <div class="settings-group">
+                            <div class="setting-item">
+                                <div class="setting-label">Name</div>
+                                <div class="setting-value" id="settingsName"></div>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="setting-label">Registration Key</div>
+                                <div class="setting-value" id="settingsKey"></div>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="setting-label">Account Created</div>
+                                <div class="setting-value" id="settingsCreated"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="section-title" style="margin-top: 32px;">Sound</div>
+                        
+                        <div class="settings-group">
+                            <div class="setting-item">
+                                <div class="setting-label">Sound Effects</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="soundToggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+                                <div class="setting-label" style="margin-bottom: 8px;">Volume</div>
+                                <input type="range" id="volumeSlider" min="0" max="100" value="50" class="volume-slider">
+                            </div>
+                        </div>
+                        
+                        <div class="section-title" style="margin-top: 32px;">Account</div>
+                    </div>
+                    
+                    <div class="section-footer">
+                        <button class="btn-leave" id="logoutBtn">Logout</button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Profile View -->
+        <div id="profileView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="profileName"></h1>
+                <div class="user-info">
+                    <span class="user-key">Key: <strong id="profileKey"></strong></span>
+                    <button class="btn-logout" id="backFromProfileBtn">Back</button>
+                </div>
+            </div>
+            
+            <div class="profile-content">
+                <div class="section-header">
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Member Since</span>
+                            <span class="stat-value" id="profileJoined"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Public Documents</span>
+                            <span class="stat-value" id="profileDocCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="section-title" style="margin-top: 24px;">Public Documents</div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="documents-grid" id="profileDocsList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Object Type Builder View -->
+        <div id="objectTypeBuilderView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="objectTypeBuilderTitle">Object Type Builder</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="backFromBuilderBtn">Back to Toolkit</button>
+                </div>
+            </div>
+            
+            <div class="builder-content">
+                <div class="scrollable-list">
+                    <div class="builder-section">
+                        <div class="builder-label">Type Name</div>
+                        <input 
+                            type="text" 
+                            id="objectTypeName" 
+                            class="builder-input" 
+                            placeholder="e.g. Run, Recipe, Task..."
+                        >
+                    </div>
+                    
+                    <div class="builder-section">
+                        <div class="builder-header">
+                            <div class="builder-label">Fields</div>
+                            <button class="btn-secondary" id="addFieldBtn">+ Add Field</button>
+                        </div>
+                        <div class="fields-list" id="fieldsList"></div>
+                    </div>
+                    
+                    <div class="builder-section">
+                        <div class="builder-label">Tags</div>
+                        <input 
+                            type="text" 
+                            id="objectTypeTags" 
+                            class="builder-input" 
+                            placeholder="fitness, work, health (comma-separated)"
+                        >
+                    </div>
+                </div>
+                
+                <div class="section-footer">
+                    <button class="btn-leave" id="deleteObjectTypeBtn">Delete Type</button>
+                    <button class="btn-create" id="saveObjectTypeBtn">Save Type</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Object Instances List View -->
+        <div id="objectInstancesView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="instancesTypeName">Instances</h1>
+                <div class="user-info">
+                    <button class="btn-secondary" id="visualizeBtn">📊 Visualize</button>
+                    <button class="btn-create" id="createInstanceBtn">New Instance</button>
+                    <button class="btn-logout" id="backFromInstancesBtn">Back to Toolkit</button>
+                </div>
+            </div>
+            
+            <div class="instances-content">
+                <div class="instances-controls">
+                    <div class="instances-search">
+                        <input 
+                            type="text" 
+                            id="instancesSearchInput" 
+                            class="search-input" 
+                            placeholder="Search instances..."
+                        >
+                    </div>
+                    
+                    <div class="instances-actions">
+                        <div class="view-toggle">
+                            <button class="view-toggle-btn active" id="cardViewBtn" title="Card View">📇</button>
+                            <button class="view-toggle-btn" id="tableViewBtn" title="Table View">📋</button>
+                        </div>
+                        <button class="btn-secondary" id="exportCsvBtn">Export CSV</button>
+                        <button class="btn-secondary hidden" id="bulkDeleteBtn">Delete Selected</button>
+                    </div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="instances-list" id="instancesList"></div>
+                    <div class="instances-table-wrapper hidden" id="instancesTableWrapper">
+                        <table class="instances-table" id="instancesTable">
+                            <thead id="instancesTableHead"></thead>
+                            <tbody id="instancesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Visualization View -->
+        <div id="dataVisualizationView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="visualizationTypeName">Data Visualization</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="backFromVisualizationBtn">Back to List</button>
+                </div>
+            </div>
+            
+            <div class="visualization-content">
+                <div class="viz-controls">
+                    <div class="viz-control-group">
+                        <label class="viz-label">Chart Type</label>
+                        <select id="chartTypeSelect" class="viz-select">
+                            <option value="line">Line Chart</option>
+                            <option value="bar">Bar Chart</option>
+                            <option value="scatter">Scatter Plot</option>
+                            <option value="pie">Pie Chart</option>
+                        </select>
+                    </div>
+                    
+                    <div class="viz-control-group" id="xAxisGroup">
+                        <label class="viz-label">X-Axis</label>
+                        <select id="xAxisSelect" class="viz-select"></select>
+                    </div>
+                    
+                    <div class="viz-control-group" id="yAxisGroup">
+                        <label class="viz-label">Y-Axis</label>
+                        <select id="yAxisSelect" class="viz-select"></select>
+                    </div>
+                    
+                    <div class="viz-control-group" id="aggregationGroup">
+                        <label class="viz-label">Aggregation</label>
+                        <select id="aggregationSelect" class="viz-select">
+                            <option value="none">None (All Points)</option>
+                            <option value="sum">Sum</option>
+                            <option value="avg">Average</option>
+                            <option value="count">Count</option>
+                            <option value="min">Minimum</option>
+                            <option value="max">Maximum</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="scrollable-list">
+                    <div class="chart-container">
+                        <canvas id="dataChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-stats" id="chartStats"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Object Instance Editor View -->
+        <div id="objectInstanceEditorView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name" id="instanceEditorTitle">New Instance</h1>
+                <div class="user-info">
+                    <button class="btn-logout" id="backFromInstanceEditorBtn">Back to List</button>
+                </div>
+            </div>
+            
+            <div class="instance-editor-content">
+                <div class="scrollable-list">
+                    <div class="instance-form" id="instanceForm"></div>
+                </div>
+                
+                <div class="section-footer">
+                    <button class="btn-leave" id="deleteInstanceBtn">Delete Instance</button>
+                    <button class="btn-create" id="saveInstanceBtn">Save Instance</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Document Editor View -->
+        <div id="editorView" class="card hidden">
+            <div class="header">
+                <h1 class="player-name">Document Editor</h1>
+                <div class="user-info">
+                    <span class="editor-status" id="editorStatus">Editing...</span>
+                    <button class="btn-mode-toggle" id="modeToggleBtn">Reader Mode</button>
+                    <button class="btn-logout" id="backToHomeBtn">Back to Home</button>
+                </div>
+            </div>
+            
+            <!-- Scrollable Editor Content -->
+            <div class="editor-content">
+                <!-- Edit Mode -->
+                <div id="editMode" class="editor-section">
+                    <div class="input-group">
+                        <label class="input-label" for="docTitle">Title:</label>
+                        <input id="docTitle" placeholder="Untitled Document">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="docPrivacy">Privacy:</label>
+                        <select id="docPrivacy" class="privacy-select">
+                            <option value="private">Private - Only you can see</option>
+                            <option value="public">Public - Anyone can view</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="docContent">Content (Markdown supported):</label>
+                        <textarea id="docContent" placeholder="Start writing..."></textarea>
+                    </div>
+                    
+                    <div class="markdown-hint">
+                        Markdown tips: # Heading, ## Subheading, **bold**, *italic*, [link](url), ![alt](image-url)
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-secondary" id="deleteDocBtn">Delete</button>
+                        <button class="btn-create" id="saveDocBtn">Save</button>
+                    </div>
+                </div>
+                
+                <!-- Reader Mode -->
+                <div id="readerMode" class="editor-section hidden">
+                    <h1 class="reader-title" id="readerTitle"></h1>
+                    <div class="reader-content" id="readerContent"></div>
+                    <button class="btn-secondary" id="deleteDocBtnReader" style="width: 100%; margin-top: 24px;">Delete</button>
+                </div>
+            </div>
+        </div>
+        
     </div>
     
     <!-- Old views container - will be moved into workspace -->
