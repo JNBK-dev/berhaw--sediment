@@ -607,7 +607,9 @@
             <div class="header">
                 <h1 class="player-name" id="instancesTypeName">Instances</h1>
                 <div class="user-info">
-                    <button class="btn-secondary" id="visualizeBtn">📊 Visualize</button>
+                    <button class="btn-secondary" id="visualizeBtn">
+                        <img src="icon-chart-bar.svg" class="btn-icon" alt=""> Visualize
+                    </button>
                     <button class="btn-create" id="createInstanceBtn">New Instance</button>
                     <button class="btn-logout" id="backFromInstancesBtn">Back to Toolkit</button>
                 </div>
@@ -626,8 +628,12 @@
                     
                     <div class="instances-actions">
                         <div class="view-toggle">
-                            <button class="view-toggle-btn active" id="cardViewBtn" title="Card View">📇</button>
-                            <button class="view-toggle-btn" id="tableViewBtn" title="Table View">📋</button>
+                            <button class="view-toggle-btn active" id="cardViewBtn" title="Card View">
+                                <img src="icon-view-card.svg" class="btn-icon" alt="Card View">
+                            </button>
+                            <button class="view-toggle-btn" id="tableViewBtn" title="Table View">
+                                <img src="icon-view-table.svg" class="btn-icon" alt="Table View">
+                            </button>
                         </div>
                         <button class="btn-secondary" id="exportCsvBtn">Export CSV</button>
                         <button class="btn-secondary hidden" id="bulkDeleteBtn">Delete Selected</button>
@@ -637,7 +643,9 @@
                 <!-- Inline Visualization Panel -->
                 <div id="inlineVizPanel" class="inline-viz-panel hidden">
                     <div class="inline-viz-header">
-                        <h3>📊 Data Visualization</h3>
+                        <h3>
+                            <img src="icon-chart-bar.svg" class="header-icon" alt=""> Data Visualization
+                        </h3>
                         <button class="inline-viz-close" id="closeInlineVizBtn" title="Close">×</button>
                     </div>
                     

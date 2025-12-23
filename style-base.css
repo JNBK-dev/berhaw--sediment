@@ -2719,3 +2719,38 @@ input:checked + .toggle-slider:before {
     font-weight: 600;
 }
 
+/* ============================================
+   SVG ICON STYLES
+   ============================================ */
+
+/* Icon in buttons */
+.btn-icon {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    margin-right: 6px;
+    display: inline-block;
+}
+
+/* Icon in headers */
+.header-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+/* Icon in toggle buttons */
+.view-toggle-btn img {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+/* Ensure icons maintain aspect ratio */
+.btn-icon,
+.header-icon {
+    object-fit: contain;
+}
+
