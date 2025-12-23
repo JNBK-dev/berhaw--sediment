@@ -10,375 +10,7 @@
 
 <body>
     
-    <!-- Three-Column App Container (shown after login) -->
-    <div class="app-container hidden" id="appContainer">
-        <!-- Left Sidebar (Context - empty for now) -->
-        <aside class="sidebar-left" id="sidebarLeft">
-            <div class="sidebar-content">
-                <!-- Future: context-aware content -->
-            </div>
-        </aside>
-
-        <!-- Center Workspace -->
-        <main class="workspace-center" id="workspaceCenter">
-            <!-- Workspace Tabs -->
-            <div class="workspace-tabs" id="workspaceTabs">
-                <button class="workspace-tab active" data-workspace="pegboard">Pegboard</button>
-                <button class="workspace-tab" data-workspace="desk">Desk</button>
-                <button class="workspace-tab" data-workspace="workshop">Workshop</button>
-            </div>
-
-            <!-- Workspace Content Areas -->
-            <div class="workspace-content">
-                <!-- Pegboard View -->
-                <div class="workspace-view active" id="pegboardView">
-                    <div class="pegboard-grid">
-                        <div class="pegboard-welcome">
-                            <h2>Welcome to your Pegboard</h2>
-                            <p>Your personal dashboard. Add widgets to get started.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Desk View -->
-                <div class="workspace-view hidden" id="deskView">
-                    <div class="desk-canvas">
-                        <div class="desk-empty">
-                            <h2>Your Desk is empty</h2>
-                            <p>Add modules to start working.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Workshop View - Clean slate -->
-                <div class="workspace-view hidden" id="workshopView">
-                    <!-- Workshop Home - Tool Cards -->
-                    <div class="workshop-home" id="workshopHome">
-                        <div class="workshop-grid">
-                            <div class="workshop-card" data-tool="objectTypes">
-                                <h3>Object Types</h3>
-                                <p>Define custom data structures</p>
-                            </div>
-                            <div class="workshop-card" data-tool="actions">
-                                <h3>Actions</h3>
-                                <p>Automate behaviors</p>
-                            </div>
-                            <div class="workshop-card" data-tool="modifiers">
-                                <h3>Modifiers</h3>
-                                <p>Transform data</p>
-                            </div>
-                            <div class="workshop-card" data-tool="games">
-                                <h3>Games</h3>
-                                <p>Create structured experiences</p>
-                            </div>
-                            <div class="workshop-card" data-tool="contracts">
-                                <h3>Contracts</h3>
-                                <p>Define requirements</p>
-                            </div>
-                            <div class="workshop-card" data-tool="dataVisualization">
-                                <h3>Data Visualization</h3>
-                                <p>Charts and insights</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Object Types View -->
-                    <div class="workshop-tool-view hidden" id="objectTypesView">
-                        <div class="tool-header">
-                            <button class="btn-back" id="backToWorkshopBtn">← Workshop</button>
-                            <h2>Object Types</h2>
-                            <button class="btn-primary" id="createObjectTypeBtn">+ New Type</button>
-                        </div>
-                        
-                        <!-- Search & Filters -->
-                        <div class="tool-filters">
-                            <div class="search-box">
-                                <input type="text" id="objectTypeSearch" placeholder="Search types..." />
-                            </div>
-                            <div class="filter-chips" id="tagFilters">
-                                <!-- Tag filters will appear here -->
-                            </div>
-                        </div>
-                        
-                        <div class="tool-content">
-                            <!-- Pinned Types -->
-                            <div class="type-group hidden" id="pinnedGroup">
-                                <h3 class="group-heading">Pinned</h3>
-                                <div class="object-types-grid" id="pinnedTypesList"></div>
-                            </div>
-                            
-                            <!-- Recent Types -->
-                            <div class="type-group hidden" id="recentGroup">
-                                <h3 class="group-heading">Recent</h3>
-                                <div class="object-types-grid" id="recentTypesList"></div>
-                            </div>
-                            
-                            <!-- Favorites -->
-                            <div class="type-group hidden" id="favoritesGroup">
-                                <h3 class="group-heading">Favorites</h3>
-                                <div class="object-types-grid" id="favoritesTypesList"></div>
-                            </div>
-                            
-                            <!-- All Types -->
-                            <div class="type-group hidden" id="allGroup">
-                                <h3 class="group-heading">All Types</h3>
-                                <div class="object-types-grid" id="allTypesList"></div>
-                            </div>
-                            
-                            <!-- Empty State -->
-                            <div class="empty-state hidden" id="objectTypesEmpty">
-                                <h3>No Object Types Yet</h3>
-                                <p>Create your first custom data structure</p>
-                                <button class="btn-primary" onclick="app.createObjectType()">+ Create Object Type</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Slide-out Panel for Type Creation/Editing -->
-                        <div class="slide-panel hidden" id="objectTypePanel">
-                            <div class="slide-panel-header">
-                                <h2 id="panelTitle">New Object Type</h2>
-                                <button class="btn-icon-close" id="closePanelBtn">×</button>
-                            </div>
-                            
-                            <div class="slide-panel-content">
-                                <!-- Basic Info Section -->
-                                <div class="panel-section">
-                                    <label class="panel-label">Name *</label>
-                                    <input type="text" id="typeName" class="panel-input" placeholder="e.g., Character, Item, Location" />
-                                </div>
-                                
-                                <div class="panel-section">
-                                    <label class="panel-label">Description</label>
-                                    <textarea id="typeDescription" class="panel-textarea" placeholder="What is this type used for?" rows="3"></textarea>
-                                </div>
-                                
-                                <div class="panel-section">
-                                    <label class="panel-label">Tags</label>
-                                    <div class="tags-input-wrapper">
-                                        <div class="tags-list" id="typeTagsList"></div>
-                                        <input type="text" id="typeTagInput" class="panel-input" placeholder="Add tag..." />
-                                    </div>
-                                    <div class="panel-hint">Press Enter to add a tag</div>
-                                </div>
-                                
-                                <!-- Fields Section -->
-                                <div class="panel-section">
-                                    <div class="section-header">
-                                        <label class="panel-label">Fields</label>
-                                        <button class="btn-secondary-small" id="addFieldBtn">+ Add Field</button>
-                                    </div>
-                                    <div class="fields-list" id="fieldsList">
-                                        <!-- Fields will appear here -->
-                                        <div class="empty-fields-message" id="emptyFieldsMessage">
-                                            No fields yet. Click "+ Add Field" to get started.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="slide-panel-footer">
-                                <button class="btn-secondary" id="cancelTypeBtn">Cancel</button>
-                                <button class="btn-primary" id="saveTypeBtn">Save Type</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Object Instances View -->
-                    <div class="workshop-tool-view hidden" id="objectInstancesView">
-                        <div class="tool-header">
-                            <button class="btn-back" id="backToTypesBtn">← Object Types</button>
-                            <h2 id="instancesTypeName">Instances</h2>
-                            <div style="display: flex; gap: 8px;">
-                                <button class="btn-secondary" id="visualizeInstancesBtn">📊 Visualize</button>
-                                <button class="btn-primary" id="createInstanceBtn">+ New Instance</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Inline Visualization Panel -->
-                        <div id="inlineVizPanel" class="hidden" style="background: #F1F8FE; border: 2px solid #D8ECFB; border-radius: 12px; padding: 20px; margin: 0 20px 20px 20px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #214159;">Quick Visualization</h3>
-                                <button class="btn-icon-close" id="closeInlineVizBtn" style="width: 28px; height: 28px; font-size: 18px;">×</button>
-                            </div>
-                            
-                            <div class="viz-row">
-                                <label>Chart Type</label>
-                                <div class="chart-type-grid">
-                                    <div class="chart-type-option chart-type-small" data-chart="bar" data-inline="true">
-                                        <div class="chart-icon" style="font-size: 20px;">📊</div>
-                                        <span style="font-size: 12px;">Bar</span>
-                                    </div>
-                                    <div class="chart-type-option chart-type-small" data-chart="line" data-inline="true">
-                                        <div class="chart-icon" style="font-size: 20px;">📈</div>
-                                        <span style="font-size: 12px;">Line</span>
-                                    </div>
-                                    <div class="chart-type-option chart-type-small" data-chart="pie" data-inline="true">
-                                        <div class="chart-icon" style="font-size: 20px;">📊</div>
-                                        <span style="font-size: 12px;">Distribution</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div id="inlineBarConfig" class="hidden">
-                                <div class="viz-row">
-                                    <label>X-Axis</label>
-                                    <select id="inlineXAxisField" class="panel-input">
-                                        <option value="">Select field...</option>
-                                    </select>
-                                </div>
-                                <div class="viz-row">
-                                    <label>Y-Axis</label>
-                                    <select id="inlineYAxisField" class="panel-input">
-                                        <option value="">Select field...</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div id="inlineLineConfig" class="hidden">
-                                <div class="viz-row">
-                                    <label>X-Axis (Timeline)</label>
-                                    <select id="inlineLineXField" class="panel-input">
-                                        <option value="">Select field...</option>
-                                    </select>
-                                </div>
-                                <div class="viz-row">
-                                    <label>Y-Axis (Value)</label>
-                                    <select id="inlineLineYField" class="panel-input">
-                                        <option value="">Select field...</option>
-                                    </select>
-                                </div>
-                                <div class="viz-row">
-                                    <label>Aggregation</label>
-                                    <div class="aggregation-options" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                        <button class="agg-btn active" data-agg="points">All Points</button>
-                                        <button class="agg-btn" data-agg="sum">Sum</button>
-                                        <button class="agg-btn" data-agg="average">Average</button>
-                                        <button class="agg-btn" data-agg="count">Count</button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div id="inlinePieConfig" class="hidden">
-                                <div class="viz-row">
-                                    <label>Category</label>
-                                    <select id="inlineCategoryField" class="panel-input">
-                                        <option value="">Select field...</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <button class="btn-primary" id="generateInlineChartBtn" style="margin-top: 12px;">Generate</button>
-                            
-                            <div id="inlineChartDisplay" class="hidden" style="margin-top: 20px;">
-                                <div id="inlineChartCanvas" style="background: #FFFFFF; border: 2px solid #D8ECFB; border-radius: 12px; padding: 20px; min-height: 250px;"></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Search & Filters -->
-                        <div class="tool-filters">
-                            <div class="search-box">
-                                <input type="text" id="instanceSearch" placeholder="Search instances..." />
-                            </div>
-                        </div>
-                        
-                        <div class="tool-content">
-                            <div class="instances-grid" id="instancesGrid">
-                                <!-- Instance cards will appear here -->
-                            </div>
-                            
-                            <!-- Empty State -->
-                            <div class="empty-state hidden" id="instancesEmpty">
-                                <h3>No Instances Yet</h3>
-                                <p>Create your first instance of this type</p>
-                                <button class="btn-primary" onclick="app.createInstance()">+ Create Instance</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Slide-out Panel for Instance Creation/Editing -->
-                        <div class="slide-panel hidden" id="instancePanel">
-                            <div class="slide-panel-header">
-                                <h2 id="instancePanelTitle">New Instance</h2>
-                                <button class="btn-icon-close" id="closeInstancePanelBtn">×</button>
-                            </div>
-                            
-                            <div class="slide-panel-content" id="instanceFormContent">
-                                <!-- Dynamic form fields will be generated here -->
-                            </div>
-                            
-                            <div class="slide-panel-footer">
-                                <button class="btn-secondary" id="cancelInstanceBtn">Cancel</button>
-                                <button class="btn-primary" id="saveInstanceBtn">Save Instance</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Data Visualization View -->
-                    <div class="workshop-tool-view hidden" id="dataVizView">
-                        <div class="tool-header">
-                            <button class="btn-back" id="backFromDataVizBtn">← Workshop</button>
-                            <h2>Data Visualization</h2>
-                            <button class="btn-primary" id="createChartBtn">+ New Chart</button>
-                        </div>
-                        
-                        <div class="tool-content">
-                            <!-- Chart Builder (initially shown) -->
-                            <div id="chartBuilder">
-                                <div class="viz-section">
-                                    <h3>Select Data Source</h3>
-                                    <select id="vizTypeSelect" class="panel-input">
-                                        <option value="">Select an Object Type...</option>
-                                    </select>
-                                </div>
-                                
-                                <div id="chartConfigSection" class="hidden">
-                                    <div class="viz-section">
-                                        <h3>Chart Type</h3>
-                                        <div class="chart-type-grid">
-                                            <div class="chart-type-option" data-chart="bar">
-                                                <div class="chart-icon">📊</div>
-                                                <span>Bar Chart</span>
-                                            </div>
-                                            <div class="chart-type-option" data-chart="line">
-                                                <div class="chart-icon">📈</div>
-                                                <span>Line Chart</span>
-                                            </div>
-                                            <div class="chart-type-option" data-chart="pie">
-                                                <div class="chart-icon">📊</div>
-                                                <span>Distribution</span>
-                                            </div>
-                                            <div class="chart-type-option" data-chart="scatter">
-                                                <div class="chart-icon">⚪</div>
-                                                <span>Scatter Plot</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="viz-section" id="barLineSection" class="hidden">
-                                        <h3>Configure Chart</h3>
-                                        <div class="viz-row">
-                                            <label>X-Axis (Label)</label>
-                                            <select id="xAxisField" class="panel-input">
-                                                <option value="">Select field...</option>
-                                            </select>
-                                        </div>
-                                        <div class="viz-row">
-                                            <label>Y-Axis (Value)</label>
-                                            <select id="yAxisField" class="panel-input">
-                                                <option value="">Select field...</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="viz-section" id="pieSection" class="hidden">
-                                        <h3>Configure Chart</h3>
-                                        <div class="viz-row">
-                                            <label>Category Field</label>
-                                            <select id="categoryField" class="panel-input">
-                                                <option value="">Select field...</option>
-                                            </select>
-                                        </div>
-                                    </div>
-    <div class="container" id="oldContainer">
+    <div class="container">
         
         <!-- Authentication View -->
         <div id="authView" class="card">
@@ -1002,6 +634,58 @@
                     </div>
                 </div>
                 
+                <!-- Inline Visualization Panel -->
+                <div id="inlineVizPanel" class="inline-viz-panel hidden">
+                    <div class="inline-viz-header">
+                        <h3>📊 Data Visualization</h3>
+                        <button class="inline-viz-close" id="closeInlineVizBtn" title="Close">×</button>
+                    </div>
+                    
+                    <div class="inline-viz-controls">
+                        <div class="viz-control">
+                            <label>Chart Type</label>
+                            <select id="inlineChartType" class="viz-select">
+                                <option value="line">Line Chart</option>
+                                <option value="bar">Bar Chart</option>
+                                <option value="scatter">Scatter Plot</option>
+                                <option value="pie">Pie Chart</option>
+                            </select>
+                        </div>
+                        
+                        <div class="viz-control">
+                            <label>X-Axis</label>
+                            <select id="inlineXAxis" class="viz-select">
+                                <option value="">Select field...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="viz-control">
+                            <label>Y-Axis</label>
+                            <select id="inlineYAxis" class="viz-select">
+                                <option value="">Select field...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="viz-control">
+                            <label>Aggregation</label>
+                            <select id="inlineAggregation" class="viz-select">
+                                <option value="none">None (All Points)</option>
+                                <option value="sum">Sum</option>
+                                <option value="avg">Average</option>
+                                <option value="count">Count</option>
+                                <option value="min">Minimum</option>
+                                <option value="max">Maximum</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="inline-viz-chart">
+                        <canvas id="inlineChart"></canvas>
+                    </div>
+                    
+                    <div class="inline-viz-stats" id="inlineStats"></div>
+                </div>
+                
                 <div class="scrollable-list">
                     <div class="instances-list" id="instancesList"></div>
                     <div class="instances-table-wrapper hidden" id="instancesTableWrapper">
@@ -1142,8 +826,6 @@
         </div>
         
     </div>
-    
-    <!-- Old views container - will be moved into workspace -->
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>

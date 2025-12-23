@@ -1,3 +1,568 @@
+// ============================================
+// DATA VISUALIZER CLASS
+// Clean, modern visualization module
+// ============================================
+
+class DataVisualizer {
+    constructor() {
+        // DOM REFERENCES (immutable, grouped)
+        this.dom = {
+            panel: null,
+            closeBtn: null,
+            controls: {
+                chartType: null,
+                xAxis: null,
+                yAxis: null,
+                aggregation: null
+            },
+            canvas: null,
+            stats: null
+        };
+        
+        // STATE (mutable, single dedicated object)
+        this.state = {
+            chart: null,              // Chart.js instance
+            instances: [],            // Data array
+            objectType: null,         // Field metadata
+            currentConfig: {          // Current selections
+                chartType: 'line',
+                xFieldId: null,
+                yFieldId: null,
+                aggregation: 'none'
+            },
+            isVisible: false,         // Panel visibility
+            cache: {                  // Performance caches
+                relationships: {}     // Relationship ID -> display name
+            }
+        };
+        
+        this._initDOM();
+        this._bindEvents();
+    }
+    
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    
+    _initDOM() {
+        this.dom.panel = document.getElementById('inlineVizPanel');
+        this.dom.closeBtn = document.getElementById('closeInlineVizBtn');
+        this.dom.controls.chartType = document.getElementById('inlineChartType');
+        this.dom.controls.xAxis = document.getElementById('inlineXAxis');
+        this.dom.controls.yAxis = document.getElementById('inlineYAxis');
+        this.dom.controls.aggregation = document.getElementById('inlineAggregation');
+        this.dom.canvas = document.getElementById('inlineChart');
+        this.dom.stats = document.getElementById('inlineStats');
+    }
+    
+    _bindEvents() {
+        // Close button
+        this.dom.closeBtn.onclick = () => this.hide();
+        
+        // Real-time updates on ANY control change (THE MAGIC!)
+        this.dom.controls.chartType.onchange = () => {
+            this.state.currentConfig.chartType = this.dom.controls.chartType.value;
+            this._updateChart();
+        };
+        
+        this.dom.controls.xAxis.onchange = () => {
+            this.state.currentConfig.xFieldId = this.dom.controls.xAxis.value;
+            this._updateChart();
+        };
+        
+        this.dom.controls.yAxis.onchange = () => {
+            this.state.currentConfig.yFieldId = this.dom.controls.yAxis.value;
+            this._updateChart();
+        };
+        
+        this.dom.controls.aggregation.onchange = () => {
+            this.state.currentConfig.aggregation = this.dom.controls.aggregation.value;
+            this._updateChart();
+        };
+    }
+    
+    // ============================================
+    // PUBLIC API
+    // ============================================
+    
+    show() {
+        this.state.isVisible = true;
+        this.dom.panel.classList.remove('hidden');
+        soundManager.play('bite');
+    }
+    
+    hide() {
+        this.state.isVisible = false;
+        this.dom.panel.classList.add('hidden');
+        this._cleanupChart();
+    }
+    
+    setData(instances, objectType) {
+        this.state.instances = instances;
+        this.state.objectType = objectType;
+        this.state.cache.relationships = {}; // Clear cache
+        this._populateControls();
+        this._updateChart();
+    }
+    
+    destroy() {
+        this._cleanupChart();
+        this.state = null;
+        this.dom = null;
+    }
+    
+    // ============================================
+    // PRIVATE METHODS - CONTROL POPULATION
+    // ============================================
+    
+    _populateControls() {
+        // Clear existing options
+        this.dom.controls.xAxis.innerHTML = '<option value="">Select field...</option>';
+        this.dom.controls.yAxis.innerHTML = '<option value="">Select field...</option>';
+        
+        if (!this.state.objectType || !this.state.objectType.fields) return;
+        
+        // Get fields array sorted by order
+        const fieldsArray = Object.entries(this.state.objectType.fields).map(([id, field]) => ({
+            id,
+            ...field
+        }));
+        fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        // X-Axis: Categorical fields (date, text, dropdown, relationship)
+        const xFields = fieldsArray.filter(f => 
+            f.type === 'date' || 
+            f.type === 'text' || 
+            f.type === 'dropdown' || 
+            f.type === 'relationship'
+        );
+        
+        xFields.forEach(field => {
+            const option = document.createElement('option');
+            option.value = field.id;
+            option.textContent = `${field.name} (${field.type})`;
+            this.dom.controls.xAxis.appendChild(option);
+        });
+        
+        // Y-Axis: Numeric fields (number, boolean)
+        const yFields = fieldsArray.filter(f => 
+            f.type === 'number' || 
+            f.type === 'boolean'
+        );
+        
+        yFields.forEach(field => {
+            const option = document.createElement('option');
+            option.value = field.id;
+            option.textContent = `${field.name} (${field.type})`;
+            this.dom.controls.yAxis.appendChild(option);
+        });
+        
+        // Fallback: If no numeric fields, allow all fields on Y-axis
+        if (yFields.length === 0) {
+            fieldsArray.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.id;
+                option.textContent = `${field.name} (${field.type})`;
+                this.dom.controls.yAxis.appendChild(option);
+            });
+        }
+        
+        // Auto-select first available fields
+        if (xFields.length > 0) {
+            this.dom.controls.xAxis.value = xFields[0].id;
+            this.state.currentConfig.xFieldId = xFields[0].id;
+        }
+        
+        if (yFields.length > 0) {
+            this.dom.controls.yAxis.value = yFields[0].id;
+            this.state.currentConfig.yFieldId = yFields[0].id;
+        }
+    }
+    
+    // ============================================
+    // PRIVATE METHODS - CHART UPDATE (THE CORE!)
+    // ============================================
+    
+    async _updateChart() {
+        const { chartType, xFieldId, yFieldId, aggregation } = this.state.currentConfig;
+        
+        // Validate selections
+        if (!xFieldId || !yFieldId) {
+            this._showEmptyState('Select X and Y axis fields to generate chart');
+            return;
+        }
+        
+        // Get field metadata
+        const xField = this.state.objectType.fields[xFieldId];
+        const yField = this.state.objectType.fields[yFieldId];
+        
+        if (!xField || !yField) {
+            this._showEmptyState('Invalid field selection');
+            return;
+        }
+        
+        // Show loading state
+        this._showLoadingState();
+        
+        try {
+            // Prepare data (async for relationship resolution)
+            const dataPoints = await this._prepareData(xFieldId, yFieldId, xField, yField, aggregation, chartType);
+            
+            if (dataPoints.length === 0) {
+                this._showEmptyState('No data available for selected fields');
+                return;
+            }
+            
+            // Render chart
+            this._renderChart(chartType, dataPoints, xField, yField);
+            
+            // Update statistics
+            this._updateStats(dataPoints, yField);
+            
+        } catch (error) {
+            console.error('Chart update error:', error);
+            this._showEmptyState('Error generating chart: ' + error.message);
+        }
+    }
+    
+    _showEmptyState(message) {
+        this.dom.canvas.parentElement.innerHTML = `
+            <div class="chart-empty">${message}</div>
+        `;
+        this.dom.stats.innerHTML = '';
+    }
+    
+    _showLoadingState() {
+        this.dom.canvas.parentElement.innerHTML = `
+            <canvas id="inlineChart"></canvas>
+        `;
+        this.dom.canvas = document.getElementById('inlineChart');
+    }
+    
+    // ============================================
+    // PRIVATE METHODS - DATA PREPARATION
+    // ============================================
+    
+    async _prepareData(xFieldId, yFieldId, xField, yField, aggregation, chartType) {
+        const dataPoints = [];
+        
+        // For relationship fields, load display names
+        if (xField.type === 'relationship' && xField.targetType) {
+            await this._loadRelationshipCache(xField.targetType);
+        }
+        
+        // Process each instance
+        this.state.instances.forEach(instance => {
+            if (!instance.data) return;
+            
+            const xValue = instance.data[xFieldId];
+            const yValue = instance.data[yFieldId];
+            
+            if (xValue !== undefined && xValue !== null && yValue !== undefined && yValue !== null) {
+                let xLabel = xValue;
+                
+                // Format X value based on type
+                if (xField.type === 'date') {
+                    // Handle date timezone properly
+                    if (xValue.includes('-')) {
+                        const [year, month, day] = xValue.split('-');
+                        xLabel = new Date(year, month - 1, day).toLocaleDateString();
+                    } else {
+                        xLabel = new Date(xValue).toLocaleDateString();
+                    }
+                } else if (xField.type === 'boolean') {
+                    xLabel = xValue ? 'Yes' : 'No';
+                } else if (xField.type === 'relationship') {
+                    xLabel = this.state.cache.relationships[xValue] || xValue.substring(0, 8);
+                }
+                
+                // Convert Y value to number
+                let yNum = yValue;
+                if (yField.type === 'number') {
+                    yNum = parseFloat(yValue);
+                } else if (yField.type === 'boolean') {
+                    yNum = yValue ? 1 : 0;
+                }
+                
+                dataPoints.push({
+                    x: xValue,        // Raw value for sorting
+                    xLabel: xLabel,   // Display value
+                    y: yNum           // Numeric value
+                });
+            }
+        });
+        
+        // Sort by X value for line charts with dates
+        if (chartType === 'line' && xField.type === 'date') {
+            dataPoints.sort((a, b) => new Date(a.x) - new Date(b.x));
+        }
+        
+        // Apply aggregation if needed
+        if (aggregation !== 'none' && chartType !== 'pie') {
+            return this._aggregateData(dataPoints, aggregation);
+        }
+        
+        return dataPoints;
+    }
+    
+    async _loadRelationshipCache(targetTypeId) {
+        try {
+            const instancesSnap = await db.ref('objects')
+                .orderByChild('typeId')
+                .equalTo(targetTypeId)
+                .once('value');
+            
+            instancesSnap.forEach(snap => {
+                const instance = snap.val();
+                let displayName = snap.key.substring(0, 8);
+                
+                if (instance.data) {
+                    const firstValue = Object.values(instance.data).find(v => v && v !== '');
+                    if (firstValue) {
+                        displayName = String(firstValue).substring(0, 50);
+                    }
+                }
+                
+                this.state.cache.relationships[snap.key] = displayName;
+            });
+        } catch (error) {
+            console.error('Failed to load relationship cache:', error);
+        }
+    }
+    
+    _aggregateData(dataPoints, aggregation) {
+        // Group by X label
+        const groups = {};
+        dataPoints.forEach(point => {
+            const key = point.xLabel;
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(point.y);
+        });
+        
+        // Apply aggregation function
+        const aggregated = [];
+        Object.entries(groups).forEach(([xLabel, yValues]) => {
+            let value;
+            
+            switch (aggregation) {
+                case 'sum':
+                    value = yValues.reduce((a, b) => a + b, 0);
+                    break;
+                case 'avg':
+                    value = yValues.reduce((a, b) => a + b, 0) / yValues.length;
+                    break;
+                case 'count':
+                    value = yValues.length;
+                    break;
+                case 'min':
+                    value = Math.min(...yValues);
+                    break;
+                case 'max':
+                    value = Math.max(...yValues);
+                    break;
+                default:
+                    value = yValues[0];
+            }
+            
+            aggregated.push({
+                xLabel: xLabel,
+                y: value
+            });
+        });
+        
+        return aggregated;
+    }
+    
+    // ============================================
+    // PRIVATE METHODS - CHART RENDERING
+    // ============================================
+    
+    _cleanupChart() {
+        if (this.state.chart) {
+            this.state.chart.destroy();
+            this.state.chart = null;
+        }
+    }
+    
+    _renderChart(chartType, dataPoints, xField, yField) {
+        // Cleanup existing chart
+        this._cleanupChart();
+        
+        // Check if Chart.js is available
+        if (typeof Chart === 'undefined') {
+            this._showEmptyState('Chart.js library not loaded');
+            return;
+        }
+        
+        const ctx = this.dom.canvas.getContext('2d');
+        let chartConfig;
+        
+        if (chartType === 'pie') {
+            // Pie chart: count occurrences of each category
+            const valueCounts = {};
+            dataPoints.forEach(point => {
+                const key = point.xLabel;
+                valueCounts[key] = (valueCounts[key] || 0) + 1;
+            });
+            
+            chartConfig = {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(valueCounts),
+                    datasets: [{
+                        data: Object.values(valueCounts),
+                        backgroundColor: [
+                            '#83CAFF', '#71A7CF', '#6289A7', '#EBB820',
+                            '#D8ECFB', '#214159', '#F1F8FE', '#E7F5FF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            };
+        } else if (chartType === 'scatter') {
+            chartConfig = {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: `${xField.name} vs ${yField.name}`,
+                        data: dataPoints.map((p, index) => ({
+                            x: index,
+                            y: p.y
+                        })),
+                        backgroundColor: '#83CAFF',
+                        borderColor: '#83CAFF',
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = dataPoints[context.dataIndex];
+                                    return `${point.xLabel}: ${point.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: xField.name
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: yField.name
+                            }
+                        }
+                    }
+                }
+            };
+        } else {
+            // Line and Bar charts
+            chartConfig = {
+                type: chartType,
+                data: {
+                    labels: dataPoints.map(p => p.xLabel),
+                    datasets: [{
+                        label: yField.name,
+                        data: dataPoints.map(p => p.y),
+                        backgroundColor: chartType === 'bar' ? '#83CAFF' : 'rgba(131, 202, 255, 0.1)',
+                        borderColor: '#83CAFF',
+                        borderWidth: 2,
+                        fill: chartType === 'line',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            };
+        }
+        
+        try {
+            this.state.chart = new Chart(ctx, chartConfig);
+            console.log('✅ Chart rendered successfully with', dataPoints.length, 'data points');
+        } catch (error) {
+            console.error('Chart rendering error:', error);
+            this._showEmptyState('Error rendering chart');
+        }
+    }
+    
+    // ============================================
+    // PRIVATE METHODS - STATISTICS
+    // ============================================
+    
+    _updateStats(dataPoints, yField) {
+        this.dom.stats.innerHTML = '';
+        
+        if (dataPoints.length === 0) {
+            this.dom.stats.innerHTML = '<div class="chart-empty">No statistics available</div>';
+            return;
+        }
+        
+        // Extract Y values
+        const yValues = dataPoints.map(p => p.y).filter(v => typeof v === 'number' && !isNaN(v));
+        
+        if (yValues.length === 0) {
+            this.dom.stats.innerHTML = '<div class="chart-empty">No numeric data available</div>';
+            return;
+        }
+        
+        // Calculate statistics
+        const stats = {
+            'Count': yValues.length,
+            'Sum': yValues.reduce((a, b) => a + b, 0).toFixed(2),
+            'Average': (yValues.reduce((a, b) => a + b, 0) / yValues.length).toFixed(2),
+            'Min': Math.min(...yValues).toFixed(2),
+            'Max': Math.max(...yValues).toFixed(2)
+        };
+        
+        // Render stat items
+        Object.entries(stats).forEach(([label, value]) => {
+            const statItem = document.createElement('div');
+            statItem.className = 'stat-item';
+            statItem.innerHTML = `
+                <div class="stat-label">${label}</div>
+                <div class="stat-value">${value}</div>
+            `;
+            this.dom.stats.appendChild(statItem);
+        });
+    }
+}
+
+// ============================================
+// APP CLASS
+// ============================================
+
 class App {
     constructor() {
         // DOM elements - Auth View
@@ -228,120 +793,6 @@ class App {
         this.leaveGameBtn = document.getElementById("leaveGameBtn");
         this.scoreboard = document.getElementById("scoreboard");
 
-        // DOM elements - Three-Column Layout
-        this.appContainer = document.getElementById("appContainer");
-        this.sidebarLeft = document.getElementById("sidebarLeft");
-        this.sidebarRight = document.getElementById("sidebarRight");
-        this.workspaceCenter = document.getElementById("workspaceCenter");
-        this.workspaceTabs = document.getElementById("workspaceTabs");
-        this.pegboardView = document.getElementById("pegboardView");
-        this.deskView = document.getElementById("deskView");
-        this.workshopView = document.getElementById("workshopView");
-        
-        // Workshop elements
-        this.workshopHome = document.getElementById("workshopHome");
-        this.objectTypesView = document.getElementById("objectTypesView");
-        this.backToWorkshopBtn = document.getElementById("backToWorkshopBtn");
-        this.createObjectTypeBtn = document.getElementById("createObjectTypeBtn");
-        this.objectTypeSearch = document.getElementById("objectTypeSearch");
-        this.tagFilters = document.getElementById("tagFilters");
-        this.pinnedGroup = document.getElementById("pinnedGroup");
-        this.pinnedTypesList = document.getElementById("pinnedTypesList");
-        this.recentGroup = document.getElementById("recentGroup");
-        this.recentTypesList = document.getElementById("recentTypesList");
-        this.favoritesGroup = document.getElementById("favoritesGroup");
-        this.favoritesTypesList = document.getElementById("favoritesTypesList");
-        this.allGroup = document.getElementById("allGroup");
-        this.allTypesList = document.getElementById("allTypesList");
-        this.objectTypesEmpty = document.getElementById("objectTypesEmpty");
-        
-        // Panel elements
-        this.objectTypePanel = document.getElementById("objectTypePanel");
-        this.panelTitle = document.getElementById("panelTitle");
-        this.closePanelBtn = document.getElementById("closePanelBtn");
-        this.typeName = document.getElementById("typeName");
-        this.typeDescription = document.getElementById("typeDescription");
-        this.typeTagInput = document.getElementById("typeTagInput");
-        this.typeTagsList = document.getElementById("typeTagsList");
-        this.addFieldBtn = document.getElementById("addFieldBtn");
-        this.fieldsList = document.getElementById("fieldsList");
-        this.emptyFieldsMessage = document.getElementById("emptyFieldsMessage");
-        this.cancelTypeBtn = document.getElementById("cancelTypeBtn");
-        this.saveTypeBtn = document.getElementById("saveTypeBtn");
-        
-        // Instances view elements
-        this.objectInstancesView = document.getElementById("objectInstancesView");
-        this.backToTypesBtn = document.getElementById("backToTypesBtn");
-        this.instancesTypeName = document.getElementById("instancesTypeName");
-        this.createInstanceBtn = document.getElementById("createInstanceBtn");
-        this.instanceSearch = document.getElementById("instanceSearch");
-        this.instancesGrid = document.getElementById("instancesGrid");
-        this.instancesEmpty = document.getElementById("instancesEmpty");
-        
-        // Inline visualization elements
-        this.visualizeInstancesBtn = document.getElementById("visualizeInstancesBtn");
-        this.inlineVizPanel = document.getElementById("inlineVizPanel");
-        this.closeInlineVizBtn = document.getElementById("closeInlineVizBtn");
-        this.inlineXAxisField = document.getElementById("inlineXAxisField");
-        this.inlineYAxisField = document.getElementById("inlineYAxisField");
-        this.inlineCategoryField = document.getElementById("inlineCategoryField");
-        this.inlineLineXField = document.getElementById("inlineLineXField");
-        this.inlineLineYField = document.getElementById("inlineLineYField");
-        this.generateInlineChartBtn = document.getElementById("generateInlineChartBtn");
-        this.inlineBarConfig = document.getElementById("inlineBarConfig");
-        this.inlineLineConfig = document.getElementById("inlineLineConfig");
-        this.inlinePieConfig = document.getElementById("inlinePieConfig");
-        this.inlineChartDisplay = document.getElementById("inlineChartDisplay");
-        this.inlineChartCanvas = document.getElementById("inlineChartCanvas");
-        
-        // State for inline viz
-        this.currentAggregation = 'points';
-        
-        // Instance panel elements
-        this.instancePanel = document.getElementById("instancePanel");
-        this.instancePanelTitle = document.getElementById("instancePanelTitle");
-        this.closeInstancePanelBtn = document.getElementById("closeInstancePanelBtn");
-        this.instanceFormContent = document.getElementById("instanceFormContent");
-        this.cancelInstanceBtn = document.getElementById("cancelInstanceBtn");
-        this.saveInstanceBtn = document.getElementById("saveInstanceBtn");
-        
-        // State for editing
-        this.editingTypeId = null;
-        this.currentTags = [];
-        this.currentFields = [];
-        
-        // State for instances
-        this.currentTypeForInstances = null;
-        this.editingInstanceId = null;
-        this.allInstances = [];
-        this.relationshipDisplayCache = {};
-        
-        // Data Visualization elements
-        this.dataVizView = document.getElementById("dataVizView");
-        this.backFromDataVizBtn = document.getElementById("backFromDataVizBtn");
-        this.createChartBtn = document.getElementById("createChartBtn");
-        this.vizTypeSelect = document.getElementById("vizTypeSelect");
-        this.chartConfigSection = document.getElementById("chartConfigSection");
-        this.xAxisField = document.getElementById("xAxisField");
-        this.yAxisField = document.getElementById("yAxisField");
-        this.categoryField = document.getElementById("categoryField");
-        this.generateChartBtn = document.getElementById("generateChartBtn");
-        this.chartBuilder = document.getElementById("chartBuilder");
-        this.chartDisplay = document.getElementById("chartDisplay");
-        this.chartCanvas = document.getElementById("chartCanvas");
-        this.chartTitle = document.getElementById("chartTitle");
-        this.backToBuilderBtn = document.getElementById("backToBuilderBtn");
-        this.barLineSection = document.getElementById("barLineSection");
-        this.pieSection = document.getElementById("pieSection");
-        
-        // State for visualization
-        this.selectedChartType = null;
-        this.selectedInlineChartType = null;
-        this.currentVizType = null;
-        this.currentVizInstances = [];
-        
-        // Sidebar elements (empty for now)
-
         this.currentUser = null;
         this.currentRoomCode = null;
         this.currentDocId = null;
@@ -382,157 +833,21 @@ class App {
         this.instancesListener = null;
         this.fieldIdCounter = 0;
         this.roundStartTime = null;
+        
+        // Initialize Data Visualizer (clean module)
+        this.dataVisualizer = new DataVisualizer();
 
-        // Bind events (conditional for old elements)
-        if (this.loginBtn) this.loginBtn.onclick = () => this.handleLogin();
-        if (this.quickPlayBtn) this.quickPlayBtn.onclick = () => this.handleQuickPlay();
-        if (this.logoutBtn) this.logoutBtn.onclick = () => this.handleLogout();
+        // Bind events
+        this.loginBtn.onclick = () => this.handleLogin();
+        this.quickPlayBtn.onclick = () => this.handleQuickPlay();
+        this.logoutBtn.onclick = () => this.handleLogout();
         
-        // Tab navigation (old UI)
-        if (this.writeTab) this.writeTab.onclick = () => this.switchTab('write');
-        if (this.toolkitTab) this.toolkitTab.onclick = () => this.switchTab('toolkit');
-        if (this.playTab) this.playTab.onclick = () => this.switchTab('play');
-        if (this.peopleTab) this.peopleTab.onclick = () => this.switchTab('people');
-        if (this.settingsTab) this.settingsTab.onclick = () => this.switchTab('settings');
-        
-        // Workspace tabs
-        document.querySelectorAll('.workspace-tab').forEach(tab => {
-            tab.onclick = () => this.switchWorkspace(tab.dataset.workspace);
-        });
-        
-        // Workshop tool cards
-        document.querySelectorAll('.workshop-card').forEach(card => {
-            card.onclick = () => this.openWorkshopTool(card.dataset.tool);
-        });
-        
-        // Workshop navigation
-        if (this.backToWorkshopBtn) {
-            this.backToWorkshopBtn.onclick = () => this.showWorkshopHome();
-        }
-        
-        if (this.createObjectTypeBtn) {
-            this.createObjectTypeBtn.onclick = () => this.openCreatePanel();
-        }
-        
-        // Panel controls
-        if (this.closePanelBtn) {
-            this.closePanelBtn.onclick = () => this.closePanel();
-        }
-        
-        if (this.cancelTypeBtn) {
-            this.cancelTypeBtn.onclick = () => this.closePanel();
-        }
-        
-        if (this.saveTypeBtn) {
-            this.saveTypeBtn.onclick = () => this.saveObjectType();
-        }
-        
-        if (this.addFieldBtn) {
-            this.addFieldBtn.onclick = () => this.addField();
-        }
-        
-        // Tag input
-        if (this.typeTagInput) {
-            this.typeTagInput.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this.addTag();
-                }
-            };
-        }
-        
-        // Instance view controls
-        if (this.backToTypesBtn) {
-            this.backToTypesBtn.onclick = () => this.showObjectTypesViewFromInstances();
-        }
-        
-        if (this.createInstanceBtn) {
-            this.createInstanceBtn.onclick = () => this.openCreateInstancePanel();
-        }
-        
-        if (this.closeInstancePanelBtn) {
-            this.closeInstancePanelBtn.onclick = () => this.closeInstancePanel();
-        }
-        
-        if (this.cancelInstanceBtn) {
-            this.cancelInstanceBtn.onclick = () => this.closeInstancePanel();
-        }
-        
-        if (this.saveInstanceBtn) {
-            this.saveInstanceBtn.onclick = () => this.saveInstance();
-        }
-        
-        if (this.instanceSearch) {
-            this.instanceSearch.oninput = () => this.filterInstances();
-        }
-        
-        // Inline visualization controls
-        if (this.visualizeInstancesBtn) {
-            this.visualizeInstancesBtn.onclick = () => this.toggleInlineViz();
-        }
-        
-        if (this.closeInlineVizBtn) {
-            this.closeInlineVizBtn.onclick = () => this.hideInlineViz();
-        }
-        
-        if (this.generateInlineChartBtn) {
-            this.generateInlineChartBtn.onclick = () => this.generateInlineChart();
-        }
-        
-        // Inline chart type selection - use event delegation since elements are in hidden panel
-        document.addEventListener('click', (e) => {
-            const chartOption = e.target.closest('.chart-type-option[data-inline]');
-            if (chartOption && chartOption.dataset.chart) {
-                this.selectInlineChartType(chartOption.dataset.chart);
-            }
-            
-            // Aggregation button clicks
-            const aggBtn = e.target.closest('.agg-btn');
-            if (aggBtn && aggBtn.dataset.agg) {
-                this.setAggregation(aggBtn.dataset.agg);
-            }
-        });
-        
-        // Line chart field changes for auto-generation
-        if (this.inlineLineXField) {
-            this.inlineLineXField.onchange = () => this.autoGenerateInlineChart();
-        }
-        if (this.inlineLineYField) {
-            this.inlineLineYField.onchange = () => this.autoGenerateInlineChart();
-        }
-        
-        // Data Visualization controls
-        if (this.backFromDataVizBtn) {
-            this.backFromDataVizBtn.onclick = () => this.showWorkshopHome();
-        }
-        
-        if (this.createChartBtn) {
-            this.createChartBtn.onclick = () => this.resetChartBuilder();
-        }
-        
-        if (this.vizTypeSelect) {
-            this.vizTypeSelect.onchange = () => this.loadVizTypeData();
-        }
-        
-        if (this.generateChartBtn) {
-            this.generateChartBtn.onclick = () => this.generateChart();
-        }
-        
-        if (this.backToBuilderBtn) {
-            this.backToBuilderBtn.onclick = () => this.showChartBuilder();
-        }
-        
-        // Chart type selection
-        document.querySelectorAll('.chart-type-option').forEach(option => {
-            option.onclick = () => this.selectChartType(option.dataset.chart);
-        });
-        
-        // Search
-        if (this.objectTypeSearch) {
-            this.objectTypeSearch.oninput = () => this.filterObjectTypes();
-        }
-        
-        // Sidebar navigation (empty for now)
+        // Tab navigation
+        this.writeTab.onclick = () => this.switchTab('write');
+        this.toolkitTab.onclick = () => this.switchTab('toolkit');
+        this.playTab.onclick = () => this.switchTab('play');
+        this.peopleTab.onclick = () => this.switchTab('people');
+        this.settingsTab.onclick = () => this.switchTab('settings');
         
         // Profile navigation
         this.backFromProfileBtn.onclick = () => this.closeProfile();
@@ -547,7 +862,17 @@ class App {
         // Object Instance actions
         this.backFromInstancesBtn.onclick = () => this.closeInstancesList();
         this.createInstanceBtn.onclick = () => this.createInstance();
-        this.visualizeBtn.onclick = () => this.openVisualization();
+        this.visualizeBtn.onclick = () => {
+            // Check if we have data
+            if (this.currentInstances.length === 0) {
+                this.showToast("No data to visualize. Create some instances first!", "error");
+                return;
+            }
+            
+            // Pass data to visualizer and show it
+            this.dataVisualizer.setData(this.currentInstances, this.currentObjectType);
+            this.dataVisualizer.show();
+        };
         this.cardViewBtn.onclick = () => this.switchInstanceView('card');
         this.tableViewBtn.onclick = () => this.switchInstanceView('table');
         this.exportCsvBtn.onclick = () => this.exportToCSV();
@@ -838,70 +1163,55 @@ class App {
     }
 
     showAuthView() {
-        // For now, just hide the app container and show a simple message
-        // TODO: Build proper auth UI in new layout
-        if (this.appContainer) {
-            this.appContainer.classList.add("hidden");
-        }
-        
-        // If authView exists (old UI), show it
-        if (this.authView) {
-            this.authView.classList.remove("hidden");
-        } else {
-            // Create temporary auth prompt
-            document.body.innerHTML += `
-                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                            background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.1);
-                            text-align: center; z-index: 10000;">
-                    <h2 style="margin: 0 0 20px 0; color: #214159;">Welcome!</h2>
-                    <p style="margin: 0 0 20px 0; color: #6289A7;">Please log in to continue</p>
-                    <input id="tempAuthName" placeholder="Enter your name" 
-                           style="width: 100%; padding: 12px; border: 2px solid #D8ECFB; border-radius: 8px; margin-bottom: 12px;"/>
-                    <input id="tempAuthKey" placeholder="Enter your key (or leave blank)" 
-                           style="width: 100%; padding: 12px; border: 2px solid #D8ECFB; border-radius: 8px; margin-bottom: 16px;"/>
-                    <button id="tempLoginBtn" 
-                            style="width: 100%; padding: 12px; background: #83CAFF; color: white; border: none; border-radius: 8px; 
-                                   font-weight: 600; cursor: pointer;">
-                        Log In
-                    </button>
-                </div>
-            `;
-            
-            // Wire up temp auth
-            document.getElementById('tempLoginBtn').onclick = () => {
-                const name = document.getElementById('tempAuthName').value;
-                const key = document.getElementById('tempAuthKey').value;
-                this.authName = {value: name};
-                this.authKey = {value: key};
-                this.handleLogin();
-            };
-        }
+        this.authView.classList.remove("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         
         // Stop listening to rooms
         db.ref("rooms").off();
     }
 
     showHomeView() {
-        // Hide auth view if it exists (old UI)
-        if (this.authView) this.authView.classList.add("hidden");
-        
-        // Show new three-column layout
-        this.showAppContainer();
-        
-        // Make sure workshop home is visible
-        this.showWorkshopHome();
+        this.authView.classList.add("hidden");
+        this.homeView.classList.remove("hidden");
+        this.editorView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         
         soundManager.play('bite');
         
         if (!this.currentUser) {
             console.error("showHomeView called but currentUser is null!");
+            this.showAuthView();
             return;
         }
         
-        // Update settings if they exist (old UI elements)
-        if (this.homePlayerName) this.homePlayerName.textContent = this.currentUser.name;
-        if (this.homePlayerKey) this.homePlayerKey.textContent = this.currentUser.key;
-        if (this.settingsName) this.settingsName.textContent = this.currentUser.name;
+        // Update UI
+        this.homePlayerName.textContent = this.currentUser.name;
+        this.homePlayerKey.textContent = this.currentUser.key;
+        
+        // Populate settings
+        this.settingsName.textContent = this.currentUser.name;
         this.settingsKey.textContent = this.currentUser.key;
         
         // Initialize sound controls from saved preferences
@@ -931,9 +1241,6 @@ class App {
     }
 
     switchTab(tabName) {
-        // Old UI tab switching - make conditional
-        if (!this.writeTab) return; // Old UI not present
-        
         // Remove active class from all tabs
         this.writeTab.classList.remove('active');
         this.toolkitTab.classList.remove('active');
@@ -1195,24 +1502,18 @@ class App {
 
     showEditorView() {
         this.authView.classList.add("hidden");
-        
-        // Switch to Desk
-        this.switchWorkspace('desk');
-        
-        // Move editor to desk if needed
-        if (!this.deskView.contains(this.editorView)) {
-            this.deskView.appendChild(this.editorView);
-        }
-        
-        // Hide desk empty message
-        const deskEmpty = this.deskView.querySelector('.desk-empty');
-        if (deskEmpty) deskEmpty.style.display = 'none';
-        
-        // Show editor
-        this.editorView.classList.remove('hidden');
-        
-        // Make sure it's visible (remove any inline styles)
-        this.editorView.style.display = '';
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.remove("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
         
         soundManager.play('bite');
         
@@ -1220,7 +1521,7 @@ class App {
         if (this.openedFromProfile) {
             this.backToHomeBtn.textContent = "Back to Profile";
         } else {
-            this.backToHomeBtn.textContent = "Close";
+            this.backToHomeBtn.textContent = "Back to Home";
         }
         
         // Set up the correct mode
@@ -1272,17 +1573,12 @@ class App {
         this.deleteDocBtnReader.style.display = 'block';
         this.modeToggleBtn.style.display = 'inline-block';
         
-        // Hide editor
-        this.editorView.classList.add('hidden');
-        
-        // Show desk empty message
-        const deskEmpty = this.deskView.querySelector('.desk-empty');
-        if (deskEmpty) deskEmpty.style.display = 'block';
-        
-        // Navigate back if needed
+        // Navigate back to where we came from
         if (this.openedFromProfile && this.currentProfileUserId) {
             this.openedFromProfile = false;
             this.showProfileView();
+        } else {
+            this.showHomeView();
         }
     }
 
@@ -1438,8 +1734,14 @@ class App {
     }
 
     createObjectType() {
-        // Redirect to new panel-based creation
-        this.openCreatePanel();
+        this.currentObjectTypeId = null;
+        this.fieldIdCounter = 0;
+        this.objectTypeName.value = "";
+        this.objectTypeTags.value = "";
+        this.fieldsList.innerHTML = "";
+        this.deleteObjectTypeBtn.style.display = "none";
+        this.objectTypeBuilderTitle.textContent = "New Object Type";
+        this.showObjectTypeBuilder();
     }
 
     async openObjectType(typeId) {
@@ -1477,46 +1779,29 @@ class App {
 
     showObjectTypeBuilder() {
         this.authView.classList.add("hidden");
-        
-        // Switch to workshop
-        this.switchWorkspace('workshop');
-        
-        // Move builder to workshop if needed
-        if (!this.workshopView.contains(this.objectTypeBuilderView)) {
-            this.workshopView.appendChild(this.objectTypeBuilderView);
-        }
-        
-        // Hide all other views in workshop
-        const workshopViews = [
-            this.homeView,
-            this.objectInstancesView,
-            this.objectInstanceEditorView,
-            this.dataVisualizationView
-        ];
-        
-        workshopViews.forEach(v => {
-            if (v && this.workshopView.contains(v)) {
-                v.classList.add('hidden');
-            }
-        });
-        
-        // Show builder
-        this.objectTypeBuilderView.classList.remove('hidden');
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.remove("hidden");
 
         soundManager.play('bite');
     }
 
     closeObjectTypeBuilder() {
-        // Hide builder
-        this.objectTypeBuilderView.classList.add('hidden');
-        
-        // Show homeView in workshop
-        if (!this.workshopView.contains(this.homeView)) {
-            this.workshopView.appendChild(this.homeView);
-        }
-        this.homeView.classList.remove('hidden');
-        
-        // Make sure we're on toolkit tab
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.homeView.classList.remove("hidden");
         this.switchTab('toolkit');
     }
 
@@ -1784,42 +2069,26 @@ class App {
 
     showInstancesView() {
         this.authView.classList.add("hidden");
-        
-        // Switch to workshop
-        this.switchWorkspace('workshop');
-        
-        // Move instances view to workshop if needed
-        if (!this.workshopView.contains(this.objectInstancesView)) {
-            this.workshopView.appendChild(this.objectInstancesView);
-        }
-        
-        // Hide all other views in workshop
-        const workshopViews = [
-            this.homeView,
-            this.objectTypeBuilderView,
-            this.objectInstanceEditorView,
-            this.dataVisualizationView
-        ];
-        
-        workshopViews.forEach(v => {
-            if (v && this.workshopView.contains(v)) {
-                v.classList.add('hidden');
-            }
-        });
-        
-        // Show instances view
-        this.objectInstancesView.classList.remove('hidden');
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.objectInstancesView.classList.remove("hidden");
     }
 
     closeInstancesList() {
-        // Hide instances view
-        this.objectInstancesView.classList.add('hidden');
-        
-        // Show homeView in workshop
-        if (!this.workshopView.contains(this.homeView)) {
-            this.workshopView.appendChild(this.homeView);
-        }
-        this.homeView.classList.remove('hidden');
+        this.objectInstancesView.classList.add("hidden");
+        this.homeView.classList.remove("hidden");
         
         // Clean up listener
         if (this.instancesListener) {
@@ -2338,8 +2607,11 @@ class App {
     }
 
     createInstance() {
-        // Redirect to new panel-based creation
-        this.openCreateInstancePanel();
+        this.currentInstanceId = null;
+        this.instanceEditorTitle.textContent = `New ${this.currentObjectType.name}`;
+        this.deleteInstanceBtn.style.display = "none";
+        this.showInstanceEditor();
+        this.renderInstanceForm();
     }
 
     async openInstance(instanceId) {
@@ -2379,11 +2651,9 @@ class App {
     }
 
     closeInstanceEditor() {
-        // Hide editor
-        this.objectInstanceEditorView.classList.add('hidden');
-        
-        // Show instances view
-        this.objectInstancesView.classList.remove('hidden');
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.objectInstancesView.classList.remove("hidden");
         
         // Check if we need to restore previous state from navigation stack
         if (this.navigationStack.length > 0) {
@@ -3734,10 +4004,18 @@ class App {
 
     showActivityMenu() {
         this.authView.classList.add("hidden");
-        
-        // Switch to workshop and show activity menu in it
-        this.switchWorkspace('workshop');
-        this.showViewInWorkspace(this.activityMenuView);
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.activityMenuView.classList.remove("hidden");
 
         soundManager.play('bite');
         this.menuRoomCode.textContent = `Room: ${this.currentRoomCode}`;
@@ -3997,10 +4275,18 @@ class App {
 
     showChatView() {
         this.authView.classList.add("hidden");
-        
-        // Switch to workshop and show chat in it
-        this.switchWorkspace('workshop');
-        this.showViewInWorkspace(this.chatView);
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.chatView.classList.remove("hidden");
 
         soundManager.play('bite');
         this.chatRoomCode.textContent = this.currentRoomCode;
@@ -4113,10 +4399,17 @@ class App {
 
     showDiceView() {
         this.authView.classList.add("hidden");
-        
-        // Switch to workshop and show dice in it
-        this.switchWorkspace('workshop');
-        this.showViewInWorkspace(this.diceView);
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.diceView.classList.remove("hidden");
 
         soundManager.play('bite');
         this.diceRoomCode.textContent = this.currentRoomCode;
@@ -5290,2380 +5583,6 @@ class App {
 
     generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
-    // ===== THREE-COLUMN LAYOUT METHODS =====
-
-    switchWorkspace(workspace) {
-        // Update tab states
-        document.querySelectorAll('.workspace-tab').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.workspace === workspace);
-        });
-        
-        // Update view states
-        this.pegboardView.classList.toggle('hidden', workspace !== 'pegboard');
-        this.pegboardView.classList.toggle('active', workspace === 'pegboard');
-        
-        this.deskView.classList.toggle('hidden', workspace !== 'desk');
-        this.deskView.classList.toggle('active', workspace === 'desk');
-        
-        this.workshopView.classList.toggle('hidden', workspace !== 'workshop');
-        this.workshopView.classList.toggle('active', workspace === 'workshop');
-        
-        // Show workshop home when switching to workshop
-        if (workspace === 'workshop') {
-            this.showWorkshopHome();
-        }
-    }
-
-    // ===== WORKSHOP METHODS =====
-
-    openWorkshopTool(tool) {
-        switch(tool) {
-            case 'objectTypes':
-                this.showObjectTypesView();
-                break;
-            case 'dataVisualization':
-                this.showDataVizView();
-                break;
-            case 'actions':
-                this.showToast('Actions coming soon', 'info');
-                break;
-            case 'modifiers':
-                this.showToast('Modifiers coming soon', 'info');
-                break;
-            case 'games':
-                this.showToast('Games coming soon', 'info');
-                break;
-            case 'contracts':
-                this.showToast('Contracts coming soon', 'info');
-                break;
-        }
-    }
-
-    showWorkshopHome() {
-        // Hide all tool views
-        document.querySelectorAll('.workshop-tool-view').forEach(view => {
-            view.classList.add('hidden');
-        });
-        
-        // Show workshop home
-        this.workshopHome.classList.remove('hidden');
-    }
-
-    showObjectTypesView() {
-        // Hide workshop home
-        this.workshopHome.classList.add('hidden');
-        
-        // Hide instances view if showing
-        this.objectInstancesView.classList.add('hidden');
-        
-        // Show object types view
-        this.objectTypesView.classList.remove('hidden');
-        
-        // Load object types
-        this.loadObjectTypes();
-    }
-
-    async loadObjectTypes() {
-        if (!this.currentUser) return;
-        
-        // Store all types for filtering
-        this.allObjectTypes = [];
-        this.allTags = new Set();
-        
-        // Listen to user's object types
-        const typesRef = db.ref('objectTypes')
-            .orderByChild('authorId')
-            .equalTo(this.currentUser.id);
-        
-        typesRef.on('value', (snapshot) => {
-            this.allObjectTypes = [];
-            this.allTags = new Set();
-            
-            if (!snapshot.exists()) {
-                this.showEmptyState();
-                return;
-            }
-            
-            // Collect all types
-            snapshot.forEach(typeSnap => {
-                const type = typeSnap.val();
-                const typeId = typeSnap.key;
-                
-                this.allObjectTypes.push({
-                    id: typeId,
-                    ...type
-                });
-                
-                // Collect tags
-                if (type.tags && Array.isArray(type.tags)) {
-                    type.tags.forEach(tag => this.allTags.add(tag));
-                }
-            });
-            
-            // Render tag filters
-            this.renderTagFilters();
-            
-            // Render grouped types
-            this.renderGroupedTypes();
-        });
-    }
-
-    renderTagFilters() {
-        if (this.allTags.size === 0) {
-            this.tagFilters.innerHTML = '';
-            return;
-        }
-        
-        this.tagFilters.innerHTML = '';
-        
-        // Add "All" chip
-        const allChip = document.createElement('div');
-        allChip.className = 'filter-chip active';
-        allChip.textContent = 'All';
-        allChip.onclick = () => {
-            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-            allChip.classList.add('active');
-            this.currentTagFilter = null;
-            this.renderGroupedTypes();
-        };
-        this.tagFilters.appendChild(allChip);
-        
-        // Add tag chips
-        Array.from(this.allTags).sort().forEach(tag => {
-            const chip = document.createElement('div');
-            chip.className = 'filter-chip';
-            chip.textContent = tag;
-            chip.onclick = () => {
-                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-                this.currentTagFilter = tag;
-                this.renderGroupedTypes();
-            };
-            this.tagFilters.appendChild(chip);
-        });
-    }
-
-    filterObjectTypes() {
-        this.renderGroupedTypes();
-    }
-
-    renderGroupedTypes() {
-        const searchTerm = this.objectTypeSearch ? this.objectTypeSearch.value.toLowerCase() : '';
-        
-        // Filter types
-        let filteredTypes = this.allObjectTypes.filter(type => {
-            // Search filter
-            if (searchTerm && !type.name.toLowerCase().includes(searchTerm)) {
-                return false;
-            }
-            
-            // Tag filter
-            if (this.currentTagFilter && (!type.tags || !type.tags.includes(this.currentTagFilter))) {
-                return false;
-            }
-            
-            return true;
-        });
-        
-        if (filteredTypes.length === 0) {
-            this.showEmptyState();
-            return;
-        }
-        
-        this.objectTypesEmpty.classList.add('hidden');
-        
-        // Group types
-        const pinned = filteredTypes.filter(t => t.pinned);
-        const favorited = filteredTypes.filter(t => t.favorited && !t.pinned);
-        const recent = filteredTypes
-            .filter(t => !t.pinned && !t.favorited && t.lastUsed)
-            .sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0))
-            .slice(0, 5);
-        const all = filteredTypes
-            .filter(t => !t.pinned)
-            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        
-        // Render each group
-        this.renderGroup(this.pinnedGroup, this.pinnedTypesList, pinned, '📌 Pinned');
-        this.renderGroup(this.recentGroup, this.recentTypesList, recent, '🕒 Recent');
-        this.renderGroup(this.favoritesGroup, this.favoritesTypesList, favorited, '⭐ Favorites');
-        this.renderGroup(this.allGroup, this.allTypesList, all, 'All Types');
-    }
-
-    renderGroup(groupEl, listEl, types, heading) {
-        if (!types || types.length === 0) {
-            groupEl.classList.add('hidden');
-            return;
-        }
-        
-        groupEl.classList.remove('hidden');
-        listEl.innerHTML = '';
-        
-        types.forEach(type => {
-            const card = this.createObjectTypeCard(type.id, type);
-            listEl.appendChild(card);
-        });
-    }
-
-    showEmptyState() {
-        this.pinnedGroup.classList.add('hidden');
-        this.recentGroup.classList.add('hidden');
-        this.favoritesGroup.classList.add('hidden');
-        this.allGroup.classList.add('hidden');
-        this.objectTypesEmpty.classList.remove('hidden');
-    }
-
-    createObjectTypeCard(typeId, type) {
-        const card = document.createElement('div');
-        card.className = 'object-type-card';
-        
-        const fieldCount = type.fields ? Object.keys(type.fields).length : 0;
-        
-        // Card header with actions
-        const header = document.createElement('div');
-        header.className = 'card-header';
-        
-        const titleArea = document.createElement('div');
-        titleArea.className = 'card-title-area';
-        titleArea.innerHTML = `<h3>${type.name || 'Untitled Type'}</h3>`;
-        
-        const actions = document.createElement('div');
-        actions.className = 'card-actions';
-        
-        // Pin button
-        const pinBtn = document.createElement('button');
-        pinBtn.className = 'card-action-btn' + (type.pinned ? ' pinned' : '');
-        pinBtn.innerHTML = '<img src="berhaw--icon--pin.svg" alt="Pin" />';
-        pinBtn.title = type.pinned ? 'Unpin' : 'Pin';
-        pinBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.togglePin(typeId, !type.pinned);
-        };
-        actions.appendChild(pinBtn);
-        
-        // Favorite button
-        const favBtn = document.createElement('button');
-        favBtn.className = 'card-action-btn' + (type.favorited ? ' favorited' : '');
-        favBtn.innerHTML = '<img src="berhaw--icon--favorite.svg" alt="Favorite" />';
-        favBtn.title = type.favorited ? 'Unfavorite' : 'Favorite';
-        favBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.toggleFavorite(typeId, !type.favorited);
-        };
-        actions.appendChild(favBtn);
-        
-        header.appendChild(titleArea);
-        header.appendChild(actions);
-        card.appendChild(header);
-        
-        // Field count
-        const count = document.createElement('p');
-        count.className = 'field-count';
-        count.textContent = `${fieldCount} field${fieldCount !== 1 ? 's' : ''}`;
-        card.appendChild(count);
-        
-        // Description
-        if (type.description) {
-            const desc = document.createElement('p');
-            desc.className = 'type-description';
-            desc.textContent = type.description;
-            card.appendChild(desc);
-        }
-        
-        // Tags
-        if (type.tags && type.tags.length > 0) {
-            const tagsDiv = document.createElement('div');
-            tagsDiv.className = 'type-tags';
-            type.tags.forEach(tag => {
-                const tagEl = document.createElement('span');
-                tagEl.className = 'type-tag';
-                tagEl.textContent = tag;
-                tagsDiv.appendChild(tagEl);
-            });
-            card.appendChild(tagsDiv);
-        }
-        
-        // Footer with actions
-        const footer = document.createElement('div');
-        footer.className = 'card-footer';
-        
-        const viewBtn = document.createElement('button');
-        viewBtn.className = 'btn-card-action';
-        viewBtn.textContent = 'View';
-        viewBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.viewInstances(typeId, type);
-        };
-        footer.appendChild(viewBtn);
-        
-        const editBtn = document.createElement('button');
-        editBtn.className = 'btn-card-action';
-        editBtn.textContent = 'Edit';
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.openEditPanel(typeId, type);
-        };
-        footer.appendChild(editBtn);
-        
-        const cloneBtn = document.createElement('button');
-        cloneBtn.className = 'btn-card-action';
-        cloneBtn.textContent = 'Clone';
-        cloneBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.cloneObjectType(typeId, type);
-        };
-        footer.appendChild(cloneBtn);
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn-card-action';
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.deleteObjectTypeWithConfirm(typeId, type.name);
-        };
-        footer.appendChild(deleteBtn);
-        
-        card.appendChild(footer);
-        
-        return card;
-    }
-
-    async togglePin(typeId, pinned) {
-        await db.ref(`objectTypes/${typeId}`).update({ pinned });
-        soundManager.play('bite');
-    }
-
-    async toggleFavorite(typeId, favorited) {
-        await db.ref(`objectTypes/${typeId}`).update({ favorited });
-        soundManager.play('bite');
-    }
-
-    async cloneObjectType(typeId, type) {
-        if (!this.currentUser) return;
-        
-        const clonedType = {
-            name: `${type.name} (Copy)`,
-            description: type.description || '',
-            fields: type.fields || {},
-            tags: type.tags || [],
-            authorId: this.currentUser.id,
-            createdAt: Date.now(),
-            lastUsed: Date.now()
-        };
-        
-        const newTypeRef = db.ref('objectTypes').push();
-        await newTypeRef.set(clonedType);
-        
-        soundManager.play('submitted');
-        this.showToast(`Cloned "${type.name}"`, 'success');
-    }
-
-    async deleteObjectTypeWithConfirm(typeId, typeName) {
-        if (!confirm(`Delete "${typeName}"? This cannot be undone.`)) {
-            return;
-        }
-        
-        await db.ref(`objectTypes/${typeId}`).remove();
-        soundManager.play('alert');
-        this.showToast(`Deleted "${typeName}"`, 'success');
-    }
-
-    // ===== PANEL METHODS =====
-
-    openCreatePanel() {
-        this.editingTypeId = null;
-        this.currentTags = [];
-        this.currentFields = [];
-        
-        this.panelTitle.textContent = 'New Object Type';
-        this.typeName.value = '';
-        this.typeDescription.value = '';
-        this.typeTagInput.value = '';
-        this.typeTagsList.innerHTML = '';
-        this.fieldsList.innerHTML = '';
-        this.emptyFieldsMessage.classList.remove('hidden');
-        
-        this.objectTypePanel.classList.remove('hidden');
-        soundManager.play('bite');
-    }
-
-    openEditPanel(typeId, type) {
-        this.editingTypeId = typeId;
-        this.currentTags = type.tags || [];
-        this.currentFields = [];
-        
-        // Convert fields object to array
-        if (type.fields) {
-            Object.entries(type.fields).forEach(([fieldId, field]) => {
-                this.currentFields.push({
-                    id: fieldId,
-                    ...field
-                });
-            });
-        }
-        
-        this.panelTitle.textContent = 'Edit Object Type';
-        this.typeName.value = type.name || '';
-        this.typeDescription.value = type.description || '';
-        this.typeTagInput.value = '';
-        
-        this.renderTags();
-        this.renderFields();
-        
-        this.objectTypePanel.classList.remove('hidden');
-        soundManager.play('bite');
-    }
-
-    closePanel() {
-        this.objectTypePanel.classList.add('hidden');
-        this.editingTypeId = null;
-        this.currentTags = [];
-        this.currentFields = [];
-    }
-
-    addTag() {
-        const tag = this.typeTagInput.value.trim();
-        if (!tag) return;
-        
-        if (this.currentTags.includes(tag)) {
-            this.showToast('Tag already added', 'info');
-            return;
-        }
-        
-        this.currentTags.push(tag);
-        this.typeTagInput.value = '';
-        this.renderTags();
-    }
-
-    removeTag(tag) {
-        this.currentTags = this.currentTags.filter(t => t !== tag);
-        this.renderTags();
-    }
-
-    renderTags() {
-        this.typeTagsList.innerHTML = '';
-        
-        this.currentTags.forEach(tag => {
-            const tagEl = document.createElement('div');
-            tagEl.className = 'tag-item';
-            tagEl.innerHTML = `
-                <span>${tag}</span>
-                <span class="tag-remove">×</span>
-            `;
-            tagEl.querySelector('.tag-remove').onclick = () => this.removeTag(tag);
-            this.typeTagsList.appendChild(tagEl);
-        });
-    }
-
-    addField() {
-        const fieldId = 'field_' + Date.now();
-        const field = {
-            id: fieldId,
-            name: '',
-            type: 'text',
-            required: false,
-            group: '',
-            targetType: null,
-            options: []
-        };
-        
-        this.currentFields.push(field);
-        this.renderFields();
-    }
-
-    removeField(fieldId) {
-        this.currentFields = this.currentFields.filter(f => f.id !== fieldId);
-        this.renderFields();
-    }
-
-    updateField(fieldId, prop, value) {
-        const field = this.currentFields.find(f => f.id === fieldId);
-        if (field) {
-            field[prop] = value;
-        }
-    }
-
-    renderFields() {
-        this.fieldsList.innerHTML = '';
-        
-        if (this.currentFields.length === 0) {
-            this.emptyFieldsMessage.classList.remove('hidden');
-            return;
-        }
-        
-        this.emptyFieldsMessage.classList.add('hidden');
-        
-        // Group fields
-        const grouped = {};
-        this.currentFields.forEach(field => {
-            const group = field.group || '_ungrouped';
-            if (!grouped[group]) grouped[group] = [];
-            grouped[group].push(field);
-        });
-        
-        // Render ungrouped first
-        if (grouped['_ungrouped']) {
-            grouped['_ungrouped'].forEach(field => {
-                this.fieldsList.appendChild(this.createFieldElement(field));
-            });
-        }
-        
-        // Then render grouped
-        Object.keys(grouped).forEach(groupName => {
-            if (groupName === '_ungrouped') return;
-            
-            const groupHeader = document.createElement('div');
-            groupHeader.className = 'field-group-header';
-            groupHeader.textContent = groupName;
-            this.fieldsList.appendChild(groupHeader);
-            
-            grouped[groupName].forEach(field => {
-                this.fieldsList.appendChild(this.createFieldElement(field));
-            });
-        });
-    }
-
-    createFieldElement(field) {
-        const fieldEl = document.createElement('div');
-        fieldEl.className = 'field-item';
-        
-        const hasRelationship = field.type === 'relationship';
-        const hasOptions = field.type === 'dropdown' || field.type === 'multiselect';
-        
-        fieldEl.innerHTML = `
-            <div class="field-header">
-                <div class="field-actions">
-                    <button class="field-action-btn" data-action="delete">×</button>
-                </div>
-            </div>
-            <div class="field-inputs">
-                <div class="field-row">
-                    <input type="text" placeholder="Field name" value="${field.name || ''}" data-field="${field.id}" data-prop="name" />
-                    <select data-field="${field.id}" data-prop="type" data-field-type-select="true">
-                        <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
-                        <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
-                        <option value="boolean" ${field.type === 'boolean' ? 'selected' : ''}>Yes/No</option>
-                        <option value="date" ${field.type === 'date' ? 'selected' : ''}>Date</option>
-                        <option value="longtext" ${field.type === 'longtext' ? 'selected' : ''}>Long Text</option>
-                        <option value="dropdown" ${field.type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
-                        <option value="multiselect" ${field.type === 'multiselect' ? 'selected' : ''}>Multi-Select</option>
-                        <option value="url" ${field.type === 'url' ? 'selected' : ''}>URL</option>
-                        <option value="image" ${field.type === 'image' ? 'selected' : ''}>Image</option>
-                        <option value="email" ${field.type === 'email' ? 'selected' : ''}>Email</option>
-                        <option value="phone" ${field.type === 'phone' ? 'selected' : ''}>Phone</option>
-                        <option value="color" ${field.type === 'color' ? 'selected' : ''}>Color</option>
-                        <option value="relationship" ${field.type === 'relationship' ? 'selected' : ''}>Relationship</option>
-                    </select>
-                </div>
-                <div class="field-row ${hasRelationship ? '' : 'hidden'}" data-relationship-row="${field.id}">
-                    <select data-field="${field.id}" data-prop="targetType" data-target-type-select="true">
-                        <option value="">Select Object Type...</option>
-                    </select>
-                </div>
-                <div class="field-row ${hasOptions ? '' : 'hidden'}" data-options-row="${field.id}">
-                    <input type="text" placeholder="Options (comma-separated)" value="${field.options ? field.options.join(', ') : ''}" data-field="${field.id}" data-prop="options" data-options-input="true" />
-                </div>
-                <div class="field-row">
-                    <input type="text" placeholder="Group (optional)" value="${field.group || ''}" data-field="${field.id}" data-prop="group" />
-                </div>
-            </div>
-        `;
-        
-        // Populate target type dropdown if relationship field
-        const targetTypeSelect = fieldEl.querySelector('[data-target-type-select]');
-        if (hasRelationship && targetTypeSelect) {
-            this.populateTargetTypeDropdown(targetTypeSelect, field.targetType);
-        }
-        
-        // Wire up events
-        fieldEl.querySelectorAll('input, select').forEach(input => {
-            input.oninput = () => {
-                const fieldId = input.dataset.field;
-                const prop = input.dataset.prop;
-                
-                // Handle options input specially
-                if (input.dataset.optionsInput) {
-                    const optionsArray = input.value.split(',').map(o => o.trim()).filter(o => o);
-                    this.updateField(fieldId, 'options', optionsArray);
-                } else {
-                    this.updateField(fieldId, prop, input.value);
-                }
-                
-                // Show/hide relationship row when type changes
-                if (input.dataset.fieldTypeSelect) {
-                    const relationshipRow = fieldEl.querySelector(`[data-relationship-row="${fieldId}"]`);
-                    const optionsRow = fieldEl.querySelector(`[data-options-row="${fieldId}"]`);
-                    
-                    if (input.value === 'relationship') {
-                        relationshipRow.classList.remove('hidden');
-                        optionsRow.classList.add('hidden');
-                        const targetSelect = relationshipRow.querySelector('select');
-                        this.populateTargetTypeDropdown(targetSelect, null);
-                    } else if (input.value === 'dropdown' || input.value === 'multiselect') {
-                        relationshipRow.classList.add('hidden');
-                        optionsRow.classList.remove('hidden');
-                    } else {
-                        relationshipRow.classList.add('hidden');
-                        optionsRow.classList.add('hidden');
-                    }
-                }
-            };
-        });
-        
-        fieldEl.querySelector('[data-action="delete"]').onclick = () => {
-            this.removeField(field.id);
-        };
-        
-        return fieldEl;
-    }
-
-    async populateTargetTypeDropdown(selectEl, selectedValue) {
-        if (!this.currentUser) return;
-        
-        // Get all object types
-        const typesSnap = await db.ref('objectTypes')
-            .orderByChild('authorId')
-            .equalTo(this.currentUser.id)
-            .once('value');
-        
-        // Clear and populate
-        selectEl.innerHTML = '<option value="">Select Object Type...</option>';
-        
-        if (typesSnap.exists()) {
-            typesSnap.forEach(typeSnap => {
-                const type = typeSnap.val();
-                const typeId = typeSnap.key;
-                
-                // Don't allow self-reference if editing existing type
-                if (this.editingTypeId && typeId === this.editingTypeId) {
-                    return;
-                }
-                
-                const option = document.createElement('option');
-                option.value = typeId;
-                option.textContent = type.name || 'Untitled';
-                if (typeId === selectedValue) {
-                    option.selected = true;
-                }
-                selectEl.appendChild(option);
-            });
-        }
-    }
-
-    async saveObjectType() {
-        const name = this.typeName.value.trim();
-        
-        if (!name) {
-            this.showToast('Name is required', 'error');
-            return;
-        }
-        
-        // Validate fields have names
-        const hasInvalidFields = this.currentFields.some(f => !f.name.trim());
-        if (hasInvalidFields) {
-            this.showToast('All fields must have names', 'error');
-            return;
-        }
-        
-        // Validate relationship fields have targetType
-        const hasInvalidRelationships = this.currentFields.some(f => 
-            f.type === 'relationship' && !f.targetType
-        );
-        if (hasInvalidRelationships) {
-            this.showToast('Relationship fields must have a target type selected', 'error');
-            return;
-        }
-        
-        // Validate dropdown/multiselect fields have options
-        const hasInvalidOptions = this.currentFields.some(f => 
-            (f.type === 'dropdown' || f.type === 'multiselect') && 
-            (!f.options || f.options.length === 0)
-        );
-        if (hasInvalidOptions) {
-            this.showToast('Dropdown and Multi-Select fields must have options defined', 'error');
-            return;
-        }
-        
-        // Convert fields array to object
-        const fieldsObj = {};
-        this.currentFields.forEach(field => {
-            const { id, ...fieldData } = field;
-            fieldsObj[id] = fieldData;
-        });
-        
-        const typeData = {
-            name,
-            description: this.typeDescription.value.trim(),
-            tags: this.currentTags,
-            fields: fieldsObj,
-            authorId: this.currentUser.id,
-            lastUsed: Date.now()
-        };
-        
-        if (this.editingTypeId) {
-            // Update existing
-            await db.ref(`objectTypes/${this.editingTypeId}`).update(typeData);
-            this.showToast('Object Type updated', 'success');
-        } else {
-            // Create new
-            typeData.createdAt = Date.now();
-            const newTypeRef = db.ref('objectTypes').push();
-            await newTypeRef.set(typeData);
-            this.showToast('Object Type created', 'success');
-        }
-        
-        soundManager.play('submitted');
-        this.closePanel();
-    }
-
-    // ===== INSTANCE MANAGEMENT METHODS =====
-
-    viewInstances(typeId, type) {
-        this.currentTypeForInstances = { id: typeId, ...type };
-        
-        // Update last used
-        db.ref(`objectTypes/${typeId}`).update({ lastUsed: Date.now() });
-        
-        // Hide types view, show instances view
-        this.objectTypesView.classList.add('hidden');
-        this.objectInstancesView.classList.remove('hidden');
-        
-        // Update header
-        this.instancesTypeName.textContent = type.name;
-        
-        // Load instances
-        this.loadInstances();
-        
-        soundManager.play('bite');
-    }
-
-    showObjectTypesViewFromInstances() {
-        this.objectInstancesView.classList.add('hidden');
-        this.objectTypesView.classList.remove('hidden');
-        this.currentTypeForInstances = null;
-    }
-
-    async loadInstances() {
-        if (!this.currentTypeForInstances) return;
-        
-        const typeId = this.currentTypeForInstances.id;
-        
-        // Listen to instances of this type
-        const instancesRef = db.ref('objects')
-            .orderByChild('typeId')
-            .equalTo(typeId);
-        
-        instancesRef.on('value', (snapshot) => {
-            this.allInstances = [];
-            
-            if (!snapshot.exists()) {
-                this.showEmptyInstancesState();
-                return;
-            }
-            
-            snapshot.forEach(instSnap => {
-                const instance = instSnap.val();
-                const instanceId = instSnap.key;
-                
-                this.allInstances.push({
-                    id: instanceId,
-                    ...instance
-                });
-            });
-            
-            this.renderInstances();
-        });
-    }
-
-    filterInstances() {
-        this.renderInstances();
-    }
-
-    renderInstances() {
-        const searchTerm = this.instanceSearch ? this.instanceSearch.value.toLowerCase() : '';
-        
-        // Filter instances
-        let filteredInstances = this.allInstances.filter(instance => {
-            if (!searchTerm) return true;
-            
-            // Search in all field values
-            const data = instance.data || {};
-            return Object.values(data).some(value => {
-                if (value === null || value === undefined) return false;
-                return String(value).toLowerCase().includes(searchTerm);
-            });
-        });
-        
-        if (filteredInstances.length === 0) {
-            this.showEmptyInstancesState();
-            return;
-        }
-        
-        this.instancesEmpty.classList.add('hidden');
-        this.instancesGrid.classList.remove('hidden');
-        this.instancesGrid.innerHTML = '';
-        
-        filteredInstances.forEach(instance => {
-            const card = this.createInstanceCard(instance);
-            this.instancesGrid.appendChild(card);
-        });
-    }
-
-    showEmptyInstancesState() {
-        this.instancesGrid.classList.add('hidden');
-        this.instancesEmpty.classList.remove('hidden');
-    }
-
-    createInstanceCard(instance) {
-        const card = document.createElement('div');
-        card.className = 'instance-card';
-        
-        const fields = this.currentTypeForInstances.fields || {};
-        const data = instance.data || {};
-        
-        // Find display name field (first text field or first field)
-        const displayField = Object.entries(fields).find(([_, field]) => field.type === 'text') || Object.entries(fields)[0];
-        const displayName = displayField ? data[displayField[0]] || 'Unnamed' : 'Unnamed';
-        
-        const header = document.createElement('div');
-        header.className = 'instance-card-header';
-        header.innerHTML = `<h4>${displayName}</h4>`;
-        card.appendChild(header);
-        
-        // Show first 3 fields
-        const fieldEntries = Object.entries(fields).slice(0, 3);
-        const fieldsDiv = document.createElement('div');
-        fieldsDiv.className = 'instance-card-fields';
-        
-        fieldEntries.forEach(([fieldId, field]) => {
-            const value = data[fieldId];
-            const displayValue = this.formatFieldValue(value, field.type, field);
-            
-            const fieldDiv = document.createElement('div');
-            fieldDiv.className = 'instance-field';
-            fieldDiv.innerHTML = `
-                <span class="instance-field-label">${field.name}:</span>
-                <span class="instance-field-value" data-field-type="${field.type}" data-field-id="${fieldId}">${displayValue}</span>
-            `;
-            fieldsDiv.appendChild(fieldDiv);
-            
-            // Load relationship display name asynchronously
-            if (field.type === 'relationship' && value && field.targetType) {
-                this.loadRelationshipDisplayName(value, field.targetType).then(displayName => {
-                    const valueSpan = fieldDiv.querySelector('.instance-field-value');
-                    if (valueSpan) {
-                        valueSpan.textContent = displayName;
-                    }
-                });
-            }
-        });
-        
-        card.appendChild(fieldsDiv);
-        
-        // Footer with actions
-        const footer = document.createElement('div');
-        footer.className = 'instance-card-footer';
-        
-        const editBtn = document.createElement('button');
-        editBtn.className = 'btn-card-action';
-        editBtn.textContent = 'Edit';
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.openEditInstancePanel(instance.id, instance);
-        };
-        footer.appendChild(editBtn);
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn-card-action';
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.deleteInstanceWithConfirm(instance.id, displayName);
-        };
-        footer.appendChild(deleteBtn);
-        
-        card.appendChild(footer);
-        
-        return card;
-    }
-
-    formatFieldValue(value, type, field = null) {
-        if (value === null || value === undefined || value === '') return '—';
-        
-        switch (type) {
-            case 'boolean':
-                return value ? 'Yes' : 'No';
-            case 'date':
-                // Parse as local date to avoid timezone issues
-                if (value.includes('-')) {
-                    // Format: YYYY-MM-DD
-                    const [year, month, day] = value.split('-');
-                    return new Date(year, month - 1, day).toLocaleDateString();
-                }
-                return new Date(value).toLocaleDateString();
-            case 'longtext':
-                return value.substring(0, 50) + (value.length > 50 ? '...' : '');
-            case 'multiselect':
-                if (Array.isArray(value)) {
-                    return value.join(', ');
-                }
-                return String(value);
-            case 'dropdown':
-                return String(value);
-            case 'image':
-                return '🖼️ Image';
-            case 'relationship':
-                // For relationship fields, we'll store the display name in a cache
-                // This will be populated asynchronously
-                return this.relationshipDisplayCache[value] || 'Loading...';
-            default:
-                return String(value);
-        }
-    }
-
-    async loadRelationshipDisplayName(instanceId, targetTypeId) {
-        if (this.relationshipDisplayCache[instanceId]) {
-            return this.relationshipDisplayCache[instanceId];
-        }
-        
-        try {
-            // Get the instance
-            const instSnap = await db.ref(`objects/${instanceId}`).once('value');
-            if (!instSnap.exists()) {
-                this.relationshipDisplayCache[instanceId] = 'Not found';
-                return 'Not found';
-            }
-            
-            const instance = instSnap.val();
-            const data = instance.data || {};
-            
-            // Get the target type to find display field
-            const typeSnap = await db.ref(`objectTypes/${targetTypeId}`).once('value');
-            if (!typeSnap.exists()) {
-                this.relationshipDisplayCache[instanceId] = 'Type not found';
-                return 'Type not found';
-            }
-            
-            const targetType = typeSnap.val();
-            const fields = targetType.fields || {};
-            
-            // Find display field (first text field or first field)
-            const displayField = Object.entries(fields).find(([_, f]) => f.type === 'text') || Object.entries(fields)[0];
-            const displayFieldId = displayField ? displayField[0] : null;
-            
-            const displayName = displayFieldId && data[displayFieldId] 
-                ? data[displayFieldId] 
-                : 'Unnamed';
-            
-            this.relationshipDisplayCache[instanceId] = displayName;
-            return displayName;
-        } catch (error) {
-            console.error('Error loading relationship:', error);
-            this.relationshipDisplayCache[instanceId] = 'Error';
-            return 'Error';
-        }
-    }
-
-    openCreateInstancePanel() {
-        this.editingInstanceId = null;
-        
-        this.instancePanelTitle.textContent = `New ${this.currentTypeForInstances.name}`;
-        
-        // Generate form
-        this.generateInstanceForm();
-        
-        this.instancePanel.classList.remove('hidden');
-        soundManager.play('bite');
-    }
-
-    openEditInstancePanel(instanceId, instance) {
-        this.editingInstanceId = instanceId;
-        
-        this.instancePanelTitle.textContent = `Edit ${this.currentTypeForInstances.name}`;
-        
-        // Generate form with data
-        this.generateInstanceForm(instance.data);
-        
-        this.instancePanel.classList.remove('hidden');
-        soundManager.play('bite');
-    }
-
-    closeInstancePanel() {
-        this.instancePanel.classList.add('hidden');
-        this.editingInstanceId = null;
-    }
-
-    async generateInstanceForm(data = {}) {
-        this.instanceFormContent.innerHTML = '';
-        
-        const fields = this.currentTypeForInstances.fields || {};
-        
-        // Group fields
-        const grouped = {};
-        Object.entries(fields).forEach(([fieldId, field]) => {
-            const group = field.group || '_ungrouped';
-            if (!grouped[group]) grouped[group] = [];
-            grouped[group].push({ id: fieldId, ...field });
-        });
-        
-        // Render ungrouped first
-        if (grouped['_ungrouped']) {
-            for (const field of grouped['_ungrouped']) {
-                const fieldEl = await this.createInstanceFieldInput(field, data[field.id]);
-                this.instanceFormContent.appendChild(fieldEl);
-            }
-        }
-        
-        // Then render grouped
-        for (const groupName of Object.keys(grouped)) {
-            if (groupName === '_ungrouped') continue;
-            
-            const groupHeader = document.createElement('div');
-            groupHeader.className = 'field-group-header';
-            groupHeader.textContent = groupName;
-            this.instanceFormContent.appendChild(groupHeader);
-            
-            for (const field of grouped[groupName]) {
-                const fieldEl = await this.createInstanceFieldInput(field, data[field.id]);
-                this.instanceFormContent.appendChild(fieldEl);
-            }
-        }
-    }
-
-    async createInstanceFieldInput(field, value = '') {
-        const section = document.createElement('div');
-        section.className = 'panel-section';
-        
-        const label = document.createElement('label');
-        label.className = 'panel-label';
-        label.textContent = field.name + (field.required ? ' *' : '');
-        section.appendChild(label);
-        
-        let input;
-        
-        switch (field.type) {
-            case 'text':
-            case 'email':
-            case 'phone':
-            case 'url':
-                input = document.createElement('input');
-                input.type = field.type === 'text' ? 'text' : field.type;
-                input.className = 'panel-input';
-                input.value = value || '';
-                input.dataset.fieldId = field.id;
-                break;
-                
-            case 'number':
-                input = document.createElement('input');
-                input.type = 'number';
-                input.className = 'panel-input';
-                input.value = value || '';
-                input.dataset.fieldId = field.id;
-                break;
-                
-            case 'date':
-                input = document.createElement('input');
-                input.type = 'date';
-                input.className = 'panel-input';
-                input.value = value || '';
-                input.dataset.fieldId = field.id;
-                break;
-                
-            case 'boolean':
-                input = document.createElement('select');
-                input.className = 'panel-input';
-                input.dataset.fieldId = field.id;
-                input.innerHTML = `
-                    <option value="">—</option>
-                    <option value="true" ${value === true ? 'selected' : ''}>Yes</option>
-                    <option value="false" ${value === false ? 'selected' : ''}>No</option>
-                `;
-                break;
-                
-            case 'longtext':
-                input = document.createElement('textarea');
-                input.className = 'panel-textarea';
-                input.value = value || '';
-                input.rows = 4;
-                input.dataset.fieldId = field.id;
-                break;
-                
-            case 'color':
-                input = document.createElement('input');
-                input.type = 'color';
-                input.className = 'panel-input';
-                input.value = value || '#000000';
-                input.dataset.fieldId = field.id;
-                break;
-                
-            case 'dropdown':
-                input = document.createElement('select');
-                input.className = 'panel-input';
-                input.dataset.fieldId = field.id;
-                
-                let options = '<option value="">— Select —</option>';
-                if (field.options && Array.isArray(field.options)) {
-                    field.options.forEach(option => {
-                        const selected = value === option ? 'selected' : '';
-                        options += `<option value="${option}" ${selected}>${option}</option>`;
-                    });
-                } else {
-                    options += '<option value="">No options configured</option>';
-                }
-                input.innerHTML = options;
-                break;
-                
-            case 'multiselect':
-                input = document.createElement('select');
-                input.className = 'panel-input panel-multiselect';
-                input.dataset.fieldId = field.id;
-                input.multiple = true;
-                input.size = Math.min((field.options || []).length, 5);
-                input.dataset.multiselect = 'true';
-                
-                if (field.options && Array.isArray(field.options)) {
-                    field.options.forEach(option => {
-                        const selected = Array.isArray(value) && value.includes(option) ? 'selected' : '';
-                        const optEl = document.createElement('option');
-                        optEl.value = option;
-                        optEl.textContent = option;
-                        if (selected) optEl.selected = true;
-                        input.appendChild(optEl);
-                    });
-                } else {
-                    input.innerHTML = '<option disabled>No options configured</option>';
-                }
-                
-                section.appendChild(input);
-                
-                // Add hint for multiselect
-                const hint = document.createElement('div');
-                hint.className = 'panel-hint';
-                hint.textContent = 'Hold Ctrl (Cmd on Mac) to select multiple';
-                section.appendChild(hint);
-                
-                return section;
-                
-            case 'image':
-                // Image URL input
-                input = document.createElement('input');
-                input.type = 'url';
-                input.className = 'panel-input';
-                input.value = value || '';
-                input.placeholder = 'Enter image URL';
-                input.dataset.fieldId = field.id;
-                
-                // Show preview if URL exists
-                if (value) {
-                    const preview = document.createElement('div');
-                    preview.className = 'image-preview';
-                    preview.innerHTML = `<img src="${value}" alt="Preview" style="max-width: 200px; max-height: 200px; margin-top: 8px; border-radius: 8px;" />`;
-                    section.appendChild(preview);
-                    
-                    // Update preview on input
-                    input.oninput = () => {
-                        if (input.value) {
-                            preview.innerHTML = `<img src="${input.value}" alt="Preview" style="max-width: 200px; max-height: 200px; margin-top: 8px; border-radius: 8px;" onerror="this.style.display='none'" />`;
-                        } else {
-                            preview.innerHTML = '';
-                        }
-                    };
-                }
-                break;
-                
-            case 'relationship':
-                input = document.createElement('select');
-                input.className = 'panel-input';
-                input.dataset.fieldId = field.id;
-                input.innerHTML = '<option value="">Loading...</option>';
-                
-                // Populate with instances from target type
-                if (field.targetType) {
-                    await this.populateRelationshipDropdown(input, field.targetType, value);
-                } else {
-                    input.innerHTML = '<option value="">No target type configured</option>';
-                }
-                break;
-                
-            default:
-                // Fallback for unknown types
-                input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'panel-input';
-                input.value = value || '';
-                input.dataset.fieldId = field.id;
-                input.placeholder = `${field.type} (not yet supported)`;
-                break;
-        }
-        
-        section.appendChild(input);
-        return section;
-    }
-
-    async populateRelationshipDropdown(selectEl, targetTypeId, selectedValue) {
-        // Get target type to know its fields
-        const typeSnap = await db.ref(`objectTypes/${targetTypeId}`).once('value');
-        if (!typeSnap.exists()) {
-            selectEl.innerHTML = '<option value="">Target type not found</option>';
-            return;
-        }
-        
-        const targetType = typeSnap.val();
-        const fields = targetType.fields || {};
-        
-        // Find display field (first text field or first field)
-        const displayField = Object.entries(fields).find(([_, f]) => f.type === 'text') || Object.entries(fields)[0];
-        const displayFieldId = displayField ? displayField[0] : null;
-        
-        // Get all instances of target type
-        const instancesSnap = await db.ref('objects')
-            .orderByChild('typeId')
-            .equalTo(targetTypeId)
-            .once('value');
-        
-        selectEl.innerHTML = '<option value="">— Select —</option>';
-        
-        if (instancesSnap.exists()) {
-            instancesSnap.forEach(instSnap => {
-                const instance = instSnap.val();
-                const instanceId = instSnap.key;
-                const data = instance.data || {};
-                
-                // Get display name
-                const displayName = displayFieldId && data[displayFieldId] 
-                    ? data[displayFieldId] 
-                    : 'Unnamed';
-                
-                const option = document.createElement('option');
-                option.value = instanceId;
-                option.textContent = displayName;
-                if (instanceId === selectedValue) {
-                    option.selected = true;
-                }
-                selectEl.appendChild(option);
-            });
-        } else {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = `No ${targetType.name} instances yet`;
-            selectEl.appendChild(option);
-        }
-    }
-
-    async saveInstance() {
-        const fields = this.currentTypeForInstances.fields || {};
-        const data = {};
-        
-        // Collect form data
-        this.instanceFormContent.querySelectorAll('[data-field-id]').forEach(input => {
-            const fieldId = input.dataset.fieldId;
-            const field = fields[fieldId];
-            
-            let value = input.value;
-            
-            // Handle multiselect specially
-            if (input.dataset.multiselect) {
-                const selected = Array.from(input.selectedOptions).map(opt => opt.value);
-                value = selected.length > 0 ? selected : null;
-            }
-            // Convert types
-            else if (field.type === 'number') {
-                value = value ? parseFloat(value) : null;
-            } else if (field.type === 'boolean') {
-                value = value === 'true' ? true : value === 'false' ? false : null;
-            } else if (field.type === 'date') {
-                value = value || null;
-            }
-            
-            data[fieldId] = value;
-            
-            // Validate required fields
-            if (field.required && (value === null || value === '' || value === undefined)) {
-                this.showToast(`${field.name} is required`, 'error');
-                throw new Error('Validation failed');
-            }
-        });
-        
-        const instanceData = {
-            typeId: this.currentTypeForInstances.id,
-            authorId: this.currentUser.id,
-            data: data,
-            updatedAt: Date.now()
-        };
-        
-        try {
-            if (this.editingInstanceId) {
-                // Update existing
-                await db.ref(`objects/${this.editingInstanceId}`).update(instanceData);
-                this.showToast('Instance updated', 'success');
-            } else {
-                // Create new
-                instanceData.createdAt = Date.now();
-                const newInstanceRef = db.ref('objects').push();
-                await newInstanceRef.set(instanceData);
-                this.showToast('Instance created', 'success');
-            }
-            
-            soundManager.play('submitted');
-            this.closeInstancePanel();
-        } catch (error) {
-            // Error already shown via toast
-        }
-    }
-
-    async deleteInstanceWithConfirm(instanceId, displayName) {
-        if (!confirm(`Delete "${displayName}"? This cannot be undone.`)) {
-            return;
-        }
-        
-        await db.ref(`objects/${instanceId}`).remove();
-        soundManager.play('alert');
-        this.showToast(`Deleted "${displayName}"`, 'success');
-    }
-
-    // ===== INLINE VISUALIZATION METHODS =====
-
-    toggleInlineViz() {
-        if (this.inlineVizPanel.classList.contains('hidden')) {
-            this.showInlineViz();
-        } else {
-            this.hideInlineViz();
-        }
-    }
-
-    showInlineViz() {
-        this.inlineVizPanel.classList.remove('hidden');
-        this.populateInlineVizFields();
-        this.selectedInlineChartType = null;
-        this.inlineChartDisplay.classList.add('hidden');
-        
-        // Reset selections
-        document.querySelectorAll('.chart-type-option[data-inline]').forEach(opt => {
-            opt.classList.remove('selected');
-        });
-    }
-
-    hideInlineViz() {
-        this.inlineVizPanel.classList.add('hidden');
-    }
-
-    populateInlineVizFields() {
-        const fields = this.currentTypeForInstances.fields || {};
-        
-        // Clear dropdowns
-        this.inlineXAxisField.innerHTML = '<option value="">Select field...</option>';
-        this.inlineYAxisField.innerHTML = '<option value="">Select field...</option>';
-        this.inlineCategoryField.innerHTML = '<option value="">Select field...</option>';
-        
-        Object.entries(fields).forEach(([fieldId, field]) => {
-            // X-axis: text, dropdown, date, boolean, relationship for labels/categories
-            if (['text', 'dropdown', 'date', 'boolean', 'relationship'].includes(field.type)) {
-                const opt = document.createElement('option');
-                opt.value = fieldId;
-                opt.textContent = field.name;
-                opt.dataset.fieldType = field.type;
-                this.inlineXAxisField.appendChild(opt.cloneNode(true));
-                this.inlineCategoryField.appendChild(opt);
-            }
-            
-            // Y-axis: number fields OR count of booleans
-            if (field.type === 'number') {
-                const opt = document.createElement('option');
-                opt.value = fieldId;
-                opt.textContent = field.name;
-                opt.dataset.fieldType = field.type;
-                this.inlineYAxisField.appendChild(opt);
-            } else if (field.type === 'boolean') {
-                const opt = document.createElement('option');
-                opt.value = fieldId + ':count';
-                opt.textContent = field.name + ' (Count)';
-                opt.dataset.fieldType = 'boolean-count';
-                this.inlineYAxisField.appendChild(opt);
-            }
-        });
-        
-        // Auto-generate when fields change
-        this.inlineXAxisField.onchange = () => this.autoGenerateInlineChart();
-        this.inlineYAxisField.onchange = () => this.autoGenerateInlineChart();
-        this.inlineCategoryField.onchange = () => this.autoGenerateInlineChart();
-    }
-
-    autoGenerateInlineChart() {
-        // Only auto-generate if chart type is selected and fields are set
-        if (!this.selectedInlineChartType) return;
-        
-        if (this.selectedInlineChartType === 'pie') {
-            if (this.inlineCategoryField.value) {
-                this.generateInlineChart();
-            }
-        } else if (this.selectedInlineChartType === 'line') {
-            if (this.inlineLineXField.value && this.inlineLineYField.value) {
-                this.generateInlineChart();
-            }
-        } else {
-            if (this.inlineXAxisField.value && this.inlineYAxisField.value) {
-                this.generateInlineChart();
-            }
-        }
-    }
-
-    selectInlineChartType(chartType) {
-        this.selectedInlineChartType = chartType;
-        
-        // Update UI
-        document.querySelectorAll('.chart-type-option[data-inline]').forEach(opt => {
-            opt.classList.remove('selected');
-        });
-        const selectedOpt = document.querySelector(`.chart-type-option[data-inline][data-chart="${chartType}"]`);
-        if (selectedOpt) {
-            selectedOpt.classList.add('selected');
-        }
-        
-        // Show/hide relevant config sections
-        if (chartType === 'pie') {
-            this.inlineBarConfig.classList.add('hidden');
-            this.inlineLineConfig.classList.add('hidden');
-            this.inlinePieConfig.classList.remove('hidden');
-        } else if (chartType === 'line') {
-            this.inlineBarConfig.classList.add('hidden');
-            this.inlinePieConfig.classList.add('hidden');
-            this.inlineLineConfig.classList.remove('hidden');
-            this.populateLineVizFields();
-        } else {
-            this.inlinePieConfig.classList.add('hidden');
-            this.inlineLineConfig.classList.add('hidden');
-            this.inlineBarConfig.classList.remove('hidden');
-        }
-        
-        // Auto-generate if fields are already selected
-        this.autoGenerateInlineChart();
-    }
-
-    setAggregation(mode) {
-        this.currentAggregation = mode;
-        
-        // Update button states
-        document.querySelectorAll('.agg-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        const activeBtn = document.querySelector(`.agg-btn[data-agg="${mode}"]`);
-        if (activeBtn) {
-            activeBtn.classList.add('active');
-        }
-        
-        // Re-render chart with new aggregation
-        if (this.selectedInlineChartType === 'line' && this.inlineLineXField.value && this.inlineLineYField.value) {
-            this.renderInlineLineChart(this.inlineLineXField.value, this.inlineLineYField.value);
-        }
-    }
-
-    populateLineVizFields() {
-        const fields = this.currentTypeForInstances.fields || {};
-        
-        // Clear dropdowns
-        this.inlineLineXField.innerHTML = '<option value="">Select field...</option>';
-        this.inlineLineYField.innerHTML = '<option value="">Select field...</option>';
-        
-        Object.entries(fields).forEach(([fieldId, field]) => {
-            // X-axis: date fields for timeline
-            if (field.type === 'date') {
-                const opt = document.createElement('option');
-                opt.value = fieldId;
-                opt.textContent = field.name;
-                this.inlineLineXField.appendChild(opt);
-            }
-            
-            // Y-axis: number fields or booleans
-            if (field.type === 'number') {
-                const opt = document.createElement('option');
-                opt.value = fieldId;
-                opt.textContent = field.name;
-                this.inlineLineYField.appendChild(opt);
-            } else if (field.type === 'boolean') {
-                const opt = document.createElement('option');
-                opt.value = fieldId;
-                opt.textContent = field.name;
-                this.inlineLineYField.appendChild(opt);
-            }
-        });
-        
-        // Auto-generate when fields change
-        this.inlineLineXField.onchange = () => this.autoGenerateInlineChart();
-        this.inlineLineYField.onchange = () => this.autoGenerateInlineChart();
-    }
-
-    generateInlineChart() {
-        if (!this.selectedInlineChartType) {
-            this.showToast('Select a chart type', 'error');
-            return;
-        }
-        
-        if (this.selectedInlineChartType === 'pie') {
-            const categoryFieldId = this.inlineCategoryField.value;
-            if (!categoryFieldId) {
-                this.showToast('Select a category field', 'error');
-                return;
-            }
-            this.renderInlinePieChart(categoryFieldId);
-        } else if (this.selectedInlineChartType === 'line') {
-            const xFieldId = this.inlineLineXField.value;
-            const yFieldId = this.inlineLineYField.value;
-            
-            if (!xFieldId || !yFieldId) {
-                this.showToast('Select both X and Y axis fields', 'error');
-                return;
-            }
-            
-            this.renderInlineLineChart(xFieldId, yFieldId);
-        } else if (this.selectedInlineChartType === 'bar') {
-            const xFieldId = this.inlineXAxisField.value;
-            const yFieldId = this.inlineYAxisField.value;
-            
-            if (!xFieldId || !yFieldId) {
-                this.showToast('Select both X and Y axis fields', 'error');
-                return;
-            }
-            
-            this.renderInlineBarChart(xFieldId, yFieldId);
-        }
-    }
-
-    async renderInlineLineChart(xFieldId, yFieldId) {
-        const fields = this.currentTypeForInstances.fields;
-        const xField = fields[xFieldId];
-        const yField = fields[yFieldId];
-        
-        // Load relationship display names if needed
-        if (xField.type === 'relationship' && xField.targetType) {
-            await this.loadRelationshipDisplayNamesForChart(this.allInstances, xFieldId, xField.type, xField.targetType);
-        }
-        
-        // Prepare data based on aggregation mode
-        let data = [];
-        
-        if (this.currentAggregation === 'points') {
-            // All individual points
-            data = this.allInstances.map(inst => ({
-                x: this.formatXAxisValue(inst.data[xFieldId], xField.type),
-                xRaw: inst.data[xFieldId],
-                y: yField.type === 'boolean' ? (inst.data[yFieldId] ? 1 : 0) : (parseFloat(inst.data[yFieldId]) || 0)
-            }));
-        } else {
-            // Aggregate by X-axis value
-            const grouped = {};
-            this.allInstances.forEach(inst => {
-                const xValue = this.formatXAxisValue(inst.data[xFieldId], xField.type);
-                const xRaw = inst.data[xFieldId];
-                const yValue = yField.type === 'boolean' ? (inst.data[yFieldId] ? 1 : 0) : (parseFloat(inst.data[yFieldId]) || 0);
-                
-                if (!grouped[xValue]) {
-                    grouped[xValue] = { xRaw, values: [], sum: 0, count: 0 };
-                }
-                grouped[xValue].values.push(yValue);
-                grouped[xValue].sum += yValue;
-                grouped[xValue].count++;
-            });
-            
-            // Convert to data array based on mode
-            data = Object.entries(grouped).map(([x, g]) => {
-                let y;
-                if (this.currentAggregation === 'sum') {
-                    y = g.sum;
-                } else if (this.currentAggregation === 'average') {
-                    y = g.sum / g.count;
-                } else if (this.currentAggregation === 'count') {
-                    y = g.count;
-                }
-                return { x, xRaw: g.xRaw, y };
-            });
-        }
-        
-        // Sort by X-axis (especially for dates)
-        if (xField.type === 'date') {
-            data.sort((a, b) => new Date(a.xRaw) - new Date(b.xRaw));
-        }
-        
-        // Render SVG line chart
-        this.renderSVGLineChart(data, xField, yField);
-    }
-
-    renderSVGLineChart(data, xField, yField) {
-        if (data.length === 0) {
-            this.inlineChartCanvas.innerHTML = '<p style="text-align: center; color: #6289A7; padding: 40px;">No data to display</p>';
-            this.inlineChartDisplay.classList.remove('hidden');
-            return;
-        }
-        
-        const width = this.inlineChartCanvas.offsetWidth - 40;
-        const height = 200;
-        const padding = { top: 20, right: 20, bottom: 40, left: 50 };
-        const chartWidth = width - padding.left - padding.right;
-        const chartHeight = height - padding.top - padding.bottom;
-        
-        // Calculate scales
-        const maxY = Math.max(...data.map(d => d.y), 1);
-        const minY = Math.min(...data.map(d => d.y), 0);
-        const yRange = maxY - minY || 1;
-        
-        // Generate path data
-        const points = data.map((d, i) => {
-            const x = padding.left + (i / (data.length - 1 || 1)) * chartWidth;
-            const y = padding.top + chartHeight - ((d.y - minY) / yRange) * chartHeight;
-            return { x, y, value: d.y, label: d.x };
-        });
-        
-        const linePath = points.map((p, i) => 
-            `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
-        ).join(' ');
-        
-        // Build SVG
-        let svg = `
-            <svg width="${width}" height="${height}" style="background: transparent;">
-                <!-- Grid lines -->
-                <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" 
-                      stroke="#D8ECFB" stroke-width="2"/>
-                <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" 
-                      stroke="#D8ECFB" stroke-width="2"/>
-                
-                <!-- Y-axis labels -->
-                <text x="${padding.left - 10}" y="${padding.top}" text-anchor="end" fill="#6289A7" font-size="11" font-weight="600">
-                    ${maxY.toFixed(1)}
-                </text>
-                <text x="${padding.left - 10}" y="${height - padding.bottom + 5}" text-anchor="end" fill="#6289A7" font-size="11" font-weight="600">
-                    ${minY.toFixed(1)}
-                </text>
-                
-                <!-- Line -->
-                <path d="${linePath}" fill="none" stroke="#83CAFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
-                      style="transition: d 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);">
-                    <animate attributeName="stroke-dasharray" from="0,1000" to="1000,0" dur="1s" fill="freeze"/>
-                </path>
-                
-                <!-- Points -->
-                ${points.map(p => `
-                    <circle cx="${p.x}" cy="${p.y}" r="4" fill="#FFFFFF" stroke="#83CAFF" stroke-width="2"
-                            style="transition: all 0.5s cubic-bezier(0.4, 0.0, 0.2, 1); cursor: pointer;"
-                            onmouseover="this.setAttribute('r', '6')" onmouseout="this.setAttribute('r', '4')">
-                        <title>${p.label}: ${p.value.toFixed(2)}</title>
-                    </circle>
-                `).join('')}
-                
-                <!-- X-axis labels (show first, middle, last) -->
-                ${data.length > 0 ? `
-                    <text x="${points[0].x}" y="${height - padding.bottom + 20}" text-anchor="middle" fill="#6289A7" font-size="10">
-                        ${data[0].x}
-                    </text>
-                ` : ''}
-                ${data.length > 2 ? `
-                    <text x="${points[Math.floor(points.length / 2)].x}" y="${height - padding.bottom + 20}" text-anchor="middle" fill="#6289A7" font-size="10">
-                        ${data[Math.floor(data.length / 2)].x}
-                    </text>
-                ` : ''}
-                ${data.length > 1 ? `
-                    <text x="${points[points.length - 1].x}" y="${height - padding.bottom + 20}" text-anchor="middle" fill="#6289A7" font-size="10">
-                        ${data[data.length - 1].x}
-                    </text>
-                ` : ''}
-            </svg>
-        `;
-        
-        this.inlineChartCanvas.innerHTML = svg;
-        this.inlineChartDisplay.classList.remove('hidden');
-        soundManager.play('bite');
-    }
-
-    async renderInlineBarChart(xFieldId, yFieldId) {
-        const fields = this.currentTypeForInstances.fields;
-        
-        // Handle boolean count aggregation
-        const isBooleanCount = yFieldId.includes(':count');
-        const actualYFieldId = isBooleanCount ? yFieldId.split(':')[0] : yFieldId;
-        
-        const xField = fields[xFieldId];
-        const yField = fields[actualYFieldId];
-        
-        // Load relationship display names if needed
-        if (xField.type === 'relationship' && xField.targetType) {
-            await this.loadRelationshipDisplayNamesForChart(this.allInstances, xFieldId, xField.type, xField.targetType);
-        }
-        
-        let data;
-        
-        if (isBooleanCount) {
-            // Aggregate boolean counts by X-axis category
-            const grouped = {};
-            this.allInstances.forEach(inst => {
-                const xValue = this.formatXAxisValue(inst.data[xFieldId], xField.type);
-                const yValue = inst.data[actualYFieldId];
-                
-                if (!grouped[xValue]) {
-                    grouped[xValue] = { total: 0, trueCount: 0, falseCount: 0 };
-                }
-                grouped[xValue].total++;
-                if (yValue === true) grouped[xValue].trueCount++;
-                if (yValue === false) grouped[xValue].falseCount++;
-            });
-            
-            // Convert to data array (showing true count)
-            data = Object.entries(grouped).map(([x, counts]) => ({
-                x: x,
-                y: counts.trueCount,
-                total: counts.total,
-                percentage: ((counts.trueCount / counts.total) * 100).toFixed(1)
-            }));
-        } else {
-            // Extract data normally
-            data = this.allInstances.map(inst => ({
-                x: this.formatXAxisValue(inst.data[xFieldId], xField.type),
-                y: parseFloat(inst.data[actualYFieldId]) || 0
-            }));
-        }
-        
-        // Sort data by X-axis (especially important for dates)
-        if (xField.type === 'date') {
-            data.sort((a, b) => new Date(a.x) - new Date(b.x));
-        }
-        
-        // Render chart
-        let html = '<div style="display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 12px;">';
-        const maxValue = Math.max(...data.map(d => d.y), 1); // Ensure at least 1
-        
-        data.forEach(d => {
-            const height = maxValue > 0 ? (d.y / maxValue) * 100 : 0;
-            const displayValue = isBooleanCount ? `${d.y}/${d.total}` : d.y;
-            html += `
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                    <div style="font-size: 10px; margin-bottom: 4px; font-weight: 600; color: #214159;">${displayValue}</div>
-                    <div style="width: 100%; background: #83CAFF; border-radius: 6px 6px 0 0; height: ${height}%; min-height: ${d.y > 0 ? '15px' : '4px'};"></div>
-                    <div style="font-size: 10px; margin-top: 6px; color: #6289A7; text-align: center; max-width: 60px; word-wrap: break-word;">${d.x}</div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        
-        this.inlineChartCanvas.innerHTML = html;
-        this.inlineChartDisplay.classList.remove('hidden');
-        soundManager.play('bite');
-    }
-
-    async renderInlinePieChart(categoryFieldId) {
-        const fields = this.currentTypeForInstances.fields;
-        const categoryField = fields[categoryFieldId];
-        
-        // Load relationship display names if needed
-        if (categoryField.type === 'relationship' && categoryField.targetType) {
-            await this.loadRelationshipDisplayNamesForChart(this.allInstances, categoryFieldId, categoryField.type, categoryField.targetType);
-        }
-        
-        // Count instances by category
-        const counts = {};
-        this.allInstances.forEach(inst => {
-            const rawValue = inst.data[categoryFieldId];
-            const value = this.formatXAxisValue(rawValue, categoryField.type) || 'Unknown';
-            counts[value] = (counts[value] || 0) + 1;
-        });
-        
-        // Render
-        const total = Object.values(counts).reduce((a, b) => a + b, 0);
-        const colors = ['#83CAFF', '#71A7CF', '#6289A7', '#EBB820', '#D8ECFB'];
-        
-        let html = '<div style="padding: 12px;">';
-        
-        Object.entries(counts).forEach(([category, count], i) => {
-            const percentage = (count / total) * 100;
-            const color = colors[i % colors.length];
-            html += `
-                <div style="margin-bottom: 6px;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <div style="width: 16px; height: 16px; background: ${color}; border-radius: 3px;"></div>
-                        <div style="font-size: 13px; font-weight: 600; color: #214159;">${category}</div>
-                        <div style="font-size: 12px; color: #6289A7;">(${count})</div>
-                    </div>
-                    <div style="height: 20px; background: ${color}; border-radius: 6px; width: ${percentage}%; display: flex; align-items: center; padding: 0 8px; color: white; font-weight: 600; font-size: 11px; min-width: 40px;">
-                        ${percentage.toFixed(0)}%
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        
-        this.inlineChartCanvas.innerHTML = html;
-        this.inlineChartDisplay.classList.remove('hidden');
-        soundManager.play('bite');
-    }
-
-    // ===== DATA VISUALIZATION METHODS =====
-
-    async showDataVizView() {
-        // Hide workshop home and other views
-        this.workshopHome.classList.add('hidden');
-        this.objectTypesView.classList.add('hidden');
-        this.objectInstancesView.classList.add('hidden');
-        
-        // Show data viz view
-        this.dataVizView.classList.remove('hidden');
-        
-        // Load object types for selection
-        await this.loadVizTypes();
-        
-        // Reset builder
-        this.resetChartBuilder();
-        
-        soundManager.play('bite');
-    }
-
-    async loadVizTypes() {
-        if (!this.currentUser) return;
-        
-        const typesSnap = await db.ref('objectTypes')
-            .orderByChild('authorId')
-            .equalTo(this.currentUser.id)
-            .once('value');
-        
-        this.vizTypeSelect.innerHTML = '<option value="">Select an Object Type...</option>';
-        
-        if (typesSnap.exists()) {
-            typesSnap.forEach(typeSnap => {
-                const type = typeSnap.val();
-                const typeId = typeSnap.key;
-                
-                const option = document.createElement('option');
-                option.value = typeId;
-                option.textContent = type.name || 'Untitled';
-                this.vizTypeSelect.appendChild(option);
-            });
-        }
-    }
-
-    async loadVizTypeData() {
-        const typeId = this.vizTypeSelect.value;
-        
-        if (!typeId) {
-            this.chartConfigSection.classList.add('hidden');
-            return;
-        }
-        
-        // Get type data
-        const typeSnap = await db.ref(`objectTypes/${typeId}`).once('value');
-        if (!typeSnap.exists()) return;
-        
-        this.currentVizType = { id: typeId, ...typeSnap.val() };
-        
-        // Get instances
-        const instancesSnap = await db.ref('objects')
-            .orderByChild('typeId')
-            .equalTo(typeId)
-            .once('value');
-        
-        this.currentVizInstances = [];
-        if (instancesSnap.exists()) {
-            instancesSnap.forEach(instSnap => {
-                this.currentVizInstances.push({
-                    id: instSnap.key,
-                    ...instSnap.val()
-                });
-            });
-        }
-        
-        // Populate field dropdowns
-        this.populateVizFields();
-        
-        // Show config section
-        this.chartConfigSection.classList.remove('hidden');
-    }
-
-    populateVizFields() {
-        const fields = this.currentVizType.fields || {};
-        
-        // Clear dropdowns
-        this.xAxisField.innerHTML = '<option value="">Select field...</option>';
-        this.yAxisField.innerHTML = '<option value="">Select field...</option>';
-        this.categoryField.innerHTML = '<option value="">Select field...</option>';
-        
-        Object.entries(fields).forEach(([fieldId, field]) => {
-            // X-axis: text, dropdown, date, boolean, relationship for labels/categories
-            if (['text', 'dropdown', 'date', 'boolean', 'relationship'].includes(field.type)) {
-                const opt = document.createElement('option');
-                opt.value = fieldId;
-                opt.textContent = field.name;
-                opt.dataset.fieldType = field.type;
-                this.xAxisField.appendChild(opt.cloneNode(true));
-                this.categoryField.appendChild(opt);
-            }
-            
-            // Y-axis: number fields OR count of booleans
-            if (field.type === 'number') {
-                const opt = document.createElement('option');
-                opt.value = fieldId;
-                opt.textContent = field.name;
-                opt.dataset.fieldType = field.type;
-                this.yAxisField.appendChild(opt);
-            } else if (field.type === 'boolean') {
-                const opt = document.createElement('option');
-                opt.value = fieldId + ':count';
-                opt.textContent = field.name + ' (Count)';
-                opt.dataset.fieldType = 'boolean-count';
-                this.yAxisField.appendChild(opt);
-            }
-        });
-        
-        // Auto-generate when fields change
-        this.xAxisField.onchange = () => this.autoGenerateChart();
-        this.yAxisField.onchange = () => this.autoGenerateChart();
-        this.categoryField.onchange = () => this.autoGenerateChart();
-    }
-
-    autoGenerateChart() {
-        // Only auto-generate if chart type is selected and fields are set
-        if (!this.selectedChartType) return;
-        
-        if (this.selectedChartType === 'pie') {
-            if (this.categoryField.value) {
-                this.generateChart();
-            }
-        } else {
-            if (this.xAxisField.value && this.yAxisField.value) {
-                this.generateChart();
-            }
-        }
-    }
-
-    selectChartType(chartType) {
-        this.selectedChartType = chartType;
-        
-        // Update UI - only for non-inline chart options
-        document.querySelectorAll('.chart-type-option:not([data-inline])').forEach(opt => {
-            opt.classList.remove('selected');
-        });
-        const selectedOpt = document.querySelector(`.chart-type-option[data-chart="${chartType}"]:not([data-inline])`);
-        if (selectedOpt) {
-            selectedOpt.classList.add('selected');
-        }
-        
-        // Show/hide relevant config sections
-        if (chartType === 'pie') {
-            this.barLineSection.classList.add('hidden');
-            this.pieSection.classList.remove('hidden');
-        } else {
-            this.barLineSection.classList.remove('hidden');
-            this.pieSection.classList.add('hidden');
-        }
-        
-        // Auto-generate if fields are already selected
-        this.autoGenerateChart();
-    }
-
-    generateChart() {
-        if (!this.selectedChartType) {
-            this.showToast('Select a chart type', 'error');
-            return;
-        }
-        
-        if (this.selectedChartType === 'pie') {
-            const categoryFieldId = this.categoryField.value;
-            if (!categoryFieldId) {
-                this.showToast('Select a category field', 'error');
-                return;
-            }
-            this.renderPieChart(categoryFieldId);
-        } else {
-            const xFieldId = this.xAxisField.value;
-            const yFieldId = this.yAxisField.value;
-            
-            if (!xFieldId || !yFieldId) {
-                this.showToast('Select both X and Y axis fields', 'error');
-                return;
-            }
-            
-            if (this.selectedChartType === 'bar') {
-                this.renderBarChart(xFieldId, yFieldId);
-            } else if (this.selectedChartType === 'line') {
-                this.renderLineChart(xFieldId, yFieldId);
-            } else if (this.selectedChartType === 'scatter') {
-                this.renderScatterChart(xFieldId, yFieldId);
-            }
-        }
-    }
-
-    async renderBarChart(xFieldId, yFieldId) {
-        const fields = this.currentVizType.fields;
-        
-        // Handle boolean count aggregation
-        const isBooleanCount = yFieldId.includes(':count');
-        const actualYFieldId = isBooleanCount ? yFieldId.split(':')[0] : yFieldId;
-        
-        const xField = fields[xFieldId];
-        const yField = fields[actualYFieldId];
-        
-        // Load relationship display names if needed
-        if (xField.type === 'relationship' && xField.targetType) {
-            await this.loadRelationshipDisplayNamesForChart(this.currentVizInstances, xFieldId, xField.type, xField.targetType);
-        }
-        
-        let data;
-        
-        if (isBooleanCount) {
-            // Aggregate boolean counts by X-axis category
-            const grouped = {};
-            this.currentVizInstances.forEach(inst => {
-                const xValue = this.formatXAxisValue(inst.data[xFieldId], xField.type);
-                const yValue = inst.data[actualYFieldId];
-                
-                if (!grouped[xValue]) {
-                    grouped[xValue] = { total: 0, trueCount: 0, falseCount: 0 };
-                }
-                grouped[xValue].total++;
-                if (yValue === true) grouped[xValue].trueCount++;
-                if (yValue === false) grouped[xValue].falseCount++;
-            });
-            
-            // Convert to data array (showing true count)
-            data = Object.entries(grouped).map(([x, counts]) => ({
-                x: x,
-                y: counts.trueCount,
-                total: counts.total,
-                percentage: ((counts.trueCount / counts.total) * 100).toFixed(1)
-            }));
-        } else {
-            // Extract data normally
-            data = this.currentVizInstances.map(inst => ({
-                x: this.formatXAxisValue(inst.data[xFieldId], xField.type),
-                y: parseFloat(inst.data[actualYFieldId]) || 0
-            }));
-        }
-        
-        // Sort data by X-axis (especially important for dates)
-        if (xField.type === 'date') {
-            data.sort((a, b) => new Date(a.x) - new Date(b.x));
-        }
-        
-        // Show chart display
-        this.chartBuilder.classList.add('hidden');
-        this.chartDisplay.classList.remove('hidden');
-        
-        const yLabel = isBooleanCount ? `${yField.name} (True Count)` : yField.name;
-        this.chartTitle.textContent = `${this.currentVizType.name}: ${yLabel} by ${xField.name}`;
-        
-        // Render simple bar chart (HTML/CSS based)
-        let html = '<div style="display: flex; align-items: flex-end; gap: 12px; height: 300px; padding: 20px;">';
-        const maxValue = Math.max(...data.map(d => d.y), 1); // Ensure at least 1 to avoid division by zero
-        
-        data.forEach(d => {
-            const height = maxValue > 0 ? (d.y / maxValue) * 100 : 0;
-            const displayValue = isBooleanCount ? `${d.y}/${d.total} (${d.percentage}%)` : d.y;
-            html += `
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                    <div style="font-size: 12px; margin-bottom: 4px; font-weight: 600; color: #214159;">${displayValue}</div>
-                    <div style="width: 100%; background: #83CAFF; border-radius: 8px 8px 0 0; height: ${height}%; min-height: ${d.y > 0 ? '20px' : '4px'};"></div>
-                    <div style="font-size: 12px; margin-top: 8px; color: #6289A7; text-align: center; max-width: 80px; word-wrap: break-word;">${d.x}</div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        
-        this.chartCanvas.innerHTML = html;
-        soundManager.play('submitted');
-    }
-
-    formatXAxisValue(value, fieldType) {
-        if (value === null || value === undefined) return 'Unknown';
-        
-        switch (fieldType) {
-            case 'date':
-                if (value.includes('-')) {
-                    const [year, month, day] = value.split('-');
-                    return new Date(year, month - 1, day).toLocaleDateString();
-                }
-                return new Date(value).toLocaleDateString();
-            case 'boolean':
-                return value ? 'Yes' : 'No';
-            case 'relationship':
-                // For relationships, use cached display name or return the ID
-                return this.relationshipDisplayCache[value] || value;
-            default:
-                return String(value);
-        }
-    }
-
-    async loadRelationshipDisplayNamesForChart(instances, fieldId, fieldType, targetTypeId) {
-        if (fieldType !== 'relationship' || !targetTypeId) return;
-        
-        // Get all unique instance IDs
-        const instanceIds = [...new Set(instances.map(inst => inst.data[fieldId]).filter(id => id))];
-        
-        // Load display names for all
-        for (const instanceId of instanceIds) {
-            if (!this.relationshipDisplayCache[instanceId]) {
-                await this.loadRelationshipDisplayName(instanceId, targetTypeId);
-            }
-        }
-    }
-
-    renderLineChart(xFieldId, yFieldId) {
-        this.showToast('Line charts coming soon!', 'info');
-    }
-
-    renderScatterChart(xFieldId, yFieldId) {
-        this.showToast('Scatter plots coming soon!', 'info');
-    }
-
-    async renderPieChart(categoryFieldId) {
-        const fields = this.currentVizType.fields;
-        const categoryField = fields[categoryFieldId];
-        
-        // Load relationship display names if needed
-        if (categoryField.type === 'relationship' && categoryField.targetType) {
-            await this.loadRelationshipDisplayNamesForChart(this.currentVizInstances, categoryFieldId, categoryField.type, categoryField.targetType);
-        }
-        
-        // Count instances by category
-        const counts = {};
-        this.currentVizInstances.forEach(inst => {
-            const rawValue = inst.data[categoryFieldId];
-            const value = this.formatXAxisValue(rawValue, categoryField.type) || 'Unknown';
-            counts[value] = (counts[value] || 0) + 1;
-        });
-        
-        // Show chart display
-        this.chartBuilder.classList.add('hidden');
-        this.chartDisplay.classList.remove('hidden');
-        this.chartTitle.textContent = `${this.currentVizType.name}: Distribution by ${categoryField.name}`;
-        
-        // Render simple pie chart visualization
-        const total = Object.values(counts).reduce((a, b) => a + b, 0);
-        const colors = ['#83CAFF', '#71A7CF', '#6289A7', '#EBB820', '#D8ECFB'];
-        
-        let html = '<div style="padding: 20px;">';
-        html += '<div style="display: flex; gap: 40px; align-items: center;">';
-        
-        // Legend
-        html += '<div style="flex: 1;">';
-        Object.entries(counts).forEach(([category, count], i) => {
-            const percentage = ((count / total) * 100).toFixed(1);
-            const color = colors[i % colors.length];
-            html += `
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div style="width: 24px; height: 24px; background: ${color}; border-radius: 4px;"></div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #214159;">${category}</div>
-                        <div style="font-size: 12px; color: #6289A7;">${count} (${percentage}%)</div>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        
-        // Simple visualization bars
-        html += '<div style="flex: 1;">';
-        Object.entries(counts).forEach(([category, count], i) => {
-            const percentage = (count / total) * 100;
-            const color = colors[i % colors.length];
-            html += `
-                <div style="margin-bottom: 8px;">
-                    <div style="height: 30px; background: ${color}; border-radius: 8px; width: ${percentage}%; display: flex; align-items: center; padding: 0 12px; color: white; font-weight: 600; font-size: 14px; min-width: 60px;">
-                        ${percentage.toFixed(0)}%
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        
-        html += '</div></div>';
-        
-        this.chartCanvas.innerHTML = html;
-        soundManager.play('submitted');
-    }
-
-    showChartBuilder() {
-        this.chartDisplay.classList.add('hidden');
-        this.chartBuilder.classList.remove('hidden');
-    }
-
-    resetChartBuilder() {
-        this.vizTypeSelect.value = '';
-        this.chartConfigSection.classList.add('hidden');
-        this.selectedChartType = null;
-        this.currentVizType = null;
-        this.currentVizInstances = [];
-        
-        document.querySelectorAll('.chart-type-option').forEach(opt => {
-            opt.classList.remove('selected');
-        });
-        
-        this.showChartBuilder();
-    }
-
-
-    toggleCreateMenu() {
-        this.sidebarCreateMenu.classList.toggle('hidden');
-    }
-
-    handleCreate(type) {
-        // Close menu
-        this.sidebarCreateMenu.classList.add('hidden');
-        
-        switch(type) {
-            case 'document':
-                // Switch to Desk for writing
-                this.switchWorkspace('desk');
-                this.createDoc();
-                break;
-            case 'objectType':
-                // Switch to workshop (placeholder for now)
-                this.switchWorkspace('workshop');
-                this.showToast('Object Type builder coming soon', 'info');
-                break;
-            case 'objectInstance':
-                // Switch to workshop (placeholder for now)
-                this.switchWorkspace('workshop');
-                this.showToast('Object Instance creator coming soon', 'info');
-                break;
-            case 'room':
-                // For now, just show message
-                this.showToast('Room creation coming soon', 'info');
-                break;
-        }
-    }
-
-    handleNavigation(destination) {
-        switch(destination) {
-            case 'write':
-                // Switch to Desk for writing
-                this.switchWorkspace('desk');
-                this.showDeskWriting();
-                break;
-            case 'play':
-                // Placeholder for now
-                this.showToast('Activities coming soon', 'info');
-                break;
-        }
-    }
-
-    showAppContainer() {
-        // Show new three-column layout
-        this.appContainer.classList.remove('hidden');
-    }
-
-    hideAppContainer() {
-        // Hide new layout
-        this.appContainer.classList.add('hidden');
-    }
-
-    async populateSidebar() {
-        // Update profile name
-        if (this.currentUser) {
-            this.sidebarProfileName.textContent = this.currentUser.name;
-        }
-        
-        // Populate rooms list
-        this.populateSidebarRooms();
-        
-        // Populate documents list
-        this.populateSidebarDocs();
-    }
-
-    async populateSidebarRooms() {
-        this.sidebarRoomsList.innerHTML = '';
-        
-        // Listen to rooms
-        db.ref('rooms').on('value', (snapshot) => {
-            this.sidebarRoomsList.innerHTML = '';
-            
-            if (!snapshot.exists()) {
-                const empty = document.createElement('div');
-                empty.style.color = '#94a3b8';
-                empty.style.fontSize = '13px';
-                empty.style.padding = '8px';
-                empty.textContent = 'No active rooms';
-                this.sidebarRoomsList.appendChild(empty);
-                return;
-            }
-            
-            snapshot.forEach(roomSnap => {
-                const roomCode = roomSnap.key;
-                
-                const item = document.createElement('div');
-                item.className = 'sidebar-list-item';
-                item.textContent = `Room ${roomCode}`;
-                item.onclick = () => {
-                    this.showToast('Room activities coming soon', 'info');
-                };
-                
-                this.sidebarRoomsList.appendChild(item);
-            });
-        });
-    }
-
-    async populateSidebarDocs() {
-        if (!this.currentUser) return;
-        
-        this.sidebarDocsList.innerHTML = '';
-        
-        // Listen to user's documents
-        db.ref('documents')
-            .orderByChild('authorId')
-            .equalTo(this.currentUser.id)
-            .on('value', (snapshot) => {
-                this.sidebarDocsList.innerHTML = '';
-                
-                if (!snapshot.exists()) {
-                    const empty = document.createElement('div');
-                    empty.style.color = '#94a3b8';
-                    empty.style.fontSize = '13px';
-                    empty.style.padding = '8px';
-                    empty.textContent = 'No documents yet';
-                    this.sidebarDocsList.appendChild(empty);
-                    return;
-                }
-                
-                snapshot.forEach(docSnap => {
-                    const doc = docSnap.val();
-                    const docId = docSnap.key;
-                    
-                    const item = document.createElement('div');
-                    item.className = 'sidebar-list-item';
-                    item.textContent = doc.title || 'Untitled';
-                    item.onclick = () => {
-                        this.switchWorkspace('desk');
-                        this.openDoc(docId);
-                    };
-                    
-                    this.sidebarDocsList.appendChild(item);
-                });
-            });
-    }
-
-    joinExistingRoom(roomCode) {
-        this.showToast('Room activities coming soon', 'info');
-    }
-
-    openDocFromSidebar(docId) {
-        // Switch to Desk for writing
-        this.switchWorkspace('desk');
-        // Open the document
-        this.openDoc(docId);
-    }
-
-    showDeskWriting() {
-        // Show desk workspace
-        this.switchWorkspace('desk');
-        
-        // Move editor into desk if not already there
-        if (!this.deskView.contains(this.editorView)) {
-            this.deskView.appendChild(this.editorView);
-        }
-        
-        // Check if we have documents
-        if (this.currentDocId) {
-            // Show current doc
-            this.editorView.classList.remove('hidden');
-        } else {
-            // Show empty state or prompt
-            this.deskView.querySelector('.desk-empty').style.display = 'block';
-        }
     }
 }
 
