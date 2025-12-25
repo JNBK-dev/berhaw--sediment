@@ -666,6 +666,7 @@ class App {
 
         // DOM elements - Object Instance Editor View
         this.objectInstanceEditorView = document.getElementById("objectInstanceEditorView");
+        this.instanceEditorContext = document.getElementById("instanceEditorContext");
         this.instanceEditorTitle = document.getElementById("instanceEditorTitle");
         this.instanceForm = document.getElementById("instanceForm");
         this.saveInstanceBtn = document.getElementById("saveInstanceBtn");
@@ -674,6 +675,7 @@ class App {
 
         // DOM elements - Editor View
         this.editorView = document.getElementById("editorView");
+        this.editorHeaderTitle = document.getElementById("editorHeaderTitle");
         this.editMode = document.getElementById("editMode");
         this.readerMode = document.getElementById("readerMode");
         this.modeToggleBtn = document.getElementById("modeToggleBtn");
@@ -1542,6 +1544,11 @@ class App {
         this.docTitle.value = doc.title || "";
         this.docContent.value = doc.content || "";
         this.docPrivacy.value = doc.privacy || "private";
+        
+        // Update header title
+        if (this.editorHeaderTitle) {
+            this.editorHeaderTitle.textContent = doc.title || "Untitled";
+        }
 
         // Check if user can edit
         const canEdit = doc.authorId === this.currentUser.id;
@@ -1669,6 +1676,11 @@ class App {
                 updatedAt: Date.now(),
                 "metadata/lastEditedBy": this.currentUser.id
             });
+
+            // Update header title
+            if (this.editorHeaderTitle) {
+                this.editorHeaderTitle.textContent = title;
+            }
 
             soundManager.play('accepted');
             this.editorStatus.textContent = "Saved!";
@@ -2680,7 +2692,8 @@ class App {
 
     createInstance() {
         this.currentInstanceId = null;
-        this.instanceEditorTitle.textContent = `New ${this.currentObjectType.name}`;
+        this.instanceEditorContext.textContent = `New Instance`;
+        this.instanceEditorTitle.textContent = this.currentObjectType.name;
         this.deleteInstanceBtn.style.display = "none";
         this.showInstanceEditor();
         this.renderInstanceForm();
@@ -2696,7 +2709,10 @@ class App {
         }
 
         const instance = instanceSnap.val();
-        this.instanceEditorTitle.textContent = `Edit ${this.currentObjectType.name}`;
+        this.instanceEditorContext.textContent = `Editing Instance`;
+        // Try to get first field value as title, or use type name
+        const firstValue = instance.data ? Object.values(instance.data).find(v => v && v !== '') : null;
+        this.instanceEditorTitle.textContent = firstValue ? String(firstValue).substring(0, 50) : this.currentObjectType.name;
         this.deleteInstanceBtn.style.display = "block";
         this.showInstanceEditor();
         this.renderInstanceForm(instance.data);

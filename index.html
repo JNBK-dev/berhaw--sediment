@@ -526,16 +526,19 @@
         <!-- Profile View -->
         <div id="profileView" class="card hidden">
             <div class="header">
-                <h1 class="player-name" id="profileName"></h1>
-                <div class="user-info">
-                    <span class="user-key">Key: <strong id="profileKey"></strong></span>
-                    <button class="btn-logout" id="backFromProfileBtn">Back</button>
+                <div class="card-header-descriptive">
+                    <span class="card-header-context">User Profile</span>
+                    <h1 class="card-header-title" id="profileName">Loading...</h1>
                 </div>
             </div>
             
             <div class="profile-content">
                 <div class="section-header">
                     <div class="profile-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">User Key</span>
+                            <span class="stat-value" id="profileKey"></span>
+                        </div>
                         <div class="stat-item">
                             <span class="stat-label">Member Since</span>
                             <span class="stat-value" id="profileJoined"></span>
@@ -552,15 +555,20 @@
                 <div class="scrollable-list">
                     <div class="documents-grid" id="profileDocsList"></div>
                 </div>
+                
+                <!-- Fixed Action Socket -->
+                <div class="action-pill-socket">
+                    <button class="btn-secondary" id="backFromProfileBtn">← Back</button>
+                </div>
             </div>
         </div>
         
         <!-- Object Type Builder View -->
         <div id="objectTypeBuilderView" class="card hidden">
             <div class="header">
-                <h1 class="player-name" id="objectTypeBuilderTitle">Object Type Builder</h1>
-                <div class="user-info">
-                    <button class="btn-logout" id="backFromBuilderBtn">Back to Toolkit</button>
+                <div class="card-header-descriptive">
+                    <span class="card-header-context">Object Type Builder</span>
+                    <h1 class="card-header-title" id="objectTypeBuilderTitle">New Object Type</h1>
                 </div>
             </div>
             
@@ -595,9 +603,11 @@
                     </div>
                 </div>
                 
-                <div class="section-footer">
-                    <button class="btn-leave" id="deleteObjectTypeBtn">Delete Type</button>
-                    <button class="btn-create" id="saveObjectTypeBtn">Save Type</button>
+                <!-- Fixed Action Socket -->
+                <div class="action-pill-socket">
+                    <button class="btn-secondary" id="backFromBuilderBtn">← Back to Toolkit</button>
+                    <button class="btn-danger" id="deleteObjectTypeBtn">Delete Type</button>
+                    <button class="btn-create" id="saveObjectTypeBtn">Save Object Type</button>
                 </div>
             </div>
         </div>
@@ -605,13 +615,9 @@
         <!-- Object Instances List View -->
         <div id="objectInstancesView" class="card hidden">
             <div class="header">
-                <h1 class="player-name" id="instancesTypeName">Instances</h1>
-                <div class="user-info">
-                    <button class="btn-secondary" id="visualizeBtn">
-                        <img src="icon-chart-bar.svg" class="btn-icon" alt=""> Visualize
-                    </button>
-                    <button class="btn-create" id="createInstanceBtn">New Instance</button>
-                    <button class="btn-logout" id="backFromInstancesBtn">Back to Toolkit</button>
+                <div class="card-header-descriptive">
+                    <span class="card-header-context">Object Type</span>
+                    <h1 class="card-header-title" id="instancesTypeName">Instances</h1>
                 </div>
             </div>
             
@@ -705,6 +711,15 @@
                         </table>
                     </div>
                 </div>
+                
+                <!-- Fixed Action Socket -->
+                <div class="action-pill-socket">
+                    <button class="btn-secondary" id="backFromInstancesBtn">← Back to Toolkit</button>
+                    <button class="btn-create" id="createInstanceBtn">+ New Instance</button>
+                    <button class="btn-secondary" id="visualizeBtn">
+                        <img src="icon-chart-bar.svg" class="btn-icon" alt=""> Visualize
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -765,9 +780,9 @@
         <!-- Object Instance Editor View -->
         <div id="objectInstanceEditorView" class="card hidden">
             <div class="header">
-                <h1 class="player-name" id="instanceEditorTitle">New Instance</h1>
-                <div class="user-info">
-                    <button class="btn-logout" id="backFromInstanceEditorBtn">Back to List</button>
+                <div class="card-header-descriptive">
+                    <span class="card-header-context" id="instanceEditorContext">New Instance</span>
+                    <h1 class="card-header-title" id="instanceEditorTitle">Untitled</h1>
                 </div>
             </div>
             
@@ -776,9 +791,11 @@
                     <div class="instance-form" id="instanceForm"></div>
                 </div>
                 
-                <div class="section-footer">
-                    <button class="btn-leave" id="deleteInstanceBtn">Delete Instance</button>
-                    <button class="btn-create" id="saveInstanceBtn">Save Instance</button>
+                <!-- Fixed Action Socket -->
+                <div class="action-pill-socket">
+                    <button class="btn-secondary" id="backFromInstanceEditorBtn">← Cancel</button>
+                    <button class="btn-danger" id="deleteInstanceBtn">Delete</button>
+                    <button class="btn-create" id="saveInstanceBtn">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -786,11 +803,9 @@
         <!-- Document Editor View -->
         <div id="editorView" class="card hidden">
             <div class="header">
-                <h1 class="player-name">Document Editor</h1>
-                <div class="user-info">
-                    <span class="editor-status" id="editorStatus">Editing...</span>
-                    <button class="btn-mode-toggle" id="modeToggleBtn">Reader Mode</button>
-                    <button class="btn-logout" id="backToHomeBtn">Back to Home</button>
+                <div class="card-header-descriptive">
+                    <span class="card-header-context">Document</span>
+                    <h1 class="card-header-title" id="editorHeaderTitle">Untitled</h1>
                 </div>
             </div>
             
@@ -819,18 +834,23 @@
                     <div class="markdown-hint">
                         Markdown tips: # Heading, ## Subheading, **bold**, *italic*, [link](url), ![alt](image-url)
                     </div>
-                    
-                    <div class="button-group">
-                        <button class="btn-secondary" id="deleteDocBtn">Delete</button>
-                        <button class="btn-create" id="saveDocBtn">Save</button>
-                    </div>
                 </div>
                 
                 <!-- Reader Mode -->
                 <div id="readerMode" class="editor-section hidden">
                     <h1 class="reader-title" id="readerTitle"></h1>
                     <div class="reader-content" id="readerContent"></div>
-                    <button class="btn-secondary" id="deleteDocBtnReader" style="width: 100%; margin-top: 24px;">Delete</button>
+                </div>
+                
+                <!-- Fixed Action Socket -->
+                <div class="action-pill-socket">
+                    <button class="btn-secondary" id="backToHomeBtn">← Back to Home</button>
+                    <button class="btn-secondary" id="modeToggleBtn">
+                        <span id="modeToggleText">Reader Mode</span>
+                    </button>
+                    <button class="btn-danger" id="deleteDocBtn">Delete</button>
+                    <button class="btn-danger hidden" id="deleteDocBtnReader">Delete</button>
+                    <button class="btn-create" id="saveDocBtn">Save</button>
                 </div>
             </div>
         </div>
