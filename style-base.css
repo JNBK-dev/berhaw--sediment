@@ -6,39 +6,53 @@
     box-sizing: border-box;
 }
 
+html {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
 body {
     font-family: 'DM Sans', sans-serif;
     background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
-    min-height: 100vh;
+    height: 100vh;
+    width: 100vw;
     padding: 0;
+    margin: 0;
+    overflow: hidden; /* CRITICAL: Body never scrolls */
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    margin: 0;
 }
 
 .container {
     width: 100%;
+    max-width: 1200px;
+    height: calc(100vh - 40px); /* Account for padding */
     margin: 0 auto;
     padding: 20px;
     box-sizing: border-box;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 16px;
 }
 
 .card {
     background: white;
     border-radius: 20px;
-    padding: 32px;
+    padding: 0; /* Remove padding, apply to children instead */
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     animation: slideIn 0.3s ease-out;
-    height: calc(100dvh - 10dvh);
-    max-height: calc(100dvh - 10dvh);
-    width: calc(100dvw - 10dvh);
+    height: calc(100vh - 40px);
+    max-height: calc(100vh - 40px);
+    width: calc(100vw - 40px);
     max-width: 1100px;
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* CRITICAL: Contain children */
 }
 
 @keyframes slideIn {
@@ -52,10 +66,35 @@ body {
     }
 }
 
+/* Card Header - Fixed at top */
 .header {
     text-align: center;
-    margin-bottom: 24px;
-    flex-shrink: 0;
+    padding: 32px 32px 16px 32px;
+    flex-shrink: 0; /* Never shrink */
+    border-bottom: 2px solid #f1f5f9;
+    background: white;
+    border-radius: 20px 20px 0 0;
+}
+
+/* Card Content - Scrollable area (the meat!) */
+.card-content {
+    flex: 1; /* Fill remaining space */
+    overflow-y: auto; /* Scrollable */
+    overflow-x: hidden;
+    padding: 24px 32px;
+}
+
+/* Card Footer - Fixed at bottom (optional) */
+.card-footer {
+    padding: 16px 32px 32px 32px;
+    flex-shrink: 0; /* Never shrink */
+    border-top: 2px solid #f1f5f9;
+    background: white;
+    border-radius: 0 0 20px 20px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
 }
 
 .player-name {
@@ -170,10 +209,7 @@ body {
 
 .scrollable-list {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 8px;
-    margin-right: -8px;
+    /* overflow removed - parent (.instances-content) handles scrolling now */
     min-height: 0;
 }
 
@@ -760,6 +796,32 @@ button:active {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-y: auto; /* Make the content area scrollable */
+    overflow-x: hidden;
+    padding-right: 8px;
+}
+
+/* Custom scrollbar for instances-content */
+.instances-content::-webkit-scrollbar,
+.instance-editor-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.instances-content::-webkit-scrollbar-track,
+.instance-editor-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.instances-content::-webkit-scrollbar-thumb,
+.instance-editor-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.instances-content::-webkit-scrollbar-thumb:hover,
+.instance-editor-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .instances-list {
@@ -2752,5 +2814,73 @@ input:checked + .toggle-slider:before {
 .btn-icon,
 .header-icon {
     object-fit: contain;
+}
+
+
+/* ============================================
+   NAVIGATION PILL (below card)
+   ============================================ */
+
+.app-navigation {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    margin-top: 16px;
+}
+
+.nav-pill {
+    padding: 8px 16px;
+    border-radius: 16px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-pill:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.nav-pill.active {
+    background: #3b82f6;
+    color: white;
+}
+
+/* ============================================
+   CARD FOOTER BUTTON STYLES
+   ============================================ */
+
+.card-footer .btn-primary,
+.card-footer .btn-create {
+    flex: 1;
+    min-width: 120px;
+}
+
+.card-footer .btn-secondary {
+    flex: 0 0 auto;
+}
+
+/* Bottom-positioned action buttons */
+.bottom-actions {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 16px;
+    background: white;
+    border-top: 2px solid #f1f5f9;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+    z-index: 10;
 }
 
