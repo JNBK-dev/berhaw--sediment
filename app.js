@@ -793,6 +793,11 @@ class App {
         this.leaveGameBtn = document.getElementById("leaveGameBtn");
         this.scoreboard = document.getElementById("scoreboard");
 
+        // Top-level navigation elements
+        this.topNavigation = document.getElementById("topNavigation");
+        this.navUserName = document.getElementById("navUserName");
+        this.navPills = document.querySelectorAll(".nav-pill");
+
         this.currentUser = null;
         this.currentRoomCode = null;
         this.currentDocId = null;
@@ -848,6 +853,14 @@ class App {
         this.playTab.onclick = () => this.switchTab('play');
         this.peopleTab.onclick = () => this.switchTab('people');
         this.settingsTab.onclick = () => this.switchTab('settings');
+        
+        // Top-level navigation
+        this.navPills.forEach(pill => {
+            pill.onclick = () => {
+                const navTarget = pill.dataset.nav;
+                this.handleTopNavigation(navTarget);
+            };
+        });
         
         // Profile navigation
         this.backFromProfileBtn.onclick = () => this.closeProfile();
@@ -1178,6 +1191,9 @@ class App {
         this.objectInstanceEditorView.classList.add("hidden");
         this.dataVisualizationView.classList.add("hidden");
         
+        // Hide top navigation (user not logged in)
+        this.hideTopNavigation();
+        
         // Stop listening to rooms
         db.ref("rooms").off();
     }
@@ -1197,6 +1213,9 @@ class App {
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
         this.dataVisualizationView.classList.add("hidden");
+        
+        // Update top navigation
+        this.updateTopNavigation('home');
         
         soundManager.play('bite');
         
@@ -1276,6 +1295,59 @@ class App {
             this.settingsTab.classList.add('active');
             this.settingsSection.classList.remove('hidden');
         }
+    }
+
+    // ============================================
+    // TOP-LEVEL NAVIGATION
+    // ============================================
+
+    handleTopNavigation(navTarget) {
+        soundManager.play('click');
+        
+        switch(navTarget) {
+            case 'home':
+                this.showHomeView();
+                this.updateTopNavigation('home');
+                break;
+            case 'toolkit':
+                this.showHomeView();
+                this.switchTab('toolkit');
+                this.updateTopNavigation('home');
+                break;
+            case 'activity':
+                // Placeholder - will navigate to activity hub when implemented
+                this.showToast("Activity hub coming soon!", "info");
+                break;
+            case 'profile':
+                this.openProfile(this.currentUser.id);
+                this.updateTopNavigation('profile');
+                break;
+        }
+    }
+
+    updateTopNavigation(activeNav) {
+        // Update active state on nav pills
+        this.navPills.forEach(pill => {
+            if (pill.dataset.nav === activeNav) {
+                pill.classList.add('active');
+            } else {
+                pill.classList.remove('active');
+            }
+        });
+        
+        // Update user name
+        if (this.currentUser) {
+            this.navUserName.textContent = this.currentUser.name;
+        }
+        
+        // Show navigation (it starts hidden for auth view)
+        this.topNavigation.classList.remove('hidden');
+    }
+
+    hideTopNavigation() {
+        this.topNavigation.classList.add('hidden');
+        // Remove all active states
+        this.navPills.forEach(pill => pill.classList.remove('active'));
     }
 
     async createRoom() {
@@ -3970,6 +4042,9 @@ class App {
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
         this.profileView.classList.remove("hidden");
+        
+        // Update top navigation
+        this.updateTopNavigation('profile');
         
         soundManager.play('bite');
     }
