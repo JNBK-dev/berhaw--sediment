@@ -170,8 +170,8 @@ body {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 8px;
-    margin-right: -8px;
+    background: #f9fcff; /* Visual separation */
+    padding: 20px 40px 40px 40px; /* Generous spacing */
 }
 
 .tab-content::-webkit-scrollbar {
@@ -466,6 +466,7 @@ button:active {
 .rooms-grid {
     display: grid;
     gap: 12px;
+    padding-bottom: 120px; /* Breathing room at bottom */
 }
 
 .room-card {
@@ -571,6 +572,7 @@ button:active {
 .users-grid {
     display: grid;
     gap: 12px;
+    padding-bottom: 120px; /* Breathing room at bottom */
 }
 
 .document-card,
@@ -619,6 +621,7 @@ button:active {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
+    padding-bottom: 120px; /* Breathing room at bottom */
 }
 
 .object-type-card {
@@ -1336,6 +1339,29 @@ button:active {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #f9fcff; /* Visual separation */
+    padding: 20px 40px 40px 40px; /* Generous spacing */
+}
+
+/* Custom scrollbar for profile-content */
+.profile-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.profile-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.profile-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.profile-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .profile-stats {
@@ -1546,8 +1572,8 @@ textarea:focus {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 8px;
-    margin-right: -8px;
+    background: #f9fcff; /* Visual separation */
+    padding: 20px 40px 40px 40px; /* Generous spacing */
 }
 
 .editor-content::-webkit-scrollbar {
@@ -1750,6 +1776,49 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #f9fcff; /* Visual separation */
+    padding: 20px 40px 40px 40px; /* Generous spacing */
+}
+
+/* Custom scrollbar for activity/game content areas */
+.activity-menu-content::-webkit-scrollbar,
+.chat-content::-webkit-scrollbar,
+.dice-content::-webkit-scrollbar,
+.collab-doc-content::-webkit-scrollbar,
+.lobby-content::-webkit-scrollbar,
+.game-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.activity-menu-content::-webkit-scrollbar-track,
+.chat-content::-webkit-scrollbar-track,
+.dice-content::-webkit-scrollbar-track,
+.collab-doc-content::-webkit-scrollbar-track,
+.lobby-content::-webkit-scrollbar-track,
+.game-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.activity-menu-content::-webkit-scrollbar-thumb,
+.chat-content::-webkit-scrollbar-thumb,
+.dice-content::-webkit-scrollbar-thumb,
+.collab-doc-content::-webkit-scrollbar-thumb,
+.lobby-content::-webkit-scrollbar-thumb,
+.game-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.activity-menu-content::-webkit-scrollbar-thumb:hover,
+.chat-content::-webkit-scrollbar-thumb:hover,
+.dice-content::-webkit-scrollbar-thumb:hover,
+.collab-doc-content::-webkit-scrollbar-thumb:hover,
+.lobby-content::-webkit-scrollbar-thumb:hover,
+.game-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* Dice Styles */
@@ -2000,6 +2069,7 @@ textarea:focus {
 .activities-grid {
     display: grid;
     gap: 12px;
+    padding-bottom: 120px; /* Breathing room at bottom */
 }
 
 .activity-card {
