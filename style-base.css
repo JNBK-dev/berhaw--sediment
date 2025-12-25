@@ -798,7 +798,8 @@ button:active {
     min-height: 0;
     overflow-y: auto; /* Make the content area scrollable */
     overflow-x: hidden;
-    padding-right: 8px;
+    background: #f9fcff; /* Visual separation from header */
+    padding: 20px 40px 40px 40px; /* top right bottom left */
 }
 
 /* Custom scrollbar for instances-content */
@@ -828,6 +829,7 @@ button:active {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    padding-bottom: 120px; /* Breathing room at bottom */
 }
 
 .instance-card {
@@ -2721,7 +2723,7 @@ input:checked + .toggle-slider:before {
     border-radius: 12px;
     padding: 20px;
     min-height: 300px;
-    margin-bottom: 16px;
+    margin-bottom: 20px; /* Space before controls */
     position: relative;
 }
 

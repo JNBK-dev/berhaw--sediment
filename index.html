@@ -649,6 +649,12 @@
                         <button class="inline-viz-close" id="closeInlineVizBtn" title="Close">×</button>
                     </div>
                     
+                    <!-- Chart comes FIRST -->
+                    <div class="inline-viz-chart">
+                        <canvas id="inlineChart"></canvas>
+                    </div>
+                    
+                    <!-- Controls come AFTER chart -->
                     <div class="inline-viz-controls">
                         <div class="viz-control">
                             <label>Chart Type</label>
@@ -685,10 +691,6 @@
                                 <option value="max">Maximum</option>
                             </select>
                         </div>
-                    </div>
-                    
-                    <div class="inline-viz-chart">
-                        <canvas id="inlineChart"></canvas>
                     </div>
                     
                     <div class="inline-viz-stats" id="inlineStats"></div>
