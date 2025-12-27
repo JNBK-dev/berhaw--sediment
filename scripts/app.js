@@ -722,52 +722,6 @@ class VisualizationLibrary {
 // GORDATA MANAGER CLASS
 // Customizable dashboard/workspace manager
 // ============================================
-
-        const yField = this.state.objectType.fields[yFieldId];
-        
-        // Suggest a title based on configuration
-        let suggestedTitle = `${yField.name} by ${xField.name}`;
-        if (showAsPercentage) {
-            suggestedTitle = `${yField.name} Rate by ${xField.name}`;
-        }
-        
-        const title = prompt('Enter a title for this visualization:', suggestedTitle);
-        if (!title) return; // User cancelled
-        
-        // Create widget configuration
-        const widgetConfig = {
-            type: 'savedVisualization',
-            title: title,
-            config: {
-                objectTypeId: window.app.currentObjectTypeId,
-                objectTypeName: this.state.objectType.name,
-                chartType: chartType,
-                xFieldId: xFieldId,
-                yFieldId: yFieldId,
-                aggregation: aggregation,
-                showAsPercentage: showAsPercentage
-            }
-        };
-        
-        // Find next available socket
-        const nextSocket = window.app.gordataManager.findNextAvailableSocket();
-        if (!nextSocket) {
-            window.app.showToast("No available sockets in Gordata. Remove a widget or add more rows.", "error");
-            return;
-        }
-        
-        // Add to Gordata
-        window.app.gordataManager.config.sockets[nextSocket] = widgetConfig;
-        window.app.gordataManager.saveConfig();
-        
-        window.app.showToast(`"${title}" saved to Gordata!`, "success");
-        soundManager.play('accepted');
-    }
-}
-
-// ============================================
-// GORDATA MANAGER CLASS
-// Customizable dashboard/workspace manager
 // ============================================
 
 class GordataManager {
