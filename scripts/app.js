@@ -678,6 +678,22 @@ class GordataManager {
         this.cancelWidgetPickerBtn.addEventListener('click', () => {
             this.closeWidgetPicker();
         });
+        
+        // Special widget item clicks
+        this.specialTab.addEventListener('click', (e) => {
+            const item = e.target.closest('.widget-special-item');
+            if (!item) return;
+            
+            const widgetType = item.dataset.widget;
+            
+            if (widgetType === 'instanceChart') {
+                this.addWidget({
+                    type: 'instanceChart',
+                    title: 'Instance Count Chart'
+                });
+            }
+            // Other special widgets will be added here later
+        });
     }
     
     addRow(height = 200) {
@@ -1027,6 +1043,8 @@ class GordataManager {
                 return this.renderDocumentWidget(widgetData, socketKey);
             case 'room':
                 return this.renderRoomWidget(widgetData, socketKey);
+            case 'instanceChart':
+                return this.renderInstanceChartWidget(widgetData, socketKey);
             default:
                 return `
                     <div class="socket-widget">
@@ -1252,6 +1270,167 @@ class GordataManager {
             if (playersElement) {
                 playersElement.textContent = 'Error loading data';
                 playersElement.style.fontStyle = 'italic';
+            }
+        }
+    }
+    
+    renderInstanceChartWidget(widgetData, socketKey) {
+        const widgetId = `widget-${socketKey}`;
+        const chartId = `chart-${socketKey}`;
+        
+        // Render widget structure with canvas for chart
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">${widgetData.title || 'Instance Count Chart'}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="padding: 8px;">
+                    <canvas id="${chartId}" style="max-height: 100%;"></canvas>
+                </div>
+            </div>
+        `;
+        
+        // Fetch data and render chart
+        this.updateInstanceChart(chartId, widgetId);
+        
+        return html;
+    }
+    
+    async updateInstanceChart(chartId, widgetId) {
+        try {
+            const userId = window.app.currentUser ? window.app.currentUser.id : null;
+            if (!userId) return;
+            
+            // Fetch all object types for this user
+            const typesSnapshot = await db.ref('objectTypes')
+                .orderByChild('authorId')
+                .equalTo(userId)
+                .once('value');
+            
+            if (!typesSnapshot.exists()) {
+                // No object types yet - show empty state
+                const canvas = document.getElementById(chartId);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.font = '14px sans-serif';
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No object types yet', canvas.width / 2, canvas.height / 2);
+                }
+                return;
+            }
+            
+            // Collect types and count instances for each
+            const typesData = [];
+            
+            for (const [typeId, type] of Object.entries(typesSnapshot.val())) {
+                // Count instances for this type
+                const instancesSnapshot = await db.ref('objects')
+                    .orderByChild('typeId')
+                    .equalTo(typeId)
+                    .once('value');
+                
+                let count = 0;
+                if (instancesSnapshot.exists()) {
+                    instancesSnapshot.forEach((childSnap) => {
+                        const obj = childSnap.val();
+                        if (obj.authorId === userId) {
+                            count++;
+                        }
+                    });
+                }
+                
+                typesData.push({
+                    name: type.name || 'Untitled',
+                    count: count
+                });
+            }
+            
+            // Sort by count descending
+            typesData.sort((a, b) => b.count - a.count);
+            
+            // Prepare chart data
+            const labels = typesData.map(t => t.name);
+            const data = typesData.map(t => t.count);
+            
+            // Render chart
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
+            
+            // Destroy existing chart if any
+            if (canvas.chart) {
+                canvas.chart.destroy();
+            }
+            
+            // Create horizontal bar chart
+            canvas.chart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Instances',
+                        data: data,
+                        backgroundColor: [
+                            '#3b82f6',
+                            '#8b5cf6',
+                            '#ec4899',
+                            '#f59e0b',
+                            '#10b981',
+                            '#06b6d4',
+                            '#6366f1',
+                            '#f43f5e'
+                        ],
+                        borderWidth: 0,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.x + ' instance' + (context.parsed.x !== 1 ? 's' : '');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            },
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error creating instance chart:', error);
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = '#dc2626';
+                ctx.textAlign = 'center';
+                ctx.fillText('Error loading chart', canvas.width / 2, canvas.height / 2);
             }
         }
     }
