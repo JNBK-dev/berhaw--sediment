@@ -560,6 +560,262 @@ class DataVisualizer {
 }
 
 // ============================================
+// GORDATA MANAGER CLASS
+// Customizable dashboard/workspace manager
+// ============================================
+
+class GordataManager {
+    constructor() {
+        // Default configuration
+        this.config = {
+            columns: 3,
+            rows: [
+                { height: 200 },
+                { height: 250 },
+                { height: 200 }
+            ],
+            sockets: {}
+        };
+        
+        this.editMode = false;
+        this.selectedSockets = new Set();
+        
+        this._initDOM();
+        this._loadConfig();
+    }
+    
+    _initDOM() {
+        this.gordataGrid = document.getElementById('gordataGrid');
+        this.gordataControls = document.getElementById('gordataControls');
+        this.rowControls = document.getElementById('rowControls');
+        this.columnBtns = document.querySelectorAll('.column-btn');
+        this.addRowBtn = document.getElementById('addRowBtn');
+        this.toggleEditModeBtn = document.getElementById('toggleEditModeBtn');
+        this.saveGordataBtn = document.getElementById('saveGordataBtn');
+        this.editGordataBtn = document.getElementById('editGordataBtn');
+        this.backFromGordataBtn = document.getElementById('backFromGordataBtn');
+    }
+    
+    _loadConfig() {
+        const saved = localStorage.getItem('gordataConfig');
+        if (saved) {
+            try {
+                this.config = JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to load Gordata config:', e);
+            }
+        }
+    }
+    
+    saveConfig() {
+        localStorage.setItem('gordataConfig', JSON.stringify(this.config));
+        console.log('Gordata config saved:', this.config);
+    }
+    
+    initialize() {
+        this._bindEvents();
+        this.renderGrid();
+        this.renderRowControls();
+    }
+    
+    _bindEvents() {
+        // Column buttons
+        this.columnBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const cols = parseInt(btn.dataset.cols);
+                this.setColumns(cols);
+            });
+        });
+        
+        // Add row button
+        this.addRowBtn.addEventListener('click', () => this.addRow());
+        
+        // Edit mode toggle
+        this.toggleEditModeBtn.addEventListener('click', () => this.toggleEditMode());
+        this.editGordataBtn.addEventListener('click', () => this.toggleEditMode());
+        
+        // Save button
+        this.saveGordataBtn.addEventListener('click', () => {
+            this.saveConfig();
+            this.toggleEditMode();
+        });
+    }
+    
+    setColumns(count) {
+        this.config.columns = count;
+        
+        // Update active button
+        this.columnBtns.forEach(btn => {
+            if (parseInt(btn.dataset.cols) === count) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        this.renderGrid();
+    }
+    
+    addRow(height = 200) {
+        this.config.rows.push({ height });
+        this.renderRowControls();
+        this.renderGrid();
+    }
+    
+    removeRow(index) {
+        if (this.config.rows.length <= 1) return; // Keep at least 1 row
+        this.config.rows.splice(index, 1);
+        this.renderRowControls();
+        this.renderGrid();
+    }
+    
+    updateRowHeight(index, height) {
+        this.config.rows[index].height = height;
+        this.renderGrid();
+    }
+    
+    renderRowControls() {
+        this.rowControls.innerHTML = '';
+        
+        this.config.rows.forEach((row, index) => {
+            const control = document.createElement('div');
+            control.className = 'row-control';
+            
+            control.innerHTML = `
+                <label>Row ${index + 1}</label>
+                <input type="range" min="100" max="500" value="${row.height}" 
+                    data-row="${index}" class="row-height-slider">
+                <span class="height-value">${row.height}px</span>
+                ${this.config.rows.length > 1 ? 
+                    `<button class="remove-row" data-row="${index}">×</button>` : 
+                    ''}
+            `;
+            
+            const slider = control.querySelector('.row-height-slider');
+            const valueDisplay = control.querySelector('.height-value');
+            
+            slider.addEventListener('input', (e) => {
+                const newHeight = parseInt(e.target.value);
+                valueDisplay.textContent = `${newHeight}px`;
+                this.updateRowHeight(index, newHeight);
+            });
+            
+            const removeBtn = control.querySelector('.remove-row');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => this.removeRow(index));
+            }
+            
+            this.rowControls.appendChild(control);
+        });
+    }
+    
+    renderGrid() {
+        // Set up CSS Grid
+        const rowTemplate = this.config.rows.map(r => `${r.height}px`).join(' ');
+        const colTemplate = `repeat(${this.config.columns}, 1fr)`;
+        
+        this.gordataGrid.style.gridTemplateRows = rowTemplate;
+        this.gordataGrid.style.gridTemplateColumns = colTemplate;
+        
+        // Generate sockets
+        this.gordataGrid.innerHTML = '';
+        
+        for (let row = 0; row < this.config.rows.length; row++) {
+            for (let col = 0; col < this.config.columns; col++) {
+                const socket = this.createSocket(row, col);
+                this.gordataGrid.appendChild(socket);
+            }
+        }
+    }
+    
+    createSocket(row, col) {
+        const socket = document.createElement('div');
+        socket.className = 'grid-socket';
+        socket.dataset.row = row;
+        socket.dataset.col = col;
+        
+        if (this.editMode) {
+            socket.classList.add('edit-mode');
+        }
+        
+        // Check if socket has a widget
+        const socketKey = `${row}-${col}`;
+        const hasWidget = this.config.sockets[socketKey];
+        
+        if (hasWidget) {
+            socket.classList.add('has-widget');
+            socket.innerHTML = this.renderWidget(hasWidget);
+        } else {
+            socket.innerHTML = `
+                <div class="socket-coordinates">R${row + 1}C${col + 1}</div>
+                <div class="socket-placeholder">
+                    <div class="socket-placeholder-icon">+</div>
+                    <div class="socket-placeholder-text">Add Widget</div>
+                </div>
+            `;
+            
+            socket.addEventListener('click', () => {
+                if (this.editMode) {
+                    this.handleSocketClick(socket, row, col);
+                }
+            });
+        }
+        
+        return socket;
+    }
+    
+    renderWidget(widgetData) {
+        // Placeholder for widget rendering
+        return `
+            <div class="socket-widget">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">${widgetData.title || 'Widget'}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn">⚙️</button>
+                        <button class="socket-action-btn">×</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content">
+                    Widget content here
+                </div>
+            </div>
+        `;
+    }
+    
+    handleSocketClick(socket, row, col) {
+        const socketKey = `${row}-${col}`;
+        
+        // For now, just toggle selection
+        if (socket.classList.contains('selected')) {
+            socket.classList.remove('selected');
+            this.selectedSockets.delete(socketKey);
+        } else {
+            socket.classList.add('selected');
+            this.selectedSockets.add(socketKey);
+        }
+        
+        console.log('Selected sockets:', Array.from(this.selectedSockets));
+    }
+    
+    toggleEditMode() {
+        this.editMode = !this.editMode;
+        
+        if (this.editMode) {
+            this.gordataControls.classList.add('active');
+            this.toggleEditModeBtn.textContent = 'Exit Edit Mode';
+            this.editGordataBtn.textContent = 'Exit Edit Mode';
+        } else {
+            this.gordataControls.classList.remove('active');
+            this.toggleEditModeBtn.textContent = 'Edit Layout';
+            this.editGordataBtn.textContent = 'Edit Layout';
+            this.selectedSockets.clear();
+        }
+        
+        this.renderGrid();
+    }
+}
+
+// ============================================
 // APP CLASS
 // ============================================
 
@@ -621,6 +877,10 @@ class App {
         this.profileDocCount = document.getElementById("profileDocCount");
         this.profileDocsList = document.getElementById("profileDocsList");
         this.backFromProfileBtn = document.getElementById("backFromProfileBtn");
+
+        // DOM elements - Gordata View
+        this.gordataView = document.getElementById("gordataView");
+        this.backFromGordataBtn = document.getElementById("backFromGordataBtn");
 
         // DOM elements - Object Type Builder View
         this.objectTypeBuilderView = document.getElementById("objectTypeBuilderView");
@@ -843,6 +1103,9 @@ class App {
         // Initialize Data Visualizer (clean module)
         this.dataVisualizer = new DataVisualizer();
 
+        // Initialize Gordata Manager (customizable dashboard)
+        this.gordataManager = new GordataManager();
+
         // Bind events
         this.loginBtn.onclick = () => this.handleLogin();
         this.quickPlayBtn.onclick = () => this.handleQuickPlay();
@@ -865,6 +1128,9 @@ class App {
         
         // Profile navigation
         this.backFromProfileBtn.onclick = () => this.closeProfile();
+        
+        // Gordata navigation
+        this.backFromGordataBtn.onclick = () => this.closeGordata();
         
         // Object Type Builder actions
         this.createObjectTypeBtn.onclick = () => this.createObjectType();
@@ -1191,6 +1457,7 @@ class App {
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
         this.dataVisualizationView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
         
         // Hide top navigation (user not logged in)
         this.hideTopNavigation();
@@ -1214,6 +1481,7 @@ class App {
         this.objectInstancesView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
         this.dataVisualizationView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
         
         // Update top navigation
         this.updateTopNavigation('home');
@@ -1309,6 +1577,10 @@ class App {
             case 'home':
                 this.showHomeView();
                 this.updateTopNavigation('home');
+                break;
+            case 'gordata':
+                this.showGordataView();
+                this.updateTopNavigation('gordata');
                 break;
             case 'toolkit':
                 this.showHomeView();
@@ -4058,6 +4330,37 @@ class App {
 
     closeProfile() {
         this.currentProfileUserId = null;
+        this.showHomeView();
+    }
+
+    // ===== GORDATA METHODS =====
+
+    showGordataView() {
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        this.gordataView.classList.remove("hidden");
+        
+        // Initialize Gordata if not already done
+        this.gordataManager.initialize();
+        
+        // Update top navigation
+        this.updateTopNavigation('gordata');
+        
+        soundManager.play('bite');
+    }
+
+    closeGordata() {
         this.showHomeView();
     }
 

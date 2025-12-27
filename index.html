@@ -855,12 +855,66 @@
             </div>
         </div>
         
+        <!-- Gordata View - Customizable Dashboard -->
+        <div id="gordataView" class="card hidden">
+            <div class="header">
+                <div class="card-header-descriptive">
+                    <span class="card-header-context">Your Workspace</span>
+                    <h1 class="card-header-title">Gordata</h1>
+                </div>
+            </div>
+            
+            <div class="gordata-content">
+                <!-- Grid Controls (Edit Mode) -->
+                <div id="gordataControls" class="gordata-controls">
+                    <div class="control-group">
+                        <label>Columns:</label>
+                        <div class="column-selector">
+                            <button class="column-btn" data-cols="2">2</button>
+                            <button class="column-btn active" data-cols="3">3</button>
+                            <button class="column-btn" data-cols="4">4</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Rows:</label>
+                        <div class="row-controls" id="rowControls">
+                            <!-- Row height controls will be generated here -->
+                        </div>
+                        <button class="btn-secondary" id="addRowBtn">+ Add Row</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <button class="btn-secondary" id="toggleEditModeBtn">Exit Edit Mode</button>
+                        <button class="btn-create" id="saveGordataBtn">Save Layout</button>
+                    </div>
+                </div>
+                
+                <!-- Grid Container -->
+                <div class="scrollable-list">
+                    <div id="gordataGrid" class="gordata-grid">
+                        <!-- Grid sockets will be generated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fixed Action Socket -->
+            <div class="action-pill-socket">
+                <button class="btn-secondary" id="backFromGordataBtn">← Back to Home</button>
+                <button class="btn-secondary" id="editGordataBtn">Edit Layout</button>
+            </div>
+        </div>
+        
         <!-- Top-Level Navigation Pill -->
         <nav id="topNavigation" class="top-navigation hidden">
             <div class="nav-pills-row">
                 <button class="nav-pill" data-nav="home">
                     <span class="nav-pill-icon">🏠</span>
                     <span class="nav-pill-label">Home</span>
+                </button>
+                <button class="nav-pill" data-nav="gordata">
+                    <span class="nav-pill-icon">📊</span>
+                    <span class="nav-pill-label">Gordata</span>
                 </button>
                 <button class="nav-pill" data-nav="toolkit">
                     <span class="nav-pill-icon">🔧</span>

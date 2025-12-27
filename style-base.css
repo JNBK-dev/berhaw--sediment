@@ -3069,3 +3069,288 @@ input:checked + .toggle-slider:before {
     margin: 0;
 }
 
+
+/* ============================================
+   GORDATA - CUSTOMIZABLE DASHBOARD
+   ============================================ */
+
+.gordata-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #f9fcff;
+    padding: 20px 40px 40px 40px;
+}
+
+.gordata-controls {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: none; /* Hidden by default, shown in edit mode */
+}
+
+.gordata-controls.active {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6289A7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.column-selector {
+    display: flex;
+    gap: 8px;
+}
+
+.column-btn {
+    padding: 8px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 50px;
+}
+
+.column-btn:hover {
+    border-color: #83CAFF;
+    background: #f1f8fe;
+}
+
+.column-btn.active {
+    border-color: #3b82f6;
+    background: #3b82f6;
+    color: white;
+}
+
+.row-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.row-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.row-control label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    min-width: 60px;
+    text-transform: none;
+}
+
+.row-control input[type="range"] {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #e2e8f0;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.row-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.row-control input[type="range"]::-webkit-slider-thumb:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+}
+
+.row-control input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.row-control .height-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3b82f6;
+    min-width: 50px;
+    text-align: right;
+}
+
+.row-control .remove-row {
+    padding: 4px 8px;
+    border: none;
+    background: #fef2f2;
+    color: #dc2626;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.row-control .remove-row:hover {
+    background: #fee2e2;
+}
+
+/* Gordata Grid */
+.gordata-grid {
+    display: grid;
+    gap: 16px;
+    min-height: 400px;
+    padding: 20px;
+}
+
+/* Grid socket - the placeholder for widgets */
+.grid-socket {
+    background: white;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.grid-socket:hover {
+    border-color: #83CAFF;
+    background: #f1f8fe;
+}
+
+.grid-socket.has-widget {
+    border-style: solid;
+    border-color: #e2e8f0;
+    cursor: default;
+}
+
+.grid-socket.has-widget:hover {
+    border-color: #cbd5e1;
+    background: white;
+}
+
+.grid-socket.edit-mode {
+    border-color: #fbbf24;
+    background: #fef3c7;
+}
+
+.grid-socket.selected {
+    border-color: #3b82f6;
+    border-width: 3px;
+    background: #dbeafe;
+}
+
+.socket-placeholder {
+    text-align: center;
+    color: #94a3b8;
+}
+
+.socket-placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.socket-placeholder-text {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.socket-coordinates {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 10px;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: none;
+}
+
+.grid-socket.edit-mode .socket-coordinates {
+    display: block;
+}
+
+.socket-widget {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.socket-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f1f5f9;
+    margin-bottom: 12px;
+}
+
+.socket-widget-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.socket-widget-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.socket-action-btn {
+    padding: 4px 8px;
+    border: none;
+    background: #f1f5f9;
+    color: #64748b;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+}
+
+.socket-action-btn:hover {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.socket-widget-content {
+    flex: 1;
+    overflow: auto;
+}
+
