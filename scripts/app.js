@@ -596,6 +596,11 @@ class GordataManager {
         this.editGordataBtn = document.getElementById('editGordataBtn');
         this.backFromGordataBtn = document.getElementById('backFromGordataBtn');
         
+        // Socket combining elements
+        this.combineControlGroup = document.getElementById('combineControlGroup');
+        this.combineSocketsBtn = document.getElementById('combineSocketsBtn');
+        this.selectionInfo = document.getElementById('selectionInfo');
+        
         // Widget picker elements
         this.widgetPickerModal = document.getElementById('widgetPickerModal');
         this.widgetTabs = document.querySelectorAll('.widget-tab');
@@ -655,6 +660,11 @@ class GordataManager {
             if (confirm('Reset grid to default layout? This will remove all widgets and reset rows/columns.')) {
                 this.resetGrid();
             }
+        });
+        
+        // Combine sockets button
+        this.combineSocketsBtn.addEventListener('click', () => {
+            this.combineSockets();
         });
         
         // Widget picker tab switching
@@ -779,12 +789,21 @@ class GordataManager {
         for (let row = 0; row < this.config.rows.length; row++) {
             for (let col = 0; col < this.config.columns; col++) {
                 const socket = this.createSocket(row, col);
-                this.gordataGrid.appendChild(socket);
+                if (socket) { // Only append if not null (absorbed sockets return null)
+                    this.gordataGrid.appendChild(socket);
+                }
             }
         }
     }
     
     createSocket(row, col) {
+        const socketKey = `${row}-${col}`;
+        
+        // Check if this socket is absorbed by a combined socket
+        if (this.isSocketAbsorbed(row, col)) {
+            return null; // Don't render absorbed sockets
+        }
+        
         const socket = document.createElement('div');
         socket.className = 'grid-socket';
         socket.dataset.row = row;
@@ -795,12 +814,36 @@ class GordataManager {
         }
         
         // Check if socket has a widget
-        const socketKey = `${row}-${col}`;
         const widgetData = this.config.sockets[socketKey];
+        
+        // Handle combined sockets with span
+        if (widgetData && widgetData.span) {
+            socket.style.gridRowEnd = `span ${widgetData.span.rows}`;
+            socket.style.gridColumnEnd = `span ${widgetData.span.cols}`;
+        }
         
         if (widgetData) {
             socket.classList.add('has-widget');
-            socket.innerHTML = this.renderWidget(widgetData, socketKey);
+            
+            // For combined empty sockets, show special placeholder
+            if (widgetData.isEmpty) {
+                socket.innerHTML = `
+                    <div class="socket-coordinates">R${row + 1}C${col + 1} (${widgetData.span.rows}x${widgetData.span.cols})</div>
+                    <div class="socket-placeholder">
+                        <div class="socket-placeholder-icon">+</div>
+                        <div class="socket-placeholder-text">Add Widget (Combined ${widgetData.span.rows}x${widgetData.span.cols})</div>
+                    </div>
+                    <button class="socket-split-btn" onclick="window.app.gordataManager.splitSocket('${socketKey}')">Split</button>
+                `;
+                
+                socket.addEventListener('click', (e) => {
+                    // Don't trigger if clicking split button
+                    if (e.target.classList.contains('socket-split-btn')) return;
+                    this.handleSocketClick(socket, row, col);
+                });
+            } else {
+                socket.innerHTML = this.renderWidget(widgetData, socketKey);
+            }
         } else {
             socket.innerHTML = `
                 <div class="socket-coordinates">R${row + 1}C${col + 1}</div>
@@ -818,6 +861,26 @@ class GordataManager {
         return socket;
     }
     
+    isSocketAbsorbed(row, col) {
+        // Check all sockets to see if any combined socket absorbs this position
+        for (const [key, widgetData] of Object.entries(this.config.sockets)) {
+            if (!widgetData.span) continue;
+            
+            const [primaryRow, primaryCol] = key.split('-').map(Number);
+            const endRow = primaryRow + widgetData.span.rows - 1;
+            const endCol = primaryCol + widgetData.span.cols - 1;
+            
+            // Check if current position is within this span (but not the primary)
+            if (row >= primaryRow && row <= endRow && 
+                col >= primaryCol && col <= endCol &&
+                (row !== primaryRow || col !== primaryCol)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
     handleSocketClick(socket, row, col) {
         const socketKey = `${row}-${col}`;
         
@@ -830,6 +893,10 @@ class GordataManager {
                 socket.classList.add('selected');
                 this.selectedSockets.add(socketKey);
             }
+            
+            // Update combine controls visibility
+            this.updateCombineControls();
+            
             console.log('Selected sockets:', Array.from(this.selectedSockets));
         } else {
             // Not in edit mode: open widget picker
@@ -849,6 +916,7 @@ class GordataManager {
             this.toggleEditModeBtn.textContent = 'Edit Layout';
             this.editGordataBtn.textContent = 'Edit Layout';
             this.selectedSockets.clear();
+            this.combineControlGroup.style.display = 'none';
         }
         
         this.renderGrid();
@@ -881,6 +949,138 @@ class GordataManager {
         this.renderRowControls();
         
         soundManager.play('accepted');
+    }
+    
+    // ============================================
+    // SOCKET COMBINING
+    // ============================================
+    
+    updateCombineControls() {
+        const count = this.selectedSockets.size;
+        
+        if (count === 0) {
+            this.combineControlGroup.style.display = 'none';
+        } else {
+            this.combineControlGroup.style.display = 'block';
+            this.selectionInfo.textContent = `${count} socket${count !== 1 ? 's' : ''} selected`;
+            
+            // Check if selection is valid
+            const isValid = this.validateSelection();
+            this.combineSocketsBtn.disabled = !isValid || count < 2;
+            
+            if (count >= 2 && !isValid) {
+                this.selectionInfo.textContent = `${count} sockets selected - must form rectangle`;
+                this.selectionInfo.style.color = '#dc2626';
+            } else {
+                this.selectionInfo.style.color = '#64748b';
+            }
+        }
+    }
+    
+    validateSelection() {
+        if (this.selectedSockets.size < 2) return false;
+        
+        // Parse selected socket positions
+        const positions = Array.from(this.selectedSockets).map(key => {
+            const [row, col] = key.split('-').map(Number);
+            return { row, col, key };
+        });
+        
+        // Find bounding box
+        const rows = positions.map(p => p.row);
+        const cols = positions.map(p => p.col);
+        const minRow = Math.min(...rows);
+        const maxRow = Math.max(...rows);
+        const minCol = Math.min(...cols);
+        const maxCol = Math.max(...cols);
+        
+        // Check if all sockets in the rectangle are selected
+        const expectedCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+        if (this.selectedSockets.size !== expectedCount) {
+            return false;
+        }
+        
+        // Check if all positions in rectangle are selected
+        for (let r = minRow; r <= maxRow; r++) {
+            for (let c = minCol; c <= maxCol; c++) {
+                const key = `${r}-${c}`;
+                if (!this.selectedSockets.has(key)) {
+                    return false;
+                }
+            }
+        }
+        
+        // Check if all selected sockets are empty (no widgets)
+        for (const key of this.selectedSockets) {
+            if (this.config.sockets[key]) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    combineSockets() {
+        if (!this.validateSelection() || this.selectedSockets.size < 2) {
+            return;
+        }
+        
+        // Parse selected socket positions
+        const positions = Array.from(this.selectedSockets).map(key => {
+            const [row, col] = key.split('-').map(Number);
+            return { row, col, key };
+        });
+        
+        // Find bounding box
+        const rows = positions.map(p => p.row);
+        const cols = positions.map(p => p.col);
+        const minRow = Math.min(...rows);
+        const maxRow = Math.max(...rows);
+        const minCol = Math.min(...cols);
+        const maxCol = Math.max(...cols);
+        
+        // Calculate span
+        const rowSpan = maxRow - minRow + 1;
+        const colSpan = maxCol - minCol + 1;
+        
+        // The primary socket is the top-left one
+        const primaryKey = `${minRow}-${minCol}`;
+        
+        // Create a combined socket entry (empty, ready for widget)
+        this.config.sockets[primaryKey] = {
+            type: 'combined',
+            span: { rows: rowSpan, cols: colSpan },
+            isEmpty: true
+        };
+        
+        // Clear selection
+        this.selectedSockets.clear();
+        this.updateCombineControls();
+        
+        // Save and re-render
+        this.saveConfig();
+        this.renderGrid();
+        
+        soundManager.play('accepted');
+        console.log(`Combined ${rowSpan}x${colSpan} socket area at ${primaryKey}`);
+    }
+    
+    splitSocket(socketKey) {
+        const widgetData = this.config.sockets[socketKey];
+        
+        if (!widgetData || !widgetData.span) {
+            return;
+        }
+        
+        // Remove the combined socket
+        delete this.config.sockets[socketKey];
+        
+        // Save and re-render
+        this.saveConfig();
+        this.renderGrid();
+        
+        soundManager.play('reclick');
+        console.log(`Split socket at ${socketKey}`);
     }
     
     // ============================================
@@ -1032,6 +1232,13 @@ class GordataManager {
         
         const { row, col } = this.currentSocketPosition;
         const socketKey = `${row}-${col}`;
+        
+        // Check if this socket is combined (has span)
+        const existingData = this.config.sockets[socketKey];
+        if (existingData && existingData.span) {
+            // Preserve span when adding widget to combined socket
+            widgetData.span = existingData.span;
+        }
         
         this.config.sockets[socketKey] = widgetData;
         this.closeWidgetPicker();

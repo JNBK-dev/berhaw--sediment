@@ -3335,6 +3335,27 @@ input:checked + .toggle-slider:before {
     display: block;
 }
 
+.socket-split-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    padding: 6px 12px;
+    border: none;
+    background: #f43f5e;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.socket-split-btn:hover {
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
 .socket-widget {
     width: 100%;
     height: 100%;
