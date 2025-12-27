@@ -51,6 +51,9 @@ class DataVisualizer {
         this.dom.controls.xAxis = document.getElementById('inlineXAxis');
         this.dom.controls.yAxis = document.getElementById('inlineYAxis');
         this.dom.controls.aggregation = document.getElementById('inlineAggregation');
+        this.dom.controls.showAsPercentage = document.getElementById('inlineShowAsPercentage');
+        this.dom.controls.percentageControl = document.getElementById('inlinePercentageControl');
+        this.dom.controls.saveToGordataBtn = document.getElementById('inlineSaveToGordataBtn');
         this.dom.canvas = document.getElementById('inlineChart');
         this.dom.stats = document.getElementById('inlineStats');
     }
@@ -78,6 +81,14 @@ class DataVisualizer {
         this.dom.controls.aggregation.onchange = () => {
             this.state.currentConfig.aggregation = this.dom.controls.aggregation.value;
             this._updateChart();
+        };
+        
+        this.dom.controls.showAsPercentage.onchange = () => {
+            this._updateChart();
+        };
+        
+        this.dom.controls.saveToGordataBtn.onclick = () => {
+            this._saveToGordata();
         };
     }
     
@@ -201,6 +212,14 @@ class DataVisualizer {
             return;
         }
         
+        // Show percentage option for boolean averages (win rate)
+        if (yField.type === 'boolean' && aggregation === 'avg') {
+            this.dom.controls.percentageControl.style.display = 'block';
+        } else {
+            this.dom.controls.percentageControl.style.display = 'none';
+            this.dom.controls.showAsPercentage.checked = false;
+        }
+        
         // Show loading state
         this._showLoadingState();
         
@@ -214,10 +233,11 @@ class DataVisualizer {
             }
             
             // Render chart
-            this._renderChart(chartType, dataPoints, xField, yField);
+            const showAsPercentage = this.dom.controls.showAsPercentage.checked;
+            this._renderChart(chartType, dataPoints, xField, yField, showAsPercentage);
             
             // Update statistics
-            this._updateStats(dataPoints, yField);
+            this._updateStats(dataPoints, yField, showAsPercentage);
             
         } catch (error) {
             console.error('Chart update error:', error);
@@ -386,7 +406,7 @@ class DataVisualizer {
         }
     }
     
-    _renderChart(chartType, dataPoints, xField, yField) {
+    _renderChart(chartType, dataPoints, xField, yField, showAsPercentage = false) {
         // Cleanup existing chart
         this._cleanupChart();
         
@@ -485,7 +505,7 @@ class DataVisualizer {
                     labels: dataPoints.map(p => p.xLabel),
                     datasets: [{
                         label: yField.name,
-                        data: dataPoints.map(p => p.y),
+                        data: showAsPercentage ? dataPoints.map(p => p.y * 100) : dataPoints.map(p => p.y),
                         backgroundColor: chartType === 'bar' ? '#83CAFF' : 'rgba(131, 202, 255, 0.1)',
                         borderColor: '#83CAFF',
                         borderWidth: 2,
@@ -497,11 +517,23 @@ class DataVisualizer {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: false },
+                        tooltip: showAsPercentage ? {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        } : undefined
                     },
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: showAsPercentage ? {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            } : undefined
                         }
                     }
                 }
@@ -521,7 +553,7 @@ class DataVisualizer {
     // PRIVATE METHODS - STATISTICS
     // ============================================
     
-    _updateStats(dataPoints, yField) {
+    _updateStats(dataPoints, yField, showAsPercentage = false) {
         this.dom.stats.innerHTML = '';
         
         if (dataPoints.length === 0) {
@@ -537,13 +569,20 @@ class DataVisualizer {
             return;
         }
         
+        const formatValue = (val) => {
+            if (showAsPercentage) {
+                return (val * 100).toFixed(1) + '%';
+            }
+            return val.toFixed(2);
+        };
+        
         // Calculate statistics
         const stats = {
             'Count': yValues.length,
-            'Sum': yValues.reduce((a, b) => a + b, 0).toFixed(2),
-            'Average': (yValues.reduce((a, b) => a + b, 0) / yValues.length).toFixed(2),
-            'Min': Math.min(...yValues).toFixed(2),
-            'Max': Math.max(...yValues).toFixed(2)
+            'Sum': formatValue(yValues.reduce((a, b) => a + b, 0)),
+            'Average': formatValue(yValues.reduce((a, b) => a + b, 0) / yValues.length),
+            'Min': formatValue(Math.min(...yValues)),
+            'Max': formatValue(Math.max(...yValues))
         };
         
         // Render stat items
@@ -556,6 +595,58 @@ class DataVisualizer {
             `;
             this.dom.stats.appendChild(statItem);
         });
+    }
+    
+    _saveToGordata() {
+        const { chartType, xFieldId, yFieldId, aggregation } = this.state.currentConfig;
+        const showAsPercentage = this.dom.controls.showAsPercentage.checked;
+        
+        if (!xFieldId || !yFieldId) {
+            window.app.showToast("Please configure the visualization first", "error");
+            return;
+        }
+        
+        // Get field names for better title suggestion
+        const xField = this.state.objectType.fields[xFieldId];
+        const yField = this.state.objectType.fields[yFieldId];
+        
+        // Suggest a title based on configuration
+        let suggestedTitle = `${yField.name} by ${xField.name}`;
+        if (showAsPercentage) {
+            suggestedTitle = `${yField.name} Rate by ${xField.name}`;
+        }
+        
+        const title = prompt('Enter a title for this visualization:', suggestedTitle);
+        if (!title) return; // User cancelled
+        
+        // Create widget configuration
+        const widgetConfig = {
+            type: 'savedVisualization',
+            title: title,
+            config: {
+                objectTypeId: window.app.currentObjectTypeId,
+                objectTypeName: this.state.objectType.name,
+                chartType: chartType,
+                xFieldId: xFieldId,
+                yFieldId: yFieldId,
+                aggregation: aggregation,
+                showAsPercentage: showAsPercentage
+            }
+        };
+        
+        // Find next available socket
+        const nextSocket = window.app.gordataManager.findNextAvailableSocket();
+        if (!nextSocket) {
+            window.app.showToast("No available sockets in Gordata. Remove a widget or add more rows.", "error");
+            return;
+        }
+        
+        // Add to Gordata
+        window.app.gordataManager.config.sockets[nextSocket] = widgetConfig;
+        window.app.gordataManager.saveConfig();
+        
+        window.app.showToast(`"${title}" saved to Gordata!`, "success");
+        soundManager.play('accepted');
     }
 }
 
