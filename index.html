@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- saved from url=(0046)https://jnbk-dev.github.io/berhaw-%2Dsediment/ -->
 <html>
 
 <head>
@@ -7,7 +6,7 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Game Lobby</title>
-    <link rel="stylesheet" href="./Game Lobby_files/style-base.css">
+    <link rel="stylesheet" href="style-base.css">
 </head>
 
 <body>
@@ -1199,63 +1198,6 @@
             
         </div>
 
-        <!-- Widget Picker Modal -->
-        <div id="widgetPickerModal" class="modal hidden">
-            <div class="modal-content" style="max-width: 600px;">
-                <h2 class="modal-title">Add Widget</h2>
-                
-                <div class="widget-picker-tabs">
-                    <button class="widget-tab active" data-tab="entities">📦 Entities</button>
-                    <button class="widget-tab" data-tab="special">✨ Special Widgets</button>
-                </div>
-                
-                <!-- Entities Tab -->
-                <div id="entitiesTab" class="widget-tab-content">
-                    <div class="widget-category">
-                        <h3>Object Types</h3>
-                        <div id="widgetObjectTypesList" class="widget-items-list">
-                            <!-- Object types will be listed here -->
-                        </div>
-                    </div>
-                    
-                    <div class="widget-category">
-                        <h3>Documents</h3>
-                        <div id="widgetDocumentsList" class="widget-items-list">
-                            <!-- Documents will be listed here -->
-                        </div>
-                    </div>
-                    
-                    <div class="widget-category">
-                        <h3>Rooms</h3>
-                        <div id="widgetRoomsList" class="widget-items-list">
-                            <!-- Rooms will be listed here -->
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Special Widgets Tab -->
-                <div id="specialTab" class="widget-tab-content hidden">
-                    <div class="widget-special-item" data-widget="list">
-                        <div class="widget-special-icon">📋</div>
-                        <div class="widget-special-info">
-                            <div class="widget-special-title">List Display</div>
-                            <div class="widget-special-desc">Show a scrollable list of items</div>
-                        </div>
-                    </div>
-                    
-                    <div class="widget-special-item" data-widget="action">
-                        <div class="widget-special-icon">⚡</div>
-                        <div class="widget-special-info">
-                            <div class="widget-special-title">Action Widget</div>
-                            <div class="widget-special-desc">Quick action button (coming soon)</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <button class="btn-secondary" id="cancelWidgetPickerBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
-            </div>
-        </div>
-
         <!-- Top-Level Navigation Pill -->
         <nav id="topNavigation" class="top-navigation">
             <div class="nav-pills-row">
@@ -1287,14 +1229,14 @@
 
     </div>
 
-    <script src="./Game Lobby_files/firebase-app-compat.js"></script>
-    <script src="./Game Lobby_files/firebase-database-compat.js"></script>
-    <script src="./Game Lobby_files/marked.min.js"></script>
-    <script src="./Game Lobby_files/chart.umd.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-    <script src="./Game Lobby_files/firebaseConfig.js"></script>
-    <script src="./Game Lobby_files/sounds.js"></script>
-    <script src="./Game Lobby_files/app.js"></script>
+    <script src="firebaseConfig.js"></script>
+    <script src="sounds.js"></script>
+    <script src="app.js"></script>
 
 
 
