@@ -678,21 +678,31 @@ class GordataManager {
         this.cancelWidgetPickerBtn.addEventListener('click', () => {
             this.closeWidgetPicker();
         });
-        
-        // Special widget item clicks
-        this.specialTab.addEventListener('click', (e) => {
-            const item = e.target.closest('.widget-special-item');
-            if (!item) return;
+    }
+    
+    _bindSpecialWidgets() {
+        // Bind special widget clicks - called when widget picker opens
+        const specialItems = document.querySelectorAll('.widget-special-item');
+        specialItems.forEach(item => {
+            // Remove any existing listeners
+            const newItem = item.cloneNode(true);
+            item.parentNode.replaceChild(newItem, item);
             
-            const widgetType = item.dataset.widget;
-            
-            if (widgetType === 'instanceChart') {
-                this.addWidget({
-                    type: 'instanceChart',
-                    title: 'Instance Count Chart'
-                });
-            }
-            // Other special widgets will be added here later
+            // Add fresh click listener
+            newItem.addEventListener('click', () => {
+                const widgetType = newItem.dataset.widget;
+                console.log('Special widget clicked:', widgetType);
+                
+                if (widgetType === 'instanceChart') {
+                    console.log('Adding instance chart widget');
+                    this.addWidget({
+                        type: 'instanceChart',
+                        title: 'Instance Count Chart'
+                    });
+                } else {
+                    console.log('Widget type not implemented yet:', widgetType);
+                }
+            });
         });
     }
     
@@ -874,6 +884,7 @@ class GordataManager {
     openWidgetPicker(row, col) {
         this.currentSocketPosition = { row, col };
         this.populateWidgetPicker();
+        this._bindSpecialWidgets();  // Bind special widget clicks
         this.widgetPickerModal.classList.remove('hidden');
         soundManager.play('click');
     }
