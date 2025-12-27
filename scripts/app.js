@@ -592,6 +592,7 @@ class GordataManager {
         this.addRowBtn = document.getElementById('addRowBtn');
         this.toggleEditModeBtn = document.getElementById('toggleEditModeBtn');
         this.saveGordataBtn = document.getElementById('saveGordataBtn');
+        this.resetGordataBtn = document.getElementById('resetGordataBtn');
         this.editGordataBtn = document.getElementById('editGordataBtn');
         this.backFromGordataBtn = document.getElementById('backFromGordataBtn');
         
@@ -650,6 +651,13 @@ class GordataManager {
         this.saveGordataBtn.addEventListener('click', () => {
             this.saveConfig();
             this.toggleEditMode();
+        });
+        
+        // Reset button
+        this.resetGordataBtn.addEventListener('click', () => {
+            if (confirm('Reset grid to default layout? This will remove all widgets and reset rows/columns.')) {
+                this.resetGrid();
+            }
         });
         
         // Widget picker tab switching
@@ -830,6 +838,44 @@ class GordataManager {
         }
         
         this.renderGrid();
+    }
+    
+    resetGrid() {
+        // Reset to default configuration
+        this.config = {
+            columns: 3,
+            rows: [
+                { height: 200 },
+                { height: 250 },
+                { height: 200 }
+            ],
+            sockets: {}
+        };
+        
+        // Exit edit mode if in it
+        if (this.editMode) {
+            this.editMode = false;
+            this.gordataControls.classList.remove('active');
+            this.toggleEditModeBtn.textContent = 'Edit Layout';
+            this.editGordataBtn.textContent = 'Edit Layout';
+            this.selectedSockets.clear();
+        }
+        
+        // Save and render
+        this.saveConfig();
+        this.renderGrid();
+        this.renderRowControls();
+        
+        // Update column buttons
+        this.columnBtns.forEach(btn => {
+            if (parseInt(btn.dataset.cols) === 3) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        soundManager.play('accepted');
     }
     
     // ============================================
@@ -1048,33 +1094,18 @@ class GordataManager {
     }
     
     renderDocumentWidget(widgetData, socketKey) {
-        const app = window.app;
-        const doc = app.documents[widgetData.id];
-        
-        if (!doc) {
-            return `
-                <div class="socket-widget">
-                    <div class="socket-widget-header">
-                        <span class="socket-widget-title">Document Not Found</span>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">x</button>
-                    </div>
-                </div>
-            `;
-        }
-        
-        const preview = doc.content ? doc.content.substring(0, 100) : 'No content';
-        
+        // Use stored title instead of fetching from Firebase
         return `
             <div class="socket-widget">
                 <div class="socket-widget-header">
-                    <span class="socket-widget-title">${doc.title || 'Untitled'}</span>
+                    <span class="socket-widget-title">${widgetData.title || 'Untitled'}</span>
                     <div class="socket-widget-actions">
                         <button class="socket-action-btn" onclick="window.app.openDocument('${widgetData.id}')" title="Open">Edit</button>
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
                 <div class="socket-widget-content" style="font-size: 12px; color: #64748b; line-height: 1.5;">
-                    ${preview}${doc.content && doc.content.length > 100 ? '...' : ''}
+                    Document
                 </div>
             </div>
         `;
@@ -2143,6 +2174,7 @@ class App {
     showEditorView() {
         this.authView.classList.add("hidden");
         this.homeView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
         this.editorView.classList.remove("hidden");
         this.activityMenuView.classList.add("hidden");
         this.chatView.classList.add("hidden");
@@ -2428,6 +2460,7 @@ class App {
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
         this.objectTypeBuilderView.classList.remove("hidden");
 
         soundManager.play('bite');
@@ -2720,6 +2753,7 @@ class App {
         this.gameView.classList.add("hidden");
         this.objectInstanceEditorView.classList.add("hidden");
         this.dataVisualizationView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
         this.objectInstancesView.classList.remove("hidden");
     }
 
@@ -4023,6 +4057,7 @@ class App {
         this.diceView.classList.add("hidden");
         this.collabDocView.classList.add("hidden");
         this.gameView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
         this.dataVisualizationView.classList.remove("hidden");
 
         soundManager.play('bite');
@@ -4640,6 +4675,15 @@ class App {
         this.objectInstanceEditorView.classList.add("hidden");
         this.dataVisualizationView.classList.add("hidden");
         this.gordataView.classList.remove("hidden");
+        
+        // Ensure edit mode is off when entering Gordata
+        if (this.gordataManager.editMode) {
+            this.gordataManager.editMode = false;
+            this.gordataManager.gordataControls.classList.remove('active');
+            this.gordataManager.toggleEditModeBtn.textContent = 'Edit Layout';
+            this.gordataManager.editGordataBtn.textContent = 'Edit Layout';
+            this.gordataManager.selectedSockets.clear();
+        }
         
         // Initialize Gordata if not already done
         this.gordataManager.initialize();
