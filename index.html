@@ -129,7 +129,7 @@
             <div class="tabs">
                 <button class="tab active" id="diceRollTab">Roll</button>
                 <button class="tab" id="diceHistoryTab">History</button>
-                <button class="tab" id="diceActionsTab">⚡ Actions</button>
+                <button class="tab" id="diceActionsTab">Actions</button>
             </div>
 
             <div class="dice-content">
@@ -250,9 +250,9 @@
                         <div class="condition-inputs">
                             <select class="builder-input" id="conditionOperatorSelect" style="flex: 1;">
                                 <option value="&lt;">Less than (&lt;)</option>
-                                <option value="&lt;=">Less than or equal (≤)</option>
+                                <option value="&lt;=">Less than or equal (<=)</option>
                                 <option value="==">Equal to (=)</option>
-                                <option value="&gt;=">Greater than or equal (≥)</option>
+                                <option value="&gt;=">Greater than or equal (>=)</option>
                                 <option value="&gt;">Greater than (&gt;)</option>
                             </select>
                             <input type="number" class="builder-input" id="conditionValueInput" placeholder="Value" style="flex: 1;">
@@ -359,7 +359,7 @@
 
                     <div class="waiting-turn-section hidden" id="waitingTurnSection">
                         <div class="waiting-message">
-                            <div class="waiting-icon">⏳</div>
+                            <div class="waiting-icon">...</div>
                             <div class="waiting-text" id="waitingText">Waiting for others to write...</div>
                         </div>
                     </div>
@@ -649,7 +649,7 @@
 
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
-                <button class="btn-secondary" id="backFromProfileBtn">← Back</button>
+                <button class="btn-secondary" id="backFromProfileBtn"><- Back</button>
             </div>
         </div>
 
@@ -686,7 +686,7 @@
 
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
-                <button class="btn-secondary" id="backFromBuilderBtn">← Back to Toolkit</button>
+                <button class="btn-secondary" id="backFromBuilderBtn"><- Back to Toolkit</button>
                 <button class="btn-danger" id="deleteObjectTypeBtn">Delete Type</button>
                 <button class="btn-create" id="saveObjectTypeBtn">Save Object Type</button>
             </div>
@@ -710,10 +710,10 @@
                     <div class="instances-actions">
                         <div class="view-toggle">
                             <button class="view-toggle-btn active" id="cardViewBtn" title="Card View">
-                                <img src="./Game Lobby_files/icon-view-card.svg" class="btn-icon" alt="Card View">
+                                <img src="icon-view-card.svg" class="btn-icon" alt="Card View">
                             </button>
                             <button class="view-toggle-btn" id="tableViewBtn" title="Table View">
-                                <img src="./Game Lobby_files/icon-view-table.svg" class="btn-icon" alt="Table View">
+                                <img src="icon-view-table.svg" class="btn-icon" alt="Table View">
                             </button>
                         </div>
                         <button class="btn-secondary" id="exportCsvBtn">Export CSV</button>
@@ -725,9 +725,9 @@
                 <div id="inlineVizPanel" class="inline-viz-panel hidden">
                     <div class="inline-viz-header">
                         <h3>
-                            <img src="./Game Lobby_files/icon-chart-bar.svg" class="header-icon" alt=""> Data Visualization
+                            <img src="icon-chart-bar.svg" class="header-icon" alt=""> Data Visualization
                         </h3>
-                        <button class="inline-viz-close" id="closeInlineVizBtn" title="Close">×</button>
+                        <button class="inline-viz-close" id="closeInlineVizBtn" title="Close">x</button>
                     </div>
 
                     <!-- Chart comes FIRST -->
@@ -790,10 +790,10 @@
 
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
-                <button class="btn-secondary" id="backFromInstancesBtn">← Back to Toolkit</button>
+                <button class="btn-secondary" id="backFromInstancesBtn"><- Back to Toolkit</button>
                 <button class="btn-create" id="createInstanceBtn">+ New Instance</button>
                 <button class="btn-secondary" id="visualizeBtn">
-                    <img src="./Game Lobby_files/icon-chart-bar.svg" class="btn-icon" alt=""> Visualize
+                    <img src="icon-chart-bar.svg" class="btn-icon" alt=""> Visualize
                 </button>
             </div>
         </div>
@@ -869,7 +869,7 @@
 
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
-                <button class="btn-secondary" id="backFromInstanceEditorBtn">← Cancel</button>
+                <button class="btn-secondary" id="backFromInstanceEditorBtn"><- Cancel</button>
                 <button class="btn-danger" id="deleteInstanceBtn">Delete</button>
                 <button class="btn-create" id="saveInstanceBtn">Save Changes</button>
             </div>
@@ -920,7 +920,7 @@
 
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
-                <button class="btn-secondary" id="backToHomeBtn">← Back to Home</button>
+                <button class="btn-secondary" id="backToHomeBtn"><- Back to Home</button>
                 <button class="btn-secondary" id="modeToggleBtn">
                     <span id="modeToggleText">Reader Mode</span>
                 </button>
@@ -958,49 +958,49 @@
                                 <label>Row 1</label>
                                 <input type="range" min="100" max="500" value="142" data-row="0" class="row-height-slider">
                                 <span class="height-value">142px</span>
-                                <button class="remove-row" data-row="0">×</button>
+                                <button class="remove-row" data-row="0">x</button>
                             </div>
                             <div class="row-control">
                                 <label>Row 2</label>
                                 <input type="range" min="100" max="500" value="145" data-row="1" class="row-height-slider">
                                 <span class="height-value">145px</span>
-                                <button class="remove-row" data-row="1">×</button>
+                                <button class="remove-row" data-row="1">x</button>
                             </div>
                             <div class="row-control">
                                 <label>Row 3</label>
                                 <input type="range" min="100" max="500" value="244" data-row="2" class="row-height-slider">
                                 <span class="height-value">244px</span>
-                                <button class="remove-row" data-row="2">×</button>
+                                <button class="remove-row" data-row="2">x</button>
                             </div>
                             <div class="row-control">
                                 <label>Row 4</label>
                                 <input type="range" min="100" max="500" value="200" data-row="3" class="row-height-slider">
                                 <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="3">×</button>
+                                <button class="remove-row" data-row="3">x</button>
                             </div>
                             <div class="row-control">
                                 <label>Row 5</label>
                                 <input type="range" min="100" max="500" value="200" data-row="4" class="row-height-slider">
                                 <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="4">×</button>
+                                <button class="remove-row" data-row="4">x</button>
                             </div>
                             <div class="row-control">
                                 <label>Row 6</label>
                                 <input type="range" min="100" max="500" value="200" data-row="5" class="row-height-slider">
                                 <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="5">×</button>
+                                <button class="remove-row" data-row="5">x</button>
                             </div>
                             <div class="row-control">
                                 <label>Row 7</label>
                                 <input type="range" min="100" max="500" value="200" data-row="6" class="row-height-slider">
                                 <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="6">×</button>
+                                <button class="remove-row" data-row="6">x</button>
                             </div>
                             <div class="row-control">
                                 <label>Row 8</label>
                                 <input type="range" min="100" max="500" value="200" data-row="7" class="row-height-slider">
                                 <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="7">×</button>
+                                <button class="remove-row" data-row="7">x</button>
                             </div>
                         </div>
                         <button class="btn-secondary" id="addRowBtn">+ Add Row</button>
@@ -1189,13 +1189,70 @@
                 
                 <!-- Sticky Action Socket -->
                 <div class="action-pill-socket">
-                    <button class="btn-secondary" id="backFromGordataBtn">← Back to Home</button>
+                    <button class="btn-secondary" id="backFromGordataBtn"><- Back to Home</button>
                     <button class="btn-secondary" id="editGordataBtn">Edit Layout</button>
                 </div>
                 
             </div>
             
             
+        </div>
+
+        <!-- Widget Picker Modal -->
+        <div id="widgetPickerModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 600px;">
+                <h2 class="modal-title">Add Widget</h2>
+                
+                <div class="widget-picker-tabs">
+                    <button class="widget-tab active" data-tab="entities">Entities</button>
+                    <button class="widget-tab" data-tab="special">Special Widgets</button>
+                </div>
+                
+                <!-- Entities Tab -->
+                <div id="entitiesTab" class="widget-tab-content">
+                    <div class="widget-category">
+                        <h3>Object Types</h3>
+                        <div id="widgetObjectTypesList" class="widget-items-list">
+                            <!-- Object types will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <div class="widget-category">
+                        <h3>Documents</h3>
+                        <div id="widgetDocumentsList" class="widget-items-list">
+                            <!-- Documents will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <div class="widget-category">
+                        <h3>Rooms</h3>
+                        <div id="widgetRoomsList" class="widget-items-list">
+                            <!-- Rooms will be listed here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Special Widgets Tab -->
+                <div id="specialTab" class="widget-tab-content hidden">
+                    <div class="widget-special-item" data-widget="list">
+                        <div class="widget-special-icon">[List]</div>
+                        <div class="widget-special-info">
+                            <div class="widget-special-title">List Display</div>
+                            <div class="widget-special-desc">Show a scrollable list of items</div>
+                        </div>
+                    </div>
+                    
+                    <div class="widget-special-item" data-widget="action">
+                        <div class="widget-special-icon">[Action]</div>
+                        <div class="widget-special-info">
+                            <div class="widget-special-title">Action Widget</div>
+                            <div class="widget-special-desc">Quick action button (coming soon)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn-secondary" id="cancelWidgetPickerBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
+            </div>
         </div>
 
         <!-- Top-Level Navigation Pill -->

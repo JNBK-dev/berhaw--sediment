@@ -510,7 +510,7 @@ class DataVisualizer {
         
         try {
             this.state.chart = new Chart(ctx, chartConfig);
-            console.log('✅ Chart rendered successfully with', dataPoints.length, 'data points');
+            console.log('Chart rendered successfully with', dataPoints.length, 'data points');
         } catch (error) {
             console.error('Chart rendering error:', error);
             this._showEmptyState('Error rendering chart');
@@ -721,7 +721,7 @@ class GordataManager {
                     data-row="${index}" class="row-height-slider">
                 <span class="height-value">${row.height}px</span>
                 ${this.config.rows.length > 1 ? 
-                    `<button class="remove-row" data-row="${index}">×</button>` : 
+                    `<button class="remove-row" data-row="${index}">x</button>` : 
                     ''}
             `;
             
@@ -861,7 +861,7 @@ class GordataManager {
                 const item = document.createElement('div');
                 item.className = 'widget-item';
                 item.innerHTML = `
-                    <div class="widget-item-icon">📦</div>
+                    <div class="widget-item-icon">[Type]</div>
                     <div class="widget-item-info">
                         <div class="widget-item-title">${type.name}</div>
                         <div class="widget-item-desc">Object Type</div>
@@ -890,7 +890,7 @@ class GordataManager {
                     const item = document.createElement('div');
                     item.className = 'widget-item';
                     item.innerHTML = `
-                        <div class="widget-item-icon">📄</div>
+                        <div class="widget-item-icon">[Doc]</div>
                         <div class="widget-item-info">
                             <div class="widget-item-title">${doc.title || 'Untitled'}</div>
                             <div class="widget-item-desc">Document</div>
@@ -918,7 +918,7 @@ class GordataManager {
                 item.className = 'widget-item';
                 const playerCount = room.players ? Object.keys(room.players).length : 0;
                 item.innerHTML = `
-                    <div class="widget-item-icon">🏠</div>
+                    <div class="widget-item-icon">[Room]</div>
                     <div class="widget-item-info">
                         <div class="widget-item-title">${room.name || roomId}</div>
                         <div class="widget-item-desc">${playerCount} player${playerCount !== 1 ? 's' : ''}</div>
@@ -974,7 +974,7 @@ class GordataManager {
                     <div class="socket-widget">
                         <div class="socket-widget-header">
                             <span class="socket-widget-title">${widgetData.title || 'Widget'}</span>
-                            <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                            <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                         </div>
                         <div class="socket-widget-content">
                             Unknown widget type
@@ -993,7 +993,7 @@ class GordataManager {
                 <div class="socket-widget">
                     <div class="socket-widget-header">
                         <span class="socket-widget-title">Object Type Not Found</span>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
             `;
@@ -1007,10 +1007,10 @@ class GordataManager {
         return `
             <div class="socket-widget">
                 <div class="socket-widget-header">
-                    <span class="socket-widget-title">📦 ${type.name}</span>
+                    <span class="socket-widget-title">${type.name}</span>
                     <div class="socket-widget-actions">
-                        <button class="socket-action-btn" onclick="window.app.openObjectType('${widgetData.id}')" title="View all">👁️</button>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                        <button class="socket-action-btn" onclick="window.app.openObjectType('${widgetData.id}')" title="View all">View</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
                 <div class="socket-widget-content" style="font-size: 13px; color: #64748b;">
@@ -1018,7 +1018,7 @@ class GordataManager {
                     <div style="margin-top: 8px;">
                         <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
                             onclick="window.app.openObjectType('${widgetData.id}')">
-                            View Instances →
+                            View Instances
                         </button>
                     </div>
                 </div>
@@ -1035,7 +1035,7 @@ class GordataManager {
                 <div class="socket-widget">
                     <div class="socket-widget-header">
                         <span class="socket-widget-title">Document Not Found</span>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">x</button>
                     </div>
                 </div>
             `;
@@ -1046,10 +1046,10 @@ class GordataManager {
         return `
             <div class="socket-widget">
                 <div class="socket-widget-header">
-                    <span class="socket-widget-title">📄 ${doc.title || 'Untitled'}</span>
+                    <span class="socket-widget-title">${doc.title || 'Untitled'}</span>
                     <div class="socket-widget-actions">
-                        <button class="socket-action-btn" onclick="window.app.openDocument('${widgetData.id}')" title="Open">✏️</button>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                        <button class="socket-action-btn" onclick="window.app.openDocument('${widgetData.id}')" title="Open">Edit</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
                 <div class="socket-widget-content" style="font-size: 12px; color: #64748b; line-height: 1.5;">
@@ -1068,7 +1068,7 @@ class GordataManager {
                 <div class="socket-widget">
                     <div class="socket-widget-header">
                         <span class="socket-widget-title">Room Not Found</span>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">x</button>
                     </div>
                 </div>
             `;
@@ -1080,9 +1080,9 @@ class GordataManager {
         return `
             <div class="socket-widget">
                 <div class="socket-widget-header">
-                    <span class="socket-widget-title">🏠 ${room.name || widgetData.id}</span>
+                    <span class="socket-widget-title">${room.name || widgetData.id}</span>
                     <div class="socket-widget-actions">
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
                 <div class="socket-widget-content" style="font-size: 13px;">
@@ -1091,7 +1091,7 @@ class GordataManager {
                     </div>
                     <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
                         onclick="window.app.joinRoom('${widgetData.id}')">
-                        Join Room →
+                        Join Room
                     </button>
                 </div>
             </div>
@@ -2449,7 +2449,7 @@ class App {
 
         const dragHandle = document.createElement("div");
         dragHandle.className = "field-drag-handle";
-        dragHandle.textContent = "⋮⋮";
+        dragHandle.textContent = ":::";
 
         const nameInput = document.createElement("input");
         nameInput.type = "text";
@@ -2523,7 +2523,7 @@ class App {
 
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "field-delete-btn";
-        deleteBtn.textContent = "×";
+        deleteBtn.textContent = "x";
         deleteBtn.onclick = () => this.removeField(fieldId);
 
         fieldDiv.appendChild(dragHandle);
@@ -3006,7 +3006,7 @@ class App {
                         img.style.borderRadius = "4px";
                         img.onerror = () => {
                             img.style.display = 'none';
-                            td.textContent = "⚠️ Invalid";
+                            td.textContent = "Invalid";
                         };
                         td.appendChild(img);
                     } else {
@@ -3087,13 +3087,13 @@ class App {
         
         const editBtn = document.createElement("button");
         editBtn.className = "table-action-btn";
-        editBtn.textContent = "✏️";
+        editBtn.textContent = "Edit";
         editBtn.title = "Edit";
         editBtn.onclick = () => this.openInstance(instance.id);
         
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "table-action-btn delete";
-        deleteBtn.textContent = "🗑️";
+        deleteBtn.textContent = "Delete";
         deleteBtn.title = "Delete";
         deleteBtn.onclick = () => this.quickDeleteInstance(instance.id);
         
@@ -3178,7 +3178,7 @@ class App {
                         img.style.marginTop = "4px";
                         img.onerror = () => {
                             img.style.display = 'none';
-                            valueDiv.textContent = "⚠️ Invalid image URL";
+                            valueDiv.textContent = "Invalid image URL";
                         };
                         valueDiv.appendChild(img);
                     } else if (field.type === "email") {
@@ -5272,7 +5272,7 @@ class App {
         
         const statusBadge = document.createElement('span');
         statusBadge.className = `action-status ${action.active ? 'active' : 'inactive'}`;
-        statusBadge.textContent = action.active ? '⚡ Active' : 'Inactive';
+        statusBadge.textContent = action.active ? 'Active' : 'Inactive';
         
         header.appendChild(nameDiv);
         header.appendChild(statusBadge);
@@ -5283,7 +5283,7 @@ class App {
         
         const targetRow = document.createElement('div');
         targetRow.className = 'action-detail-row';
-        targetRow.innerHTML = `<span class="action-detail-label">Target:</span> ${action.targetTypeName || 'Unknown'} → ${action.targetInstanceName || 'Unknown'}`;
+        targetRow.innerHTML = `<span class="action-detail-label">Target:</span> ${action.targetTypeName || 'Unknown'} -> ${action.targetInstanceName || 'Unknown'}`;
         
         const conditionRow = document.createElement('div');
         conditionRow.className = 'action-detail-row';
@@ -5667,7 +5667,7 @@ class App {
         const change = newValue - currentValue;
         const changeStr = change >= 0 ? `+${change}` : change;
         this.showToast(
-            `⚡ ${action.name}: ${action.targetInstanceName}'s ${action.operation.fieldName} ${currentValue} → ${newValue} (${changeStr})`,
+            `${action.name}: ${action.targetInstanceName}'s ${action.operation.fieldName} ${currentValue} -> ${newValue} (${changeStr})`,
             'success'
         );
     }
