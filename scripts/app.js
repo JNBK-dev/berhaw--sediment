@@ -88,7 +88,7 @@ class DataVisualizer {
         };
         
         this.dom.controls.saveToGordataBtn.onclick = () => {
-            this._saveToGordata();
+            this._saveToLibrary();
         };
     }
     
@@ -597,7 +597,7 @@ class DataVisualizer {
         });
     }
     
-    _saveToGordata() {
+    _saveToLibrary() {
         const { chartType, xFieldId, yFieldId, aggregation } = this.state.currentConfig;
         const showAsPercentage = this.dom.controls.showAsPercentage.checked;
         
@@ -608,6 +608,121 @@ class DataVisualizer {
         
         // Get field names for better title suggestion
         const xField = this.state.objectType.fields[xFieldId];
+        const yField = this.state.objectType.fields[yFieldId];
+        
+        // Suggest a name based on configuration
+        let suggestedName = `${yField.name} by ${xField.name}`;
+        if (showAsPercentage) {
+            suggestedName = `${yField.name} Rate by ${xField.name}`;
+        }
+        
+        const name = prompt('Name this visualization:', suggestedName);
+        if (!name) return; // User cancelled
+        
+        const description = prompt('Description (optional):', '') || '';
+        
+        // Save to library
+        const vizId = window.app.vizLibrary.add(
+            name,
+            description,
+            window.app.currentObjectTypeId,
+            this.state.objectType.name,
+            {
+                chartType: chartType,
+                xFieldId: xFieldId,
+                yFieldId: yFieldId,
+                aggregation: aggregation,
+                showAsPercentage: showAsPercentage
+            }
+        );
+        
+        window.app.showToast(`"${name}" saved to Visualization Library!`, "success");
+        soundManager.play('accepted');
+    }
+}
+
+// ============================================
+// VISUALIZATION LIBRARY CLASS
+// Manages saved visualization configurations
+// ============================================
+
+class VisualizationLibrary {
+    constructor() {
+        this.library = this._load();
+    }
+    
+    _load() {
+        try {
+            const stored = localStorage.getItem('visualizationLibrary');
+            return stored ? JSON.parse(stored) : {};
+        } catch (error) {
+            console.error('Error loading visualization library:', error);
+            return {};
+        }
+    }
+    
+    _save() {
+        try {
+            localStorage.setItem('visualizationLibrary', JSON.stringify(this.library));
+        } catch (error) {
+            console.error('Error saving visualization library:', error);
+        }
+    }
+    
+    add(name, description, objectTypeId, objectTypeName, config) {
+        const id = 'viz_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        this.library[id] = {
+            id: id,
+            name: name,
+            description: description,
+            created: Date.now(),
+            objectTypeId: objectTypeId,
+            objectTypeName: objectTypeName,
+            config: config
+        };
+        
+        this._save();
+        return id;
+    }
+    
+    get(id) {
+        return this.library[id];
+    }
+    
+    getAll() {
+        return Object.values(this.library).sort((a, b) => b.created - a.created);
+    }
+    
+    update(id, updates) {
+        if (this.library[id]) {
+            this.library[id] = { ...this.library[id], ...updates };
+            this._save();
+            return true;
+        }
+        return false;
+    }
+    
+    delete(id) {
+        if (this.library[id]) {
+            delete this.library[id];
+            this._save();
+            return true;
+        }
+        return false;
+    }
+    
+    clear() {
+        this.library = {};
+        this._save();
+    }
+}
+
+// ============================================
+// GORDATA MANAGER CLASS
+// Customizable dashboard/workspace manager
+// ============================================
+
         const yField = this.state.objectType.fields[yFieldId];
         
         // Suggest a title based on configuration
@@ -695,9 +810,11 @@ class GordataManager {
         this.widgetTabs = document.querySelectorAll('.widget-tab');
         this.entitiesTab = document.getElementById('entitiesTab');
         this.specialTab = document.getElementById('specialTab');
+        this.savedVizTab = document.getElementById('savedVizTab');
         this.widgetObjectTypesList = document.getElementById('widgetObjectTypesList');
         this.widgetDocumentsList = document.getElementById('widgetDocumentsList');
         this.widgetRoomsList = document.getElementById('widgetRoomsList');
+        this.savedVizList = document.getElementById('savedVizList');
         this.cancelWidgetPickerBtn = document.getElementById('cancelWidgetPickerBtn');
         
         this.currentSocketPosition = null; // Track which socket is being configured
@@ -759,9 +876,16 @@ class GordataManager {
                 if (tabName === 'entities') {
                     this.entitiesTab.classList.remove('hidden');
                     this.specialTab.classList.add('hidden');
-                } else {
+                    this.savedVizTab.classList.add('hidden');
+                } else if (tabName === 'special') {
                     this.entitiesTab.classList.add('hidden');
                     this.specialTab.classList.remove('hidden');
+                    this.savedVizTab.classList.add('hidden');
+                } else if (tabName === 'savedViz') {
+                    this.entitiesTab.classList.add('hidden');
+                    this.specialTab.classList.add('hidden');
+                    this.savedVizTab.classList.remove('hidden');
+                    this._loadSavedVisualizations();
                 }
             });
         });
@@ -1371,6 +1495,44 @@ class GordataManager {
             console.error('Error loading rooms:', error);
             this.widgetRoomsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Error loading</div>';
         }
+    }
+    
+    _loadSavedVisualizations() {
+        const vizs = window.app.vizLibrary.getAll();
+        
+        this.savedVizList.innerHTML = '';
+        
+        if (vizs.length === 0) {
+            this.savedVizList.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #64748b;">
+                    <div style="font-size: 16px; margin-bottom: 8px;">No saved visualizations yet</div>
+                    <div style="font-size: 14px;">Create visualizations from your instance lists and save them to the library!</div>
+                </div>
+            `;
+            return;
+        }
+        
+        vizs.forEach(viz => {
+            const item = document.createElement('div');
+            item.className = 'widget-item';
+            item.innerHTML = `
+                <div class="widget-item-icon">[Chart]</div>
+                <div class="widget-item-info">
+                    <div class="widget-item-title">${viz.name}</div>
+                    <div class="widget-item-desc">${viz.objectTypeName} • ${viz.config.chartType}</div>
+                </div>
+            `;
+            
+            item.onclick = () => {
+                this.addWidget({
+                    type: 'savedVisualization',
+                    vizId: viz.id,
+                    title: viz.name
+                });
+            };
+            
+            this.savedVizList.appendChild(item);
+        });
     }
     
     findNextAvailableSocket() {
@@ -2220,20 +2382,38 @@ class GordataManager {
         `;
         
         // Fetch data and render chart
-        this.updateSavedVisualization(chartId, widgetId, widgetData.config);
+        this.updateSavedVisualization(chartId, widgetId, widgetData.vizId);
         
         return html;
     }
     
-    async updateSavedVisualization(chartId, widgetId, config) {
+    async updateSavedVisualization(chartId, widgetId, vizId) {
         try {
             const userId = window.app.currentUser ? window.app.currentUser.id : null;
             if (!userId) return;
             
+            // Get visualization config from library
+            const viz = window.app.vizLibrary.get(vizId);
+            
+            if (!viz) {
+                // Visualization deleted from library
+                const canvas = document.getElementById(chartId);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.font = '14px sans-serif';
+                    ctx.fillStyle = '#dc2626';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Visualization not found in library', canvas.width / 2, canvas.height / 2);
+                }
+                return;
+            }
+            
+            const config = viz.config;
+            
             // Fetch object type
-            const typeSnapshot = await db.ref(`objectTypes/${config.objectTypeId}`).once('value');
+            const typeSnapshot = await db.ref(`objectTypes/${viz.objectTypeId}`).once('value');
             if (!typeSnapshot.exists()) {
-                console.error('Object type not found:', config.objectTypeId);
+                console.error('Object type not found:', viz.objectTypeId);
                 return;
             }
             
@@ -2249,7 +2429,7 @@ class GordataManager {
             // Fetch instances for this object type
             const instancesSnapshot = await db.ref('objects')
                 .orderByChild('typeId')
-                .equalTo(config.objectTypeId)
+                .equalTo(viz.objectTypeId)
                 .once('value');
             
             if (!instancesSnapshot.exists()) {
@@ -2770,6 +2950,9 @@ class App {
         
         // Initialize Data Visualizer (clean module)
         this.dataVisualizer = new DataVisualizer();
+
+        // Initialize Visualization Library
+        this.vizLibrary = new VisualizationLibrary();
 
         // Initialize Gordata Manager (customizable dashboard)
         this.gordataManager = new GordataManager();

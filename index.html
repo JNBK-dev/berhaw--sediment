@@ -782,7 +782,7 @@
                         
                         <div class="viz-control">
                             <button class="btn-create" id="inlineSaveToGordataBtn" style="width: 100%; margin-top: 8px;">
-                                Save to Gordata
+                                Save to Library
                             </button>
                         </div>
                     </div>
@@ -1175,6 +1175,7 @@
                 <div class="widget-picker-tabs">
                     <button class="widget-tab active" data-tab="entities">Entities</button>
                     <button class="widget-tab" data-tab="special">Special Widgets</button>
+                    <button class="widget-tab" data-tab="savedViz">Saved Visualizations</button>
                 </div>
                 
                 <!-- Entities Tab -->
@@ -1241,6 +1242,13 @@
                             <div class="widget-special-title">Action Widget</div>
                             <div class="widget-special-desc">Quick action button (coming soon)</div>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Saved Visualizations Tab -->
+                <div id="savedVizTab" class="widget-tab-content hidden">
+                    <div id="savedVizList" class="widget-items-list">
+                        <!-- Saved visualizations will be listed here -->
                     </div>
                 </div>
                 
