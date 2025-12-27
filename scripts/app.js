@@ -1570,8 +1570,10 @@ class GordataManager {
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
-                <div class="socket-widget-content" style="padding: 8px;">
-                    <canvas id="${chartId}" style="max-height: 100%;"></canvas>
+                <div class="socket-widget-content" style="padding: 12px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+                    <div style="width: 100%; height: 100%; min-height: 150px;">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
                 </div>
             </div>
         `;
@@ -1731,8 +1733,10 @@ class GordataManager {
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
-                <div class="socket-widget-content" style="padding: 8px; display: flex; justify-content: center; align-items: center;">
-                    <canvas id="${chartId}" style="max-width: 100%; max-height: 100%;"></canvas>
+                <div class="socket-widget-content" style="padding: 12px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+                    <div style="width: 100%; height: 100%; min-height: 150px;">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
                 </div>
             </div>
         `;
@@ -1916,8 +1920,10 @@ class GordataManager {
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
-                <div class="socket-widget-content" style="padding: 8px;">
-                    <canvas id="${chartId}" style="max-width: 100%; max-height: 100%;"></canvas>
+                <div class="socket-widget-content" style="padding: 12px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+                    <div style="width: 100%; height: 100%; min-height: 150px;">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
                 </div>
             </div>
         `;
@@ -2014,7 +2020,7 @@ class GordataManager {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         legend: {
                             display: false
