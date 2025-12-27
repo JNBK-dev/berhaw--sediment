@@ -706,6 +706,12 @@ class GordataManager {
                         type: 'pieChart',
                         title: 'Instance Distribution'
                     });
+                } else if (widgetType === 'activityChart') {
+                    console.log('Adding activity chart widget');
+                    this.addWidget({
+                        type: 'activityChart',
+                        title: '7-Day Activity'
+                    });
                 } else {
                     console.log('Widget type not implemented yet:', widgetType);
                 }
@@ -1320,6 +1326,8 @@ class GordataManager {
                 return this.renderInstanceChartWidget(widgetData, socketKey);
             case 'pieChart':
                 return this.renderPieChartWidget(widgetData, socketKey);
+            case 'activityChart':
+                return this.renderActivityChartWidget(widgetData, socketKey);
             default:
                 return `
                     <div class="socket-widget">
@@ -1884,6 +1892,180 @@ class GordataManager {
             
         } catch (error) {
             console.error('Error creating pie chart:', error);
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = '#dc2626';
+                ctx.textAlign = 'center';
+                ctx.fillText('Error loading chart', canvas.width / 2, canvas.height / 2);
+            }
+        }
+    }
+    
+    renderActivityChartWidget(widgetData, socketKey) {
+        const widgetId = `widget-${socketKey}`;
+        const chartId = `chart-${socketKey}`;
+        
+        // Render widget structure with canvas for chart
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">${widgetData.title || '7-Day Activity'}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="padding: 8px;">
+                    <canvas id="${chartId}" style="max-width: 100%; max-height: 100%;"></canvas>
+                </div>
+            </div>
+        `;
+        
+        // Fetch data and render chart
+        this.updateActivityChart(chartId, widgetId);
+        
+        return html;
+    }
+    
+    async updateActivityChart(chartId, widgetId) {
+        try {
+            const userId = window.app.currentUser ? window.app.currentUser.id : null;
+            if (!userId) return;
+            
+            // Get current date and calculate 7 days ago
+            const now = new Date();
+            const sevenDaysAgo = new Date(now);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // 6 days ago + today = 7 days
+            sevenDaysAgo.setHours(0, 0, 0, 0); // Start of day
+            
+            // Fetch all instances for this user
+            const instancesSnapshot = await db.ref('objects')
+                .orderByChild('authorId')
+                .equalTo(userId)
+                .once('value');
+            
+            // Initialize counts for each day (0 by default)
+            const dayCounts = {};
+            const dayLabels = [];
+            
+            // Create labels for last 7 days
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(sevenDaysAgo);
+                date.setDate(date.getDate() + i);
+                const dateKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const dateString = date.toDateString();
+                dayLabels.push(dateKey);
+                dayCounts[dateString] = 0;
+            }
+            
+            // Count instances created each day
+            if (instancesSnapshot.exists()) {
+                instancesSnapshot.forEach((childSnap) => {
+                    const instance = childSnap.val();
+                    if (instance.createdAt) {
+                        const createdDate = new Date(instance.createdAt);
+                        const dateString = createdDate.toDateString();
+                        
+                        if (dayCounts.hasOwnProperty(dateString)) {
+                            dayCounts[dateString]++;
+                        }
+                    }
+                });
+            }
+            
+            // Convert to array in chronological order
+            const counts = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(sevenDaysAgo);
+                date.setDate(date.getDate() + i);
+                const dateString = date.toDateString();
+                counts.push(dayCounts[dateString] || 0);
+            }
+            
+            // Render chart
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
+            
+            // Destroy existing chart if any
+            if (canvas.chart) {
+                canvas.chart.destroy();
+            }
+            
+            // Create line chart
+            canvas.chart = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: dayLabels,
+                    datasets: [{
+                        label: 'Instances Created',
+                        data: counts,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4, // Smooth curves
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 13,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const count = context.parsed.y;
+                                    return count === 1 ? '1 instance created' : `${count} instances created`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0,
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error creating activity chart:', error);
             const canvas = document.getElementById(chartId);
             if (canvas) {
                 const ctx = canvas.getContext('2d');
