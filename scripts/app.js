@@ -699,6 +699,12 @@ class GordataManager {
                         type: 'instanceChart',
                         title: 'Instance Count Chart'
                     });
+                } else if (widgetType === 'pieChart') {
+                    console.log('Adding pie chart widget');
+                    this.addWidget({
+                        type: 'pieChart',
+                        title: 'Instance Distribution'
+                    });
                 } else {
                     console.log('Widget type not implemented yet:', widgetType);
                 }
@@ -1056,6 +1062,8 @@ class GordataManager {
                 return this.renderRoomWidget(widgetData, socketKey);
             case 'instanceChart':
                 return this.renderInstanceChartWidget(widgetData, socketKey);
+            case 'pieChart':
+                return this.renderPieChartWidget(widgetData, socketKey);
             default:
                 return `
                     <div class="socket-widget">
@@ -1435,6 +1443,191 @@ class GordataManager {
             
         } catch (error) {
             console.error('Error creating instance chart:', error);
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = '#dc2626';
+                ctx.textAlign = 'center';
+                ctx.fillText('Error loading chart', canvas.width / 2, canvas.height / 2);
+            }
+        }
+    }
+    
+    renderPieChartWidget(widgetData, socketKey) {
+        const widgetId = `widget-${socketKey}`;
+        const chartId = `chart-${socketKey}`;
+        
+        // Render widget structure with canvas for chart
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">${widgetData.title || 'Instance Distribution'}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="padding: 8px; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="${chartId}" style="max-width: 100%; max-height: 100%;"></canvas>
+                </div>
+            </div>
+        `;
+        
+        // Fetch data and render chart
+        this.updatePieChart(chartId, widgetId);
+        
+        return html;
+    }
+    
+    async updatePieChart(chartId, widgetId) {
+        try {
+            const userId = window.app.currentUser ? window.app.currentUser.id : null;
+            if (!userId) return;
+            
+            // Fetch all object types for this user
+            const typesSnapshot = await db.ref('objectTypes')
+                .orderByChild('authorId')
+                .equalTo(userId)
+                .once('value');
+            
+            if (!typesSnapshot.exists()) {
+                // No object types yet - show empty state
+                const canvas = document.getElementById(chartId);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.font = '14px sans-serif';
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No object types yet', canvas.width / 2, canvas.height / 2);
+                }
+                return;
+            }
+            
+            // Collect types and count instances for each
+            const typesData = [];
+            
+            for (const [typeId, type] of Object.entries(typesSnapshot.val())) {
+                // Count instances for this type
+                const instancesSnapshot = await db.ref('objects')
+                    .orderByChild('typeId')
+                    .equalTo(typeId)
+                    .once('value');
+                
+                let count = 0;
+                if (instancesSnapshot.exists()) {
+                    instancesSnapshot.forEach((childSnap) => {
+                        const obj = childSnap.val();
+                        if (obj.authorId === userId) {
+                            count++;
+                        }
+                    });
+                }
+                
+                typesData.push({
+                    name: type.name || 'Untitled',
+                    count: count
+                });
+            }
+            
+            // Filter out types with 0 instances for cleaner pie chart
+            const nonZeroTypes = typesData.filter(t => t.count > 0);
+            
+            if (nonZeroTypes.length === 0) {
+                const canvas = document.getElementById(chartId);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.font = '14px sans-serif';
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No instances yet', canvas.width / 2, canvas.height / 2);
+                }
+                return;
+            }
+            
+            // Sort by count descending
+            nonZeroTypes.sort((a, b) => b.count - a.count);
+            
+            // Prepare chart data
+            const labels = nonZeroTypes.map(t => t.name);
+            const data = nonZeroTypes.map(t => t.count);
+            
+            // Render chart
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
+            
+            // Destroy existing chart if any
+            if (canvas.chart) {
+                canvas.chart.destroy();
+            }
+            
+            // Create pie chart
+            canvas.chart = new Chart(canvas, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#3b82f6',
+                            '#8b5cf6',
+                            '#ec4899',
+                            '#f59e0b',
+                            '#10b981',
+                            '#06b6d4',
+                            '#6366f1',
+                            '#f43f5e'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 10,
+                                font: {
+                                    size: 11
+                                },
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        return data.labels.map((label, i) => {
+                                            const value = data.datasets[0].data[i];
+                                            const percentage = Math.round((value / total) * 100);
+                                            return {
+                                                text: `${label} (${percentage}%)`,
+                                                fillStyle: data.datasets[0].backgroundColor[i],
+                                                hidden: false,
+                                                index: i
+                                            };
+                                        });
+                                    }
+                                    return [];
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error creating pie chart:', error);
             const canvas = document.getElementById(chartId);
             if (canvas) {
                 const ctx = canvas.getContext('2d');
