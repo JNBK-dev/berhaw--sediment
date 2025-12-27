@@ -722,7 +722,6 @@ class VisualizationLibrary {
 // GORDATA MANAGER CLASS
 // Customizable dashboard/workspace manager
 // ============================================
-// ============================================
 
 class GordataManager {
     constructor() {
