@@ -1,42 +1,44 @@
 <!DOCTYPE html>
+<!-- saved from url=(0046)https://jnbk-dev.github.io/berhaw-%2Dsediment/ -->
 <html>
 
 <head>
-    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Game Lobby</title>
-    <link rel="stylesheet" href="style-base.css">
+    <link rel="stylesheet" href="./Game Lobby_files/style-base.css">
 </head>
 
 <body>
-    
+
     <div class="container">
-        
+
         <!-- Authentication View -->
-        <div id="authView" class="card">
+        <div id="authView" class="card hidden">
             <div class="header">
                 <h1 class="player-name">Welcome!</h1>
                 <p class="subtitle">Log in or create a new account</p>
             </div>
-            
+
             <div class="input-group">
                 <label class="input-label" for="authName">Player name:</label>
                 <input id="authName" placeholder="Enter your name">
             </div>
-            
+
             <div class="input-group">
                 <label class="input-label" for="authKey">Registration key:</label>
                 <input id="authKey" placeholder="Your 3-character key" maxlength="3">
                 <div class="input-hint">Enter your key to log in, or leave blank to create new account</div>
             </div>
-            
+
             <button class="btn-create" id="loginBtn">Continue</button>
-            
+
             <div class="divider"></div>
-            
+
             <button class="btn-secondary" id="quickPlayBtn">Quick Play (No Account)</button>
         </div>
-        
+
         <!-- Room Activity Menu -->
         <div id="activityMenuView" class="card hidden">
             <div class="header">
@@ -46,25 +48,25 @@
                     <button class="btn-logout" id="leaveRoomFromMenuBtn">Leave Room</button>
                 </div>
             </div>
-            
+
             <div class="activity-menu-content">
                 <div class="section-header">
                     <div class="section-title">Players in Room</div>
                 </div>
-                
+
                 <div class="player-chips" id="menuPlayerChips"></div>
-                
+
                 <div class="section-header" style="margin-top: 24px;">
                     <div class="section-title">Activities</div>
                     <button class="btn-create" id="newActivityBtn">Start New Activity</button>
                 </div>
-                
+
                 <div class="scrollable-list">
                     <div class="activities-grid" id="activitiesList"></div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Activity Creator Modal -->
         <div id="activityCreatorModal" class="modal hidden">
             <div class="modal-content">
@@ -90,7 +92,7 @@
                 <button class="btn-secondary" id="cancelActivityBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
             </div>
         </div>
-        
+
         <!-- Chat Activity View -->
         <div id="chatView" class="card hidden">
             <div class="header">
@@ -100,12 +102,12 @@
                     <button class="btn-logout" id="leaveChatBtn">Leave Activity</button>
                 </div>
             </div>
-            
+
             <div class="chat-content">
                 <div class="scrollable-list">
                     <div class="chat-messages" id="chatMessages"></div>
                 </div>
-                
+
                 <div class="section-footer">
                     <div class="chat-input-container">
                         <input type="text" id="chatInput" placeholder="Type a message...">
@@ -114,7 +116,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Dice Activity View -->
         <div id="diceView" class="card hidden">
             <div class="header">
@@ -124,13 +126,13 @@
                     <button class="btn-logout" id="leaveDiceBtn">Leave Activity</button>
                 </div>
             </div>
-            
+
             <div class="tabs">
                 <button class="tab active" id="diceRollTab">Roll</button>
                 <button class="tab" id="diceHistoryTab">History</button>
                 <button class="tab" id="diceActionsTab">⚡ Actions</button>
             </div>
-            
+
             <div class="dice-content">
                 <!-- Roll Tab -->
                 <div class="dice-tab-content" id="diceRollContent">
@@ -159,33 +161,33 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="scrollable-list">
                         <div class="dice-rolls" id="diceRolls"></div>
                     </div>
                 </div>
-                
+
                 <!-- History Tab (same as Roll for now) -->
                 <div class="dice-tab-content hidden" id="diceHistoryContent">
                     <div class="scrollable-list">
                         <div class="dice-rolls" id="diceHistory"></div>
                     </div>
                 </div>
-                
+
                 <!-- Actions Tab -->
                 <div class="dice-tab-content hidden" id="diceActionsContent">
                     <div class="actions-header">
                         <h3>Connected Actions</h3>
                         <button class="btn-create" id="createDiceActionBtn">+ Connect Action</button>
                     </div>
-                    
+
                     <div class="scrollable-list">
                         <div class="actions-list" id="diceActionsList"></div>
                     </div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Dice Action Builder Modal -->
         <div id="diceActionBuilder" class="card hidden">
             <div class="header">
@@ -194,7 +196,7 @@
                     <button class="btn-logout" id="closeDiceActionBuilderBtn">Cancel</button>
                 </div>
             </div>
-            
+
             <div class="action-builder-content">
                 <div class="builder-progress">
                     <div class="progress-bar">
@@ -202,40 +204,40 @@
                     </div>
                     <div class="progress-text" id="actionProgressText">Step 1 of 3</div>
                 </div>
-                
+
                 <!-- Step 1: Target -->
                 <div class="builder-step" id="actionStep1">
                     <div class="builder-section">
                         <label class="builder-label">Action Name</label>
                         <input type="text" class="builder-input" id="actionNameInput" placeholder="e.g., Combat Damage">
                     </div>
-                    
+
                     <div class="builder-section">
                         <label class="builder-label">Target Object Type</label>
                         <select class="builder-input" id="actionTargetTypeSelect">
                             <option value="">-- Select Type --</option>
                         </select>
                     </div>
-                    
+
                     <div class="builder-section">
                         <label class="builder-label">Target Instance</label>
                         <select class="builder-input" id="actionTargetInstanceSelect">
                             <option value="">-- Select Instance --</option>
                         </select>
                     </div>
-                    
+
                     <div class="section-footer">
                         <button class="btn-create" id="actionStep1NextBtn">Next: Set Condition</button>
                     </div>
                 </div>
-                
+
                 <!-- Step 2: Condition -->
                 <div class="builder-step hidden" id="actionStep2">
                     <div class="builder-section">
                         <label class="builder-label">When should this trigger?</label>
                         <div class="radio-group">
                             <label class="radio-label">
-                                <input type="radio" name="conditionType" value="always" checked>
+                                <input type="radio" name="conditionType" value="always" checked="">
                                 Always (trigger on every roll)
                             </label>
                             <label class="radio-label">
@@ -244,26 +246,26 @@
                             </label>
                         </div>
                     </div>
-                    
+
                     <div class="builder-section hidden" id="conditionDetails">
                         <div class="condition-inputs">
                             <select class="builder-input" id="conditionOperatorSelect" style="flex: 1;">
-                                <option value="<">Less than (<)</option>
-                                <option value="<=">Less than or equal (≤)</option>
+                                <option value="&lt;">Less than (&lt;)</option>
+                                <option value="&lt;=">Less than or equal (≤)</option>
                                 <option value="==">Equal to (=)</option>
-                                <option value=">=">Greater than or equal (≥)</option>
-                                <option value=">">Greater than (>)</option>
+                                <option value="&gt;=">Greater than or equal (≥)</option>
+                                <option value="&gt;">Greater than (&gt;)</option>
                             </select>
                             <input type="number" class="builder-input" id="conditionValueInput" placeholder="Value" style="flex: 1;">
                         </div>
                     </div>
-                    
+
                     <div class="section-footer">
                         <button class="btn-secondary" id="actionStep2BackBtn">Back</button>
                         <button class="btn-create" id="actionStep2NextBtn">Next: Define Action</button>
                     </div>
                 </div>
-                
+
                 <!-- Step 3: Operation -->
                 <div class="builder-step hidden" id="actionStep3">
                     <div class="builder-section">
@@ -272,7 +274,7 @@
                             <option value="">-- Select Field --</option>
                         </select>
                     </div>
-                    
+
                     <div class="builder-section">
                         <label class="builder-label">Operation</label>
                         <select class="builder-input" id="actionOperatorSelect">
@@ -283,12 +285,12 @@
                             <option value="divide">Divide current</option>
                         </select>
                     </div>
-                    
+
                     <div class="builder-section">
                         <label class="builder-label">Value Source</label>
                         <div class="radio-group">
                             <label class="radio-label">
-                                <input type="radio" name="valueSource" value="roll" checked>
+                                <input type="radio" name="valueSource" value="roll" checked="">
                                 Use roll value
                             </label>
                             <label class="radio-label">
@@ -298,7 +300,7 @@
                         </div>
                         <input type="number" class="builder-input hidden" id="actionFixedValueInput" placeholder="Enter amount">
                     </div>
-                    
+
                     <div class="builder-section">
                         <label class="builder-label">Constraints (optional)</label>
                         <div style="display: flex; gap: 12px;">
@@ -312,7 +314,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="section-footer">
                         <button class="btn-secondary" id="actionStep3BackBtn">Back</button>
                         <button class="btn-create" id="actionStep3SaveBtn">Activate Action!</button>
@@ -320,7 +322,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Collaborative Doc Activity View -->
         <div id="collabDocView" class="card hidden">
             <div class="header">
@@ -330,7 +332,7 @@
                     <button class="btn-logout" id="leaveCollabDocBtn">Leave Activity</button>
                 </div>
             </div>
-            
+
             <div class="collab-doc-content">
                 <div class="section-header">
                     <div class="turn-indicator" id="turnIndicator">
@@ -338,20 +340,15 @@
                         <div class="turn-player" id="turnPlayer">Waiting...</div>
                     </div>
                 </div>
-                
+
                 <div class="scrollable-list">
                     <div class="story-blocks" id="storyBlocks"></div>
                 </div>
-                
+
                 <div class="section-footer">
                     <div class="your-turn-section" id="yourTurnSection">
                         <div class="your-turn-label">Your Turn:</div>
-                        <textarea 
-                            id="yourTurnInput" 
-                            class="turn-textarea" 
-                            placeholder="Write your part of the story..."
-                            maxlength="500"
-                        ></textarea>
+                        <textarea id="yourTurnInput" class="turn-textarea" placeholder="Write your part of the story..." maxlength="500"></textarea>
                         <div class="turn-actions">
                             <div class="char-count" id="charCount">0 / 500</div>
                             <div class="button-group">
@@ -360,7 +357,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="waiting-turn-section hidden" id="waitingTurnSection">
                         <div class="waiting-message">
                             <div class="waiting-icon">⏳</div>
@@ -370,7 +367,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Game View -->
         <div id="gameView" class="card hidden">
             <div class="header">
@@ -380,39 +377,39 @@
                     <button class="btn-logout" id="leaveGameBtn">Leave Activity</button>
                 </div>
             </div>
-            
+
             <div class="game-content">
                 <div class="section-header">
                     <div class="button-group">
                         <button class="btn-watch" id="watchBtn">Watch</button>
                         <button class="btn-play" id="playBtn">Play</button>
                     </div>
-                    
+
                     <div class="game-status" id="gameStatus">Waiting for next round...</div>
-                    
+
                     <div class="game-area" id="gameArea">
                         <div class="game-prompt" id="gamePrompt">Get Ready!</div>
                         <button class="game-button" id="gameButton">DRAW!</button>
                     </div>
-                    
+
                     <div class="section-title" style="margin-top: 24px;">Scoreboard</div>
                 </div>
-                
+
                 <div class="scrollable-list">
                     <div class="scoreboard" id="scoreboard"></div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Home View -->
         <div id="homeView" class="card hidden">
             <div class="header">
-                <h1 class="player-name" id="homePlayerName"></h1>
+                <h1 class="player-name" id="homePlayerName">Fluketcher</h1>
                 <div class="user-info">
-                    <span class="user-key">Key: <strong id="homePlayerKey"></strong></span>
+                    <span class="user-key">Key: <strong id="homePlayerKey">6LZ</strong></span>
                 </div>
             </div>
-            
+
             <!-- Tab Navigation -->
             <div class="tabs">
                 <button class="tab active" id="writeTab">Write</button>
@@ -421,23 +418,38 @@
                 <button class="tab" id="peopleTab">People</button>
                 <button class="tab" id="settingsTab">Settings</button>
             </div>
-            
+
             <!-- Scrollable Content Area -->
             <div class="tab-content">
-                
+
                 <!-- Write Section -->
                 <div id="writeSection" class="tab-section active">
                     <div class="section-header">
                         <div class="section-title">My Documents</div>
                     </div>
                     <div class="scrollable-list">
-                        <div class="documents-grid" id="documentsList"></div>
+                        <div class="documents-grid" id="documentsList">
+                            <div class="document-card">
+                                <div class="document-title">Testing, Testing</div>
+                                <div class="document-meta">
+                                    <span>Created: 12/19/2025</span>
+                                    <span>Updated: 12/21/2025</span>
+                                </div>
+                            </div>
+                            <div class="document-card">
+                                <div class="document-title">Untitled Document</div>
+                                <div class="document-meta">
+                                    <span>Created: 12/21/2025</span>
+                                    <span>Updated: 12/21/2025</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="section-footer">
                         <button class="btn-create" id="createDocBtn">New Document</button>
                     </div>
                 </div>
-                
+
                 <!-- Toolkit Section -->
                 <div id="toolkitSection" class="tab-section hidden">
                     <div class="section-header">
@@ -445,10 +457,56 @@
                         <button class="btn-create" id="createObjectTypeBtn">New Object Type</button>
                     </div>
                     <div class="scrollable-list">
-                        <div class="object-types-grid" id="objectTypesList"></div>
+                        <div class="object-types-grid" id="objectTypesList">
+                            <div class="object-type-card">
+                                <div class="object-type-name">Food Recipe</div>
+                                <div class="object-type-fields">5 fields</div>
+                                <div class="object-type-tags"><span class="object-type-tag">health</span><span class="object-type-tag">diet</span><span class="object-type-tag">Food</span></div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Run</div>
+                                <div class="object-type-fields">3 fields</div>
+                                <div class="object-type-tags"><span class="object-type-tag">fitness</span></div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Game Match | Arc Raiders</div>
+                                <div class="object-type-fields">3 fields</div>
+                                <div class="object-type-tags"><span class="object-type-tag">Arc Raiders</span><span class="object-type-tag">Gaming</span></div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Map | Arc Raiders</div>
+                                <div class="object-type-fields">5 fields</div>
+                                <div class="object-type-tags"><span class="object-type-tag">Arc Raiders</span></div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Video Game</div>
+                                <div class="object-type-fields">5 fields</div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Character</div>
+                                <div class="object-type-fields">5 fields</div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Banana Fiend</div>
+                                <div class="object-type-fields">2 fields</div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Movie</div>
+                                <div class="object-type-fields">10 fields</div>
+                                <div class="object-type-tags"><span class="object-type-tag">Entertainment</span><span class="object-type-tag">Media</span></div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Food Item</div>
+                                <div class="object-type-fields">3 fields</div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                            <div class="object-type-card">
+                                <div class="object-type-name">Things I ate</div>
+                                <div class="object-type-fields">4 fields</div><button class="btn-secondary" style="margin-top: 12px;">Edit Type</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
+
                 <!-- Play Section -->
                 <div id="playSection" class="tab-section hidden">
                     <div class="section-header">
@@ -456,10 +514,43 @@
                         <button class="btn-create" id="createRoomBtn">Create New Room</button>
                     </div>
                     <div class="scrollable-list">
-                        <div class="rooms-grid" id="roomsList"></div>
+                        <div class="rooms-grid" id="roomsList">
+                            <div class="room-card">
+                                <div class="room-code-text">4BTS</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                            <div class="room-card">
+                                <div class="room-code-text">8BTJ</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                            <div class="room-card">
+                                <div class="room-code-text">JTBZ</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                            <div class="room-card">
+                                <div class="room-code-text">QWPX</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                            <div class="room-card">
+                                <div class="room-code-text">S4ST</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                            <div class="room-card">
+                                <div class="room-code-text">VHC3</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                            <div class="room-card">
+                                <div class="room-code-text">YNW8</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                            <div class="room-card">
+                                <div class="room-code-text">ZNAF</div>
+                                <div class="room-players">0 players</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
+
                 <!-- People Section -->
                 <div id="peopleSection" class="tab-section hidden">
                     <div class="section-header">
@@ -470,59 +561,59 @@
                         <div class="users-grid" id="usersList"></div>
                     </div>
                 </div>
-                
+
                 <!-- Settings Section -->
                 <div id="settingsSection" class="tab-section hidden">
                     <div class="section-header">
                         <div class="section-title">Profile</div>
                     </div>
-                    
+
                     <div class="scrollable-list">
                         <div class="settings-group">
                             <div class="setting-item">
                                 <div class="setting-label">Name</div>
-                                <div class="setting-value" id="settingsName"></div>
+                                <div class="setting-value" id="settingsName">Fluketcher</div>
                             </div>
-                            
+
                             <div class="setting-item">
                                 <div class="setting-label">Registration Key</div>
-                                <div class="setting-value" id="settingsKey"></div>
+                                <div class="setting-value" id="settingsKey">6LZ</div>
                             </div>
-                            
+
                             <div class="setting-item">
                                 <div class="setting-label">Account Created</div>
-                                <div class="setting-value" id="settingsCreated"></div>
+                                <div class="setting-value" id="settingsCreated">December 19, 2025</div>
                             </div>
                         </div>
-                        
+
                         <div class="section-title" style="margin-top: 32px;">Sound</div>
-                        
+
                         <div class="settings-group">
                             <div class="setting-item">
                                 <div class="setting-label">Sound Effects</div>
                                 <label class="toggle-switch">
-                                    <input type="checkbox" id="soundToggle" checked>
+                                    <input type="checkbox" id="soundToggle" checked="">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            
+
                             <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
                                 <div class="setting-label" style="margin-bottom: 8px;">Volume</div>
                                 <input type="range" id="volumeSlider" min="0" max="100" value="50" class="volume-slider">
                             </div>
                         </div>
-                        
+
                         <div class="section-title" style="margin-top: 32px;">Account</div>
                     </div>
-                    
+
                     <div class="section-footer">
                         <button class="btn-leave" id="logoutBtn">Logout</button>
                     </div>
                 </div>
-                
+
             </div>
         </div>
-        
+
         <!-- Profile View -->
         <div id="profileView" class="card hidden">
             <div class="header">
@@ -531,7 +622,7 @@
                     <h1 class="card-header-title" id="profileName">Loading...</h1>
                 </div>
             </div>
-            
+
             <div class="profile-content">
                 <div class="section-header">
                     <div class="profile-stats">
@@ -548,21 +639,21 @@
                             <span class="stat-value" id="profileDocCount">0</span>
                         </div>
                     </div>
-                    
+
                     <div class="section-title" style="margin-top: 24px;">Public Documents</div>
                 </div>
-                
+
                 <div class="scrollable-list">
                     <div class="documents-grid" id="profileDocsList"></div>
                 </div>
             </div>
-            
+
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
                 <button class="btn-secondary" id="backFromProfileBtn">← Back</button>
             </div>
         </div>
-        
+
         <!-- Object Type Builder View -->
         <div id="objectTypeBuilderView" class="card hidden">
             <div class="header">
@@ -571,19 +662,14 @@
                     <h1 class="card-header-title" id="objectTypeBuilderTitle">New Object Type</h1>
                 </div>
             </div>
-            
+
             <div class="builder-content">
                 <div class="scrollable-list">
                     <div class="builder-section">
                         <div class="builder-label">Type Name</div>
-                        <input 
-                            type="text" 
-                            id="objectTypeName" 
-                            class="builder-input" 
-                            placeholder="e.g. Run, Recipe, Task..."
-                        >
+                        <input type="text" id="objectTypeName" class="builder-input" placeholder="e.g. Run, Recipe, Task...">
                     </div>
-                    
+
                     <div class="builder-section">
                         <div class="builder-header">
                             <div class="builder-label">Fields</div>
@@ -591,19 +677,14 @@
                         </div>
                         <div class="fields-list" id="fieldsList"></div>
                     </div>
-                    
+
                     <div class="builder-section">
                         <div class="builder-label">Tags</div>
-                        <input 
-                            type="text" 
-                            id="objectTypeTags" 
-                            class="builder-input" 
-                            placeholder="fitness, work, health (comma-separated)"
-                        >
+                        <input type="text" id="objectTypeTags" class="builder-input" placeholder="fitness, work, health (comma-separated)">
                     </div>
                 </div>
             </div>
-            
+
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
                 <button class="btn-secondary" id="backFromBuilderBtn">← Back to Toolkit</button>
@@ -611,7 +692,7 @@
                 <button class="btn-create" id="saveObjectTypeBtn">Save Object Type</button>
             </div>
         </div>
-        
+
         <!-- Object Instances List View -->
         <div id="objectInstancesView" class="card hidden">
             <div class="header">
@@ -620,46 +701,41 @@
                     <h1 class="card-header-title" id="instancesTypeName">Instances</h1>
                 </div>
             </div>
-            
+
             <div class="instances-content">
                 <div class="instances-controls">
                     <div class="instances-search">
-                        <input 
-                            type="text" 
-                            id="instancesSearchInput" 
-                            class="search-input" 
-                            placeholder="Search instances..."
-                        >
+                        <input type="text" id="instancesSearchInput" class="search-input" placeholder="Search instances...">
                     </div>
-                    
+
                     <div class="instances-actions">
                         <div class="view-toggle">
                             <button class="view-toggle-btn active" id="cardViewBtn" title="Card View">
-                                <img src="icon-view-card.svg" class="btn-icon" alt="Card View">
+                                <img src="./Game Lobby_files/icon-view-card.svg" class="btn-icon" alt="Card View">
                             </button>
                             <button class="view-toggle-btn" id="tableViewBtn" title="Table View">
-                                <img src="icon-view-table.svg" class="btn-icon" alt="Table View">
+                                <img src="./Game Lobby_files/icon-view-table.svg" class="btn-icon" alt="Table View">
                             </button>
                         </div>
                         <button class="btn-secondary" id="exportCsvBtn">Export CSV</button>
                         <button class="btn-secondary hidden" id="bulkDeleteBtn">Delete Selected</button>
                     </div>
                 </div>
-                
+
                 <!-- Inline Visualization Panel -->
                 <div id="inlineVizPanel" class="inline-viz-panel hidden">
                     <div class="inline-viz-header">
                         <h3>
-                            <img src="icon-chart-bar.svg" class="header-icon" alt=""> Data Visualization
+                            <img src="./Game Lobby_files/icon-chart-bar.svg" class="header-icon" alt=""> Data Visualization
                         </h3>
                         <button class="inline-viz-close" id="closeInlineVizBtn" title="Close">×</button>
                     </div>
-                    
+
                     <!-- Chart comes FIRST -->
                     <div class="inline-viz-chart">
                         <canvas id="inlineChart"></canvas>
                     </div>
-                    
+
                     <!-- Controls come AFTER chart -->
                     <div class="inline-viz-controls">
                         <div class="viz-control">
@@ -671,21 +747,21 @@
                                 <option value="pie">Pie Chart</option>
                             </select>
                         </div>
-                        
+
                         <div class="viz-control">
                             <label>X-Axis</label>
                             <select id="inlineXAxis" class="viz-select">
                                 <option value="">Select field...</option>
                             </select>
                         </div>
-                        
+
                         <div class="viz-control">
                             <label>Y-Axis</label>
                             <select id="inlineYAxis" class="viz-select">
                                 <option value="">Select field...</option>
                             </select>
                         </div>
-                        
+
                         <div class="viz-control">
                             <label>Aggregation</label>
                             <select id="inlineAggregation" class="viz-select">
@@ -698,10 +774,10 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="inline-viz-stats" id="inlineStats"></div>
                 </div>
-                
+
                 <div class="scrollable-list">
                     <div class="instances-list" id="instancesList"></div>
                     <div class="instances-table-wrapper hidden" id="instancesTableWrapper">
@@ -712,17 +788,17 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
                 <button class="btn-secondary" id="backFromInstancesBtn">← Back to Toolkit</button>
                 <button class="btn-create" id="createInstanceBtn">+ New Instance</button>
                 <button class="btn-secondary" id="visualizeBtn">
-                    <img src="icon-chart-bar.svg" class="btn-icon" alt=""> Visualize
+                    <img src="./Game Lobby_files/icon-chart-bar.svg" class="btn-icon" alt=""> Visualize
                 </button>
             </div>
         </div>
-        
+
         <!-- Data Visualization View -->
         <div id="dataVisualizationView" class="card hidden">
             <div class="header">
@@ -731,7 +807,7 @@
                     <button class="btn-logout" id="backFromVisualizationBtn">Back to List</button>
                 </div>
             </div>
-            
+
             <div class="visualization-content">
                 <div class="viz-controls">
                     <div class="viz-control-group">
@@ -743,17 +819,17 @@
                             <option value="pie">Pie Chart</option>
                         </select>
                     </div>
-                    
+
                     <div class="viz-control-group" id="xAxisGroup">
                         <label class="viz-label">X-Axis</label>
                         <select id="xAxisSelect" class="viz-select"></select>
                     </div>
-                    
+
                     <div class="viz-control-group" id="yAxisGroup">
                         <label class="viz-label">Y-Axis</label>
                         <select id="yAxisSelect" class="viz-select"></select>
                     </div>
-                    
+
                     <div class="viz-control-group" id="aggregationGroup">
                         <label class="viz-label">Aggregation</label>
                         <select id="aggregationSelect" class="viz-select">
@@ -766,17 +842,17 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="scrollable-list">
                     <div class="chart-container">
                         <canvas id="dataChart"></canvas>
                     </div>
-                    
+
                     <div class="chart-stats" id="chartStats"></div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Object Instance Editor View -->
         <div id="objectInstanceEditorView" class="card hidden">
             <div class="header">
@@ -785,13 +861,13 @@
                     <h1 class="card-header-title" id="instanceEditorTitle">Untitled</h1>
                 </div>
             </div>
-            
+
             <div class="instance-editor-content">
                 <div class="scrollable-list">
                     <div class="instance-form" id="instanceForm"></div>
                 </div>
             </div>
-            
+
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
                 <button class="btn-secondary" id="backFromInstanceEditorBtn">← Cancel</button>
@@ -799,7 +875,7 @@
                 <button class="btn-create" id="saveInstanceBtn">Save Changes</button>
             </div>
         </div>
-        
+
         <!-- Document Editor View -->
         <div id="editorView" class="card hidden">
             <div class="header">
@@ -808,7 +884,7 @@
                     <h1 class="card-header-title" id="editorHeaderTitle">Untitled</h1>
                 </div>
             </div>
-            
+
             <!-- Scrollable Editor Content -->
             <div class="editor-content">
                 <!-- Edit Mode -->
@@ -817,7 +893,7 @@
                         <label class="input-label" for="docTitle">Title:</label>
                         <input id="docTitle" placeholder="Untitled Document">
                     </div>
-                    
+
                     <div class="input-group">
                         <label class="input-label" for="docPrivacy">Privacy:</label>
                         <select id="docPrivacy" class="privacy-select">
@@ -825,24 +901,24 @@
                             <option value="public">Public - Anyone can view</option>
                         </select>
                     </div>
-                    
+
                     <div class="input-group">
                         <label class="input-label" for="docContent">Content (Markdown supported):</label>
                         <textarea id="docContent" placeholder="Start writing..."></textarea>
                     </div>
-                    
+
                     <div class="markdown-hint">
                         Markdown tips: # Heading, ## Subheading, **bold**, *italic*, [link](url), ![alt](image-url)
                     </div>
                 </div>
-                
+
                 <!-- Reader Mode -->
                 <div id="readerMode" class="editor-section hidden">
                     <h1 class="reader-title" id="readerTitle"></h1>
                     <div class="reader-content" id="readerContent"></div>
                 </div>
             </div>
-            
+
             <!-- Fixed Action Socket -->
             <div class="action-pill-socket">
                 <button class="btn-secondary" id="backToHomeBtn">← Back to Home</button>
@@ -854,16 +930,16 @@
                 <button class="btn-create" id="saveDocBtn">Save</button>
             </div>
         </div>
-        
+
         <!-- Gordata View - Customizable Dashboard -->
-        <div id="gordataView" class="card hidden">
+        <div id="gordataView" class="card">
             <div class="header">
                 <div class="card-header-descriptive">
                     <span class="card-header-context">Your Workspace</span>
                     <h1 class="card-header-title">Gordata</h1>
                 </div>
             </div>
-            
+
             <div class="gordata-content">
                 <!-- Grid Controls (Edit Mode) -->
                 <div id="gordataControls" class="gordata-controls">
@@ -875,76 +951,354 @@
                             <button class="column-btn" data-cols="4">4</button>
                         </div>
                     </div>
-                    
+
                     <div class="control-group">
                         <label>Rows:</label>
                         <div class="row-controls" id="rowControls">
-                            <!-- Row height controls will be generated here -->
+                            <div class="row-control">
+                                <label>Row 1</label>
+                                <input type="range" min="100" max="500" value="142" data-row="0" class="row-height-slider">
+                                <span class="height-value">142px</span>
+                                <button class="remove-row" data-row="0">×</button>
+                            </div>
+                            <div class="row-control">
+                                <label>Row 2</label>
+                                <input type="range" min="100" max="500" value="145" data-row="1" class="row-height-slider">
+                                <span class="height-value">145px</span>
+                                <button class="remove-row" data-row="1">×</button>
+                            </div>
+                            <div class="row-control">
+                                <label>Row 3</label>
+                                <input type="range" min="100" max="500" value="244" data-row="2" class="row-height-slider">
+                                <span class="height-value">244px</span>
+                                <button class="remove-row" data-row="2">×</button>
+                            </div>
+                            <div class="row-control">
+                                <label>Row 4</label>
+                                <input type="range" min="100" max="500" value="200" data-row="3" class="row-height-slider">
+                                <span class="height-value">200px</span>
+                                <button class="remove-row" data-row="3">×</button>
+                            </div>
+                            <div class="row-control">
+                                <label>Row 5</label>
+                                <input type="range" min="100" max="500" value="200" data-row="4" class="row-height-slider">
+                                <span class="height-value">200px</span>
+                                <button class="remove-row" data-row="4">×</button>
+                            </div>
+                            <div class="row-control">
+                                <label>Row 6</label>
+                                <input type="range" min="100" max="500" value="200" data-row="5" class="row-height-slider">
+                                <span class="height-value">200px</span>
+                                <button class="remove-row" data-row="5">×</button>
+                            </div>
+                            <div class="row-control">
+                                <label>Row 7</label>
+                                <input type="range" min="100" max="500" value="200" data-row="6" class="row-height-slider">
+                                <span class="height-value">200px</span>
+                                <button class="remove-row" data-row="6">×</button>
+                            </div>
+                            <div class="row-control">
+                                <label>Row 8</label>
+                                <input type="range" min="100" max="500" value="200" data-row="7" class="row-height-slider">
+                                <span class="height-value">200px</span>
+                                <button class="remove-row" data-row="7">×</button>
+                            </div>
                         </div>
                         <button class="btn-secondary" id="addRowBtn">+ Add Row</button>
                     </div>
-                    
+
                     <div class="control-group">
-                        <button class="btn-secondary" id="toggleEditModeBtn">Exit Edit Mode</button>
+                        <button class="btn-secondary" id="toggleEditModeBtn">Edit Layout</button>
                         <button class="btn-create" id="saveGordataBtn">Save Layout</button>
                     </div>
                 </div>
-                
+
                 <!-- Grid Container -->
                 <div class="scrollable-list">
-                    <div id="gordataGrid" class="gordata-grid">
-                        <!-- Grid sockets will be generated here -->
+                    <div id="gordataGrid" class="gordata-grid" style="grid-template-rows: 142px 145px 244px 200px 200px 200px 200px 200px; grid-template-columns: repeat(3, 1fr);">
+                        <div class="grid-socket" data-row="0" data-col="0">
+                            <div class="socket-coordinates">R1C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="0" data-col="1">
+                            <div class="socket-coordinates">R1C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="0" data-col="2">
+                            <div class="socket-coordinates">R1C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="1" data-col="0">
+                            <div class="socket-coordinates">R2C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="1" data-col="1">
+                            <div class="socket-coordinates">R2C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="1" data-col="2">
+                            <div class="socket-coordinates">R2C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="2" data-col="0">
+                            <div class="socket-coordinates">R3C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="2" data-col="1">
+                            <div class="socket-coordinates">R3C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="2" data-col="2">
+                            <div class="socket-coordinates">R3C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="3" data-col="0">
+                            <div class="socket-coordinates">R4C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="3" data-col="1">
+                            <div class="socket-coordinates">R4C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="3" data-col="2">
+                            <div class="socket-coordinates">R4C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="4" data-col="0">
+                            <div class="socket-coordinates">R5C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="4" data-col="1">
+                            <div class="socket-coordinates">R5C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="4" data-col="2">
+                            <div class="socket-coordinates">R5C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="5" data-col="0">
+                            <div class="socket-coordinates">R6C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="5" data-col="1">
+                            <div class="socket-coordinates">R6C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="5" data-col="2">
+                            <div class="socket-coordinates">R6C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="6" data-col="0">
+                            <div class="socket-coordinates">R7C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="6" data-col="1">
+                            <div class="socket-coordinates">R7C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="6" data-col="2">
+                            <div class="socket-coordinates">R7C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="7" data-col="0">
+                            <div class="socket-coordinates">R8C1</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="7" data-col="1">
+                            <div class="socket-coordinates">R8C2</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
+                        <div class="grid-socket" data-row="7" data-col="2">
+                            <div class="socket-coordinates">R8C3</div>
+                            <div class="socket-placeholder">
+                                <div class="socket-placeholder-icon">+</div>
+                                <div class="socket-placeholder-text">Add Widget</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                
+                
+                <!-- Sticky Action Socket -->
+                <div class="action-pill-socket">
+                    <button class="btn-secondary" id="backFromGordataBtn">← Back to Home</button>
+                    <button class="btn-secondary" id="editGordataBtn">Edit Layout</button>
+                </div>
+                
             </div>
             
-            <!-- Fixed Action Socket -->
-            <div class="action-pill-socket">
-                <button class="btn-secondary" id="backFromGordataBtn">← Back to Home</button>
-                <button class="btn-secondary" id="editGordataBtn">Edit Layout</button>
+            
+        </div>
+
+        <!-- Widget Picker Modal -->
+        <div id="widgetPickerModal" class="modal hidden">
+            <div class="modal-content" style="max-width: 600px;">
+                <h2 class="modal-title">Add Widget</h2>
+                
+                <div class="widget-picker-tabs">
+                    <button class="widget-tab active" data-tab="entities">📦 Entities</button>
+                    <button class="widget-tab" data-tab="special">✨ Special Widgets</button>
+                </div>
+                
+                <!-- Entities Tab -->
+                <div id="entitiesTab" class="widget-tab-content">
+                    <div class="widget-category">
+                        <h3>Object Types</h3>
+                        <div id="widgetObjectTypesList" class="widget-items-list">
+                            <!-- Object types will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <div class="widget-category">
+                        <h3>Documents</h3>
+                        <div id="widgetDocumentsList" class="widget-items-list">
+                            <!-- Documents will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <div class="widget-category">
+                        <h3>Rooms</h3>
+                        <div id="widgetRoomsList" class="widget-items-list">
+                            <!-- Rooms will be listed here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Special Widgets Tab -->
+                <div id="specialTab" class="widget-tab-content hidden">
+                    <div class="widget-special-item" data-widget="list">
+                        <div class="widget-special-icon">📋</div>
+                        <div class="widget-special-info">
+                            <div class="widget-special-title">List Display</div>
+                            <div class="widget-special-desc">Show a scrollable list of items</div>
+                        </div>
+                    </div>
+                    
+                    <div class="widget-special-item" data-widget="action">
+                        <div class="widget-special-icon">⚡</div>
+                        <div class="widget-special-info">
+                            <div class="widget-special-title">Action Widget</div>
+                            <div class="widget-special-desc">Quick action button (coming soon)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn-secondary" id="cancelWidgetPickerBtn" style="width: 100%; margin-top: 16px;">Cancel</button>
             </div>
         </div>
-        
+
         <!-- Top-Level Navigation Pill -->
-        <nav id="topNavigation" class="top-navigation hidden">
+        <nav id="topNavigation" class="top-navigation">
             <div class="nav-pills-row">
                 <button class="nav-pill" data-nav="home">
-                    <span class="nav-pill-icon">🏠</span>
+                    <span class="nav-pill-icon"></span>
                     <span class="nav-pill-label">Home</span>
                 </button>
-                <button class="nav-pill" data-nav="gordata">
-                    <span class="nav-pill-icon">📊</span>
+                <button class="nav-pill active" data-nav="gordata">
+                    <span class="nav-pill-icon"></span>
                     <span class="nav-pill-label">Gordata</span>
                 </button>
                 <button class="nav-pill" data-nav="toolkit">
-                    <span class="nav-pill-icon">🔧</span>
+                    <span class="nav-pill-icon"></span>
                     <span class="nav-pill-label">Toolkit</span>
                 </button>
                 <button class="nav-pill" data-nav="activity">
-                    <span class="nav-pill-icon">🎮</span>
+                    <span class="nav-pill-icon"></span>
                     <span class="nav-pill-label">Activity</span>
                 </button>
                 <button class="nav-pill nav-pill-settings" data-nav="profile">
-                    <span class="nav-pill-icon">⚙️</span>
+                    <span class="nav-pill-icon"></span>
                     <span class="nav-pill-label">Profile</span>
                 </button>
             </div>
             <div class="nav-user-info">
-                <span class="nav-user-name" id="navUserName">User Name</span>
+                <span class="nav-user-name" id="navUserName">Fluketcher</span>
             </div>
         </nav>
-        
+
     </div>
-    
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    
-    <script src="firebaseConfig.js"></script>
-    <script src="sounds.js"></script>
-    <script src="app.js"></script>
-    
+
+    <script src="./Game Lobby_files/firebase-app-compat.js"></script>
+    <script src="./Game Lobby_files/firebase-database-compat.js"></script>
+    <script src="./Game Lobby_files/marked.min.js"></script>
+    <script src="./Game Lobby_files/chart.umd.min.js"></script>
+
+    <script src="./Game Lobby_files/firebaseConfig.js"></script>
+    <script src="./Game Lobby_files/sounds.js"></script>
+    <script src="./Game Lobby_files/app.js"></script>
+
+
+
+
 </body>
 
 </html>

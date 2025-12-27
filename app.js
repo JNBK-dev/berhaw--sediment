@@ -594,6 +594,18 @@ class GordataManager {
         this.saveGordataBtn = document.getElementById('saveGordataBtn');
         this.editGordataBtn = document.getElementById('editGordataBtn');
         this.backFromGordataBtn = document.getElementById('backFromGordataBtn');
+        
+        // Widget picker elements
+        this.widgetPickerModal = document.getElementById('widgetPickerModal');
+        this.widgetTabs = document.querySelectorAll('.widget-tab');
+        this.entitiesTab = document.getElementById('entitiesTab');
+        this.specialTab = document.getElementById('specialTab');
+        this.widgetObjectTypesList = document.getElementById('widgetObjectTypesList');
+        this.widgetDocumentsList = document.getElementById('widgetDocumentsList');
+        this.widgetRoomsList = document.getElementById('widgetRoomsList');
+        this.cancelWidgetPickerBtn = document.getElementById('cancelWidgetPickerBtn');
+        
+        this.currentSocketPosition = null; // Track which socket is being configured
     }
     
     _loadConfig() {
@@ -638,6 +650,28 @@ class GordataManager {
         this.saveGordataBtn.addEventListener('click', () => {
             this.saveConfig();
             this.toggleEditMode();
+        });
+        
+        // Widget picker tab switching
+        this.widgetTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.widgetTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const tabName = tab.dataset.tab;
+                if (tabName === 'entities') {
+                    this.entitiesTab.classList.remove('hidden');
+                    this.specialTab.classList.add('hidden');
+                } else {
+                    this.entitiesTab.classList.add('hidden');
+                    this.specialTab.classList.remove('hidden');
+                }
+            });
+        });
+        
+        // Cancel widget picker
+        this.cancelWidgetPickerBtn.addEventListener('click', () => {
+            this.closeWidgetPicker();
         });
     }
     
@@ -740,11 +774,11 @@ class GordataManager {
         
         // Check if socket has a widget
         const socketKey = `${row}-${col}`;
-        const hasWidget = this.config.sockets[socketKey];
+        const widgetData = this.config.sockets[socketKey];
         
-        if (hasWidget) {
+        if (widgetData) {
             socket.classList.add('has-widget');
-            socket.innerHTML = this.renderWidget(hasWidget);
+            socket.innerHTML = this.renderWidget(widgetData, socketKey);
         } else {
             socket.innerHTML = `
                 <div class="socket-coordinates">R${row + 1}C${col + 1}</div>
@@ -755,46 +789,30 @@ class GordataManager {
             `;
             
             socket.addEventListener('click', () => {
-                if (this.editMode) {
-                    this.handleSocketClick(socket, row, col);
-                }
+                this.handleSocketClick(socket, row, col);
             });
         }
         
         return socket;
     }
     
-    renderWidget(widgetData) {
-        // Placeholder for widget rendering
-        return `
-            <div class="socket-widget">
-                <div class="socket-widget-header">
-                    <span class="socket-widget-title">${widgetData.title || 'Widget'}</span>
-                    <div class="socket-widget-actions">
-                        <button class="socket-action-btn">⚙️</button>
-                        <button class="socket-action-btn">×</button>
-                    </div>
-                </div>
-                <div class="socket-widget-content">
-                    Widget content here
-                </div>
-            </div>
-        `;
-    }
-    
     handleSocketClick(socket, row, col) {
         const socketKey = `${row}-${col}`;
         
-        // For now, just toggle selection
-        if (socket.classList.contains('selected')) {
-            socket.classList.remove('selected');
-            this.selectedSockets.delete(socketKey);
+        if (this.editMode) {
+            // In edit mode: toggle selection for combining sockets
+            if (socket.classList.contains('selected')) {
+                socket.classList.remove('selected');
+                this.selectedSockets.delete(socketKey);
+            } else {
+                socket.classList.add('selected');
+                this.selectedSockets.add(socketKey);
+            }
+            console.log('Selected sockets:', Array.from(this.selectedSockets));
         } else {
-            socket.classList.add('selected');
-            this.selectedSockets.add(socketKey);
+            // Not in edit mode: open widget picker
+            this.openWidgetPicker(row, col);
         }
-        
-        console.log('Selected sockets:', Array.from(this.selectedSockets));
     }
     
     toggleEditMode() {
@@ -813,7 +831,274 @@ class GordataManager {
         
         this.renderGrid();
     }
+    
+    // ============================================
+    // WIDGET MANAGEMENT
+    // ============================================
+    
+    openWidgetPicker(row, col) {
+        this.currentSocketPosition = { row, col };
+        this.populateWidgetPicker();
+        this.widgetPickerModal.classList.remove('hidden');
+        soundManager.play('click');
+    }
+    
+    closeWidgetPicker() {
+        this.widgetPickerModal.classList.add('hidden');
+        this.currentSocketPosition = null;
+    }
+    
+    populateWidgetPicker() {
+        // Get reference to app instance (will be passed during initialization)
+        if (!window.app) return;
+        
+        const app = window.app;
+        
+        // Populate object types
+        this.widgetObjectTypesList.innerHTML = '';
+        if (app.objectTypes && Object.keys(app.objectTypes).length > 0) {
+            Object.entries(app.objectTypes).forEach(([typeId, type]) => {
+                const item = document.createElement('div');
+                item.className = 'widget-item';
+                item.innerHTML = `
+                    <div class="widget-item-icon">📦</div>
+                    <div class="widget-item-info">
+                        <div class="widget-item-title">${type.name}</div>
+                        <div class="widget-item-desc">Object Type</div>
+                    </div>
+                `;
+                item.onclick = () => this.addWidget({
+                    type: 'objectType',
+                    id: typeId,
+                    title: type.name
+                });
+                this.widgetObjectTypesList.appendChild(item);
+            });
+        } else {
+            this.widgetObjectTypesList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No object types yet</div>';
+        }
+        
+        // Populate documents
+        this.widgetDocumentsList.innerHTML = '';
+        if (app.documents && Object.keys(app.documents).length > 0) {
+            const userDocs = Object.entries(app.documents).filter(([id, doc]) => 
+                doc.authorId === app.currentUser.id
+            );
+            
+            if (userDocs.length > 0) {
+                userDocs.forEach(([docId, doc]) => {
+                    const item = document.createElement('div');
+                    item.className = 'widget-item';
+                    item.innerHTML = `
+                        <div class="widget-item-icon">📄</div>
+                        <div class="widget-item-info">
+                            <div class="widget-item-title">${doc.title || 'Untitled'}</div>
+                            <div class="widget-item-desc">Document</div>
+                        </div>
+                    `;
+                    item.onclick = () => this.addWidget({
+                        type: 'document',
+                        id: docId,
+                        title: doc.title || 'Untitled'
+                    });
+                    this.widgetDocumentsList.appendChild(item);
+                });
+            } else {
+                this.widgetDocumentsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No documents yet</div>';
+            }
+        } else {
+            this.widgetDocumentsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No documents yet</div>';
+        }
+        
+        // Populate rooms
+        this.widgetRoomsList.innerHTML = '';
+        if (app.rooms && Object.keys(app.rooms).length > 0) {
+            Object.entries(app.rooms).forEach(([roomId, room]) => {
+                const item = document.createElement('div');
+                item.className = 'widget-item';
+                const playerCount = room.players ? Object.keys(room.players).length : 0;
+                item.innerHTML = `
+                    <div class="widget-item-icon">🏠</div>
+                    <div class="widget-item-info">
+                        <div class="widget-item-title">${room.name || roomId}</div>
+                        <div class="widget-item-desc">${playerCount} player${playerCount !== 1 ? 's' : ''}</div>
+                    </div>
+                `;
+                item.onclick = () => this.addWidget({
+                    type: 'room',
+                    id: roomId,
+                    title: room.name || roomId
+                });
+                this.widgetRoomsList.appendChild(item);
+            });
+        } else {
+            this.widgetRoomsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No rooms yet</div>';
+        }
+    }
+    
+    addWidget(widgetData) {
+        if (!this.currentSocketPosition) return;
+        
+        const { row, col } = this.currentSocketPosition;
+        const socketKey = `${row}-${col}`;
+        
+        this.config.sockets[socketKey] = widgetData;
+        this.closeWidgetPicker();
+        this.renderGrid();
+        this.saveConfig();
+        
+        soundManager.play('accepted');
+    }
+    
+    removeWidget(socketKey) {
+        delete this.config.sockets[socketKey];
+        this.renderGrid();
+        this.saveConfig();
+        
+        soundManager.play('reclick');
+    }
+    
+    renderWidget(widgetData, socketKey) {
+        const app = window.app;
+        if (!app) return 'Widget loading...';
+        
+        switch (widgetData.type) {
+            case 'objectType':
+                return this.renderObjectTypeWidget(widgetData, socketKey);
+            case 'document':
+                return this.renderDocumentWidget(widgetData, socketKey);
+            case 'room':
+                return this.renderRoomWidget(widgetData, socketKey);
+            default:
+                return `
+                    <div class="socket-widget">
+                        <div class="socket-widget-header">
+                            <span class="socket-widget-title">${widgetData.title || 'Widget'}</span>
+                            <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                        </div>
+                        <div class="socket-widget-content">
+                            Unknown widget type
+                        </div>
+                    </div>
+                `;
+        }
+    }
+    
+    renderObjectTypeWidget(widgetData, socketKey) {
+        const app = window.app;
+        const type = app.objectTypes[widgetData.id];
+        
+        if (!type) {
+            return `
+                <div class="socket-widget">
+                    <div class="socket-widget-header">
+                        <span class="socket-widget-title">Object Type Not Found</span>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Get instances of this type
+        const instances = app.instances ? Object.entries(app.instances).filter(([id, inst]) => 
+            inst.typeId === widgetData.id
+        ) : [];
+        
+        return `
+            <div class="socket-widget">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">📦 ${type.name}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn" onclick="window.app.openObjectType('${widgetData.id}')" title="View all">👁️</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="font-size: 13px; color: #64748b;">
+                    ${instances.length} instance${instances.length !== 1 ? 's' : ''}
+                    <div style="margin-top: 8px;">
+                        <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
+                            onclick="window.app.openObjectType('${widgetData.id}')">
+                            View Instances →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    renderDocumentWidget(widgetData, socketKey) {
+        const app = window.app;
+        const doc = app.documents[widgetData.id];
+        
+        if (!doc) {
+            return `
+                <div class="socket-widget">
+                    <div class="socket-widget-header">
+                        <span class="socket-widget-title">Document Not Found</span>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const preview = doc.content ? doc.content.substring(0, 100) : 'No content';
+        
+        return `
+            <div class="socket-widget">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">📄 ${doc.title || 'Untitled'}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn" onclick="window.app.openDocument('${widgetData.id}')" title="Open">✏️</button>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="font-size: 12px; color: #64748b; line-height: 1.5;">
+                    ${preview}${doc.content && doc.content.length > 100 ? '...' : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    renderRoomWidget(widgetData, socketKey) {
+        const app = window.app;
+        const room = app.rooms[widgetData.id];
+        
+        if (!room) {
+            return `
+                <div class="socket-widget">
+                    <div class="socket-widget-header">
+                        <span class="socket-widget-title">Room Not Found</span>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const playerCount = room.players ? Object.keys(room.players).length : 0;
+        const playerNames = room.players ? Object.values(room.players).map(p => p.name).join(', ') : 'No players';
+        
+        return `
+            <div class="socket-widget">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">🏠 ${room.name || widgetData.id}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">×</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="font-size: 13px;">
+                    <div style="color: #64748b; margin-bottom: 8px;">
+                        ${playerCount} player${playerCount !== 1 ? 's' : ''}: ${playerNames}
+                    </div>
+                    <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
+                        onclick="window.app.joinRoom('${widgetData.id}')">
+                        Join Room →
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 }
+
 
 // ============================================
 // APP CLASS
