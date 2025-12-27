@@ -1282,6 +1282,28 @@ class GordataManager {
         }
     }
     
+    findNextAvailableSocket() {
+        // Find the first empty socket (not absorbed by combined socket)
+        for (let row = 0; row < this.config.rows.length; row++) {
+            for (let col = 0; col < this.config.columns; col++) {
+                const socketKey = `${row}-${col}`;
+                
+                // Skip if socket is absorbed by a combined socket
+                if (this.isSocketAbsorbed(row, col)) continue;
+                
+                // Skip if socket has a widget
+                const widgetData = this.config.sockets[socketKey];
+                if (widgetData && !widgetData.isEmpty) continue;
+                
+                // Found an available socket!
+                return socketKey;
+            }
+        }
+        
+        // No available sockets
+        return null;
+    }
+    
     addWidget(widgetData) {
         if (!this.currentSocketPosition) return;
         
@@ -1328,6 +1350,8 @@ class GordataManager {
                 return this.renderPieChartWidget(widgetData, socketKey);
             case 'activityChart':
                 return this.renderActivityChartWidget(widgetData, socketKey);
+            case 'savedVisualization':
+                return this.renderSavedVisualizationWidget(widgetData, socketKey);
             default:
                 return `
                     <div class="socket-widget">
@@ -2082,6 +2106,286 @@ class GordataManager {
             }
         }
     }
+    
+    renderSavedVisualizationWidget(widgetData, socketKey) {
+        const widgetId = `widget-${socketKey}`;
+        const chartId = `chart-${socketKey}`;
+        
+        // Render widget structure with canvas for chart
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">${widgetData.title || 'Visualization'}</span>
+                    <div class="socket-widget-actions">
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="padding: 12px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+                    <div style="width: 100%; height: 100%; min-height: 150px;">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Fetch data and render chart
+        this.updateSavedVisualization(chartId, widgetId, widgetData.config);
+        
+        return html;
+    }
+    
+    async updateSavedVisualization(chartId, widgetId, config) {
+        try {
+            const userId = window.app.currentUser ? window.app.currentUser.id : null;
+            if (!userId) return;
+            
+            // Fetch object type
+            const typeSnapshot = await db.ref(`objectTypes/${config.objectTypeId}`).once('value');
+            if (!typeSnapshot.exists()) {
+                console.error('Object type not found:', config.objectTypeId);
+                return;
+            }
+            
+            const objectType = typeSnapshot.val();
+            const xField = objectType.fields[config.xFieldId];
+            const yField = objectType.fields[config.yFieldId];
+            
+            if (!xField || !yField) {
+                console.error('Fields not found in object type');
+                return;
+            }
+            
+            // Fetch instances for this object type
+            const instancesSnapshot = await db.ref('objects')
+                .orderByChild('typeId')
+                .equalTo(config.objectTypeId)
+                .once('value');
+            
+            if (!instancesSnapshot.exists()) {
+                // No data yet
+                const canvas = document.getElementById(chartId);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.font = '14px sans-serif';
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No data yet', canvas.width / 2, canvas.height / 2);
+                }
+                return;
+            }
+            
+            // Convert to array
+            const instances = [];
+            instancesSnapshot.forEach(snap => {
+                instances.push({
+                    id: snap.key,
+                    ...snap.val()
+                });
+            });
+            
+            // Prepare data points (same logic as visualization view)
+            const dataPoints = [];
+            
+            // For relationship fields, resolve display names
+            const relationshipCache = {};
+            if (xField.type === 'relationship' && xField.targetType) {
+                try {
+                    const relInstancesSnap = await db.ref("objects")
+                        .orderByChild("typeId")
+                        .equalTo(xField.targetType)
+                        .once("value");
+                    
+                    relInstancesSnap.forEach(snap => {
+                        const instance = snap.val();
+                        let displayName = snap.key.substring(0, 8);
+                        if (instance.data) {
+                            const firstValue = Object.values(instance.data).find(v => v && v !== "");
+                            if (firstValue) {
+                                displayName = String(firstValue).substring(0, 50);
+                            }
+                        }
+                        relationshipCache[snap.key] = displayName;
+                    });
+                } catch (err) {
+                    console.error("Failed to load relationship data:", err);
+                }
+            }
+            
+            instances.forEach(instance => {
+                if (!instance.data) return;
+                
+                const xValue = instance.data[config.xFieldId];
+                const yValue = instance.data[config.yFieldId];
+                
+                if (xValue !== undefined && xValue !== null && yValue !== undefined && yValue !== null) {
+                    let xLabel = xValue;
+                    
+                    // Format x value
+                    if (xField.type === 'date') {
+                        xLabel = new Date(xValue).toLocaleDateString();
+                    } else if (xField.type === 'boolean') {
+                        xLabel = xValue ? 'Yes' : 'No';
+                    } else if (xField.type === 'relationship') {
+                        xLabel = relationshipCache[xValue] || xValue.substring(0, 8);
+                    }
+                    
+                    // Convert y value to number
+                    let yNum = yValue;
+                    if (yField.type === 'number') {
+                        yNum = parseFloat(yValue);
+                    } else if (yField.type === 'boolean') {
+                        yNum = yValue ? 1 : 0;
+                    }
+                    
+                    dataPoints.push({
+                        x: xValue,
+                        xLabel: xLabel,
+                        y: yNum
+                    });
+                }
+            });
+            
+            // Sort by x value for line charts
+            if (config.chartType === 'line' && xField.type === 'date') {
+                dataPoints.sort((a, b) => new Date(a.x) - new Date(b.x));
+            }
+            
+            // Apply aggregation
+            let aggregatedData = dataPoints;
+            if (config.aggregation !== 'none') {
+                const groups = {};
+                dataPoints.forEach(point => {
+                    const key = point.xLabel;
+                    if (!groups[key]) {
+                        groups[key] = [];
+                    }
+                    groups[key].push(point.y);
+                });
+                
+                aggregatedData = [];
+                Object.entries(groups).forEach(([xLabel, yValues]) => {
+                    let value;
+                    if (config.aggregation === 'sum') {
+                        value = yValues.reduce((a, b) => a + b, 0);
+                    } else if (config.aggregation === 'avg') {
+                        value = yValues.reduce((a, b) => a + b, 0) / yValues.length;
+                    } else if (config.aggregation === 'count') {
+                        value = yValues.length;
+                    } else if (config.aggregation === 'min') {
+                        value = Math.min(...yValues);
+                    } else if (config.aggregation === 'max') {
+                        value = Math.max(...yValues);
+                    }
+                    
+                    aggregatedData.push({
+                        xLabel: xLabel,
+                        y: value
+                    });
+                });
+            }
+            
+            // Render chart
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
+            
+            // Destroy existing chart if any
+            if (canvas.chart) {
+                canvas.chart.destroy();
+            }
+            
+            if (aggregatedData.length === 0) {
+                const ctx = canvas.getContext('2d');
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = '#64748b';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Create chart
+            const showAsPercentage = config.showAsPercentage || false;
+            
+            canvas.chart = new Chart(canvas, {
+                type: config.chartType,
+                data: {
+                    labels: aggregatedData.map(p => p.xLabel),
+                    datasets: [{
+                        label: yField.name,
+                        data: showAsPercentage ? aggregatedData.map(p => p.y * 100) : aggregatedData.map(p => p.y),
+                        backgroundColor: config.chartType === 'bar' ? '#3b82f6' : 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        fill: config.chartType === 'line',
+                        tension: 0.4,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: showAsPercentage ? {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(1) + '%';
+                                }
+                            } : undefined
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: showAsPercentage ? {
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                font: {
+                                    size: 11
+                                }
+                            } : {
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error creating saved visualization:', error);
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = '#dc2626';
+                ctx.textAlign = 'center';
+                ctx.fillText('Error loading chart', canvas.width / 2, canvas.height / 2);
+            }
+        }
+    }
 }
 
 
@@ -2193,6 +2497,9 @@ class App {
         this.dataChart = document.getElementById("dataChart");
         this.chartStats = document.getElementById("chartStats");
         this.backFromVisualizationBtn = document.getElementById("backFromVisualizationBtn");
+        this.saveToGordataBtn = document.getElementById("saveToGordataBtn");
+        this.showAsPercentageCheckbox = document.getElementById("showAsPercentageCheckbox");
+        this.percentageGroup = document.getElementById("percentageGroup");
 
         // DOM elements - Object Instance Editor View
         this.objectInstanceEditorView = document.getElementById("objectInstanceEditorView");
@@ -2438,6 +2745,8 @@ class App {
         this.xAxisSelect.onchange = () => this.updateChart();
         this.yAxisSelect.onchange = () => this.updateChart();
         this.aggregationSelect.onchange = () => this.updateChart();
+        this.saveToGordataBtn.onclick = () => this.saveVisualizationToGordata();
+        this.showAsPercentageCheckbox.onchange = () => this.updateChart();
         
         // Document actions
         this.createDocBtn.onclick = () => this.createDocument();
@@ -5022,6 +5331,62 @@ class App {
         this.dataVisualizationView.classList.add("hidden");
         this.objectInstancesView.classList.remove("hidden");
     }
+    
+    saveVisualizationToGordata() {
+        // Get current visualization configuration
+        const chartType = this.chartTypeSelect.value;
+        const xFieldId = this.xAxisSelect.value;
+        const yFieldId = this.yAxisSelect.value;
+        const aggregation = this.aggregationSelect.value;
+        const showAsPercentage = this.showAsPercentageCheckbox.checked;
+        
+        if (!xFieldId || !yFieldId) {
+            this.showToast("Please configure the visualization first", "error");
+            return;
+        }
+        
+        // Get field names for better title suggestion
+        const xField = this.currentObjectType.fields[xFieldId];
+        const yField = this.currentObjectType.fields[yFieldId];
+        
+        // Suggest a title based on configuration
+        let suggestedTitle = `${yField.name} by ${xField.name}`;
+        if (showAsPercentage) {
+            suggestedTitle = `${yField.name} Rate by ${xField.name}`;
+        }
+        
+        const title = prompt('Enter a title for this visualization:', suggestedTitle);
+        if (!title) return; // User cancelled
+        
+        // Create widget configuration
+        const widgetConfig = {
+            type: 'savedVisualization',
+            title: title,
+            config: {
+                objectTypeId: this.currentObjectTypeId,
+                objectTypeName: this.currentObjectType.name,
+                chartType: chartType,
+                xFieldId: xFieldId,
+                yFieldId: yFieldId,
+                aggregation: aggregation,
+                showAsPercentage: showAsPercentage
+            }
+        };
+        
+        // Find next available socket
+        const nextSocket = this.gordataManager.findNextAvailableSocket();
+        if (!nextSocket) {
+            this.showToast("No available sockets in Gordata. Remove a widget or add more rows.", "error");
+            return;
+        }
+        
+        // Add to Gordata
+        this.gordataManager.config.sockets[nextSocket] = widgetConfig;
+        this.gordataManager.saveConfig();
+        
+        this.showToast(`"${title}" saved to Gordata!`, "success");
+        soundManager.play('accepted');
+    }
 
     setupVisualizationControls() {
         // Populate axis selects with field options
@@ -5084,6 +5449,14 @@ class App {
         // Get field metadata
         const xField = this.currentObjectType.fields[xFieldId];
         const yField = this.currentObjectType.fields[yFieldId];
+        
+        // Show percentage option for boolean averages (win rate)
+        if (yField.type === 'boolean' && aggregation === 'avg') {
+            this.percentageGroup.style.display = 'block';
+        } else {
+            this.percentageGroup.style.display = 'none';
+            this.showAsPercentageCheckbox.checked = false;
+        }
 
         // Prepare data (now async to handle relationships)
         const chartData = await this.prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType);
@@ -5100,10 +5473,11 @@ class App {
         }
 
         // Render chart
-        this.renderChart(chartType, chartData, xField, yField);
+        const showAsPercentage = this.showAsPercentageCheckbox.checked;
+        this.renderChart(chartType, chartData, xField, yField, showAsPercentage);
 
         // Render stats
-        this.renderStats(chartData, yField);
+        this.renderStats(chartData, yField, showAsPercentage);
     }
 
     async prepareChartData(xFieldId, yFieldId, xField, yField, aggregation, chartType) {
@@ -5231,7 +5605,7 @@ class App {
         return aggregated;
     }
 
-    renderChart(chartType, dataPoints, xField, yField) {
+    renderChart(chartType, dataPoints, xField, yField, showAsPercentage = false) {
         // Destroy existing chart
         if (this.currentChart) {
             this.currentChart.destroy();
@@ -5351,7 +5725,7 @@ class App {
                     labels: dataPoints.map(p => p.xLabel),
                     datasets: [{
                         label: yField.name,
-                        data: dataPoints.map(p => p.y),
+                        data: showAsPercentage ? dataPoints.map(p => p.y * 100) : dataPoints.map(p => p.y),
                         backgroundColor: chartType === 'bar' ? '#3b82f6' : 'rgba(59, 130, 246, 0.1)',
                         borderColor: '#3b82f6',
                         borderWidth: 2,
@@ -5365,11 +5739,23 @@ class App {
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: showAsPercentage ? {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(1) + '%';
+                                }
+                            } : undefined
                         }
                     },
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: showAsPercentage ? {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            } : undefined
                         }
                     }
                 }
@@ -5385,7 +5771,7 @@ class App {
         }
     }
 
-    renderStats(dataPoints, yField) {
+    renderStats(dataPoints, yField, showAsPercentage = false) {
         this.chartStats.innerHTML = "";
 
         if (dataPoints.length === 0) {
@@ -5399,13 +5785,20 @@ class App {
             this.chartStats.innerHTML = "<div class='chart-empty'>No numeric data available</div>";
             return;
         }
+        
+        const formatValue = (val) => {
+            if (showAsPercentage) {
+                return (val * 100).toFixed(1) + '%';
+            }
+            return val.toFixed(2);
+        };
 
         const stats = {
             'Total Data Points': dataPoints.length,
-            'Sum': yValues.reduce((a, b) => a + b, 0).toFixed(2),
-            'Average': (yValues.reduce((a, b) => a + b, 0) / yValues.length).toFixed(2),
-            'Minimum': Math.min(...yValues).toFixed(2),
-            'Maximum': Math.max(...yValues).toFixed(2)
+            'Sum': formatValue(yValues.reduce((a, b) => a + b, 0)),
+            'Average': formatValue(yValues.reduce((a, b) => a + b, 0) / yValues.length),
+            'Minimum': formatValue(Math.min(...yValues)),
+            'Maximum': formatValue(Math.max(...yValues))
         };
 
         Object.entries(stats).forEach(([label, value]) => {
