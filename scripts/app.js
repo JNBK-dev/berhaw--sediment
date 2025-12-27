@@ -588,18 +588,16 @@ class GordataManager {
     _initDOM() {
         this.gordataGrid = document.getElementById('gordataGrid');
         this.gordataControls = document.getElementById('gordataControls');
-        this.rowControls = document.getElementById('rowControls');
         this.addRowBtn = document.getElementById('addRowBtn');
         this.toggleEditModeBtn = document.getElementById('toggleEditModeBtn');
-        this.saveGordataBtn = document.getElementById('saveGordataBtn');
         this.resetGordataBtn = document.getElementById('resetGordataBtn');
         this.editGordataBtn = document.getElementById('editGordataBtn');
         this.backFromGordataBtn = document.getElementById('backFromGordataBtn');
         
-        // Socket combining elements
-        this.combineControlGroup = document.getElementById('combineControlGroup');
-        this.combineSocketsBtn = document.getElementById('combineSocketsBtn');
-        this.selectionInfo = document.getElementById('selectionInfo');
+        // Floating combine button elements
+        this.floatingCombineBtn = document.getElementById('floatingCombineBtn');
+        this.floatingCombineSocketsBtn = document.getElementById('floatingCombineSocketsBtn');
+        this.floatingSelectionInfo = document.getElementById('floatingSelectionInfo');
         
         // Widget picker elements
         this.widgetPickerModal = document.getElementById('widgetPickerModal');
@@ -638,7 +636,6 @@ class GordataManager {
             this.initialized = true;
         }
         this.renderGrid();
-        this.renderRowControls();
     }
     
     _bindEvents() {
@@ -649,12 +646,6 @@ class GordataManager {
         this.toggleEditModeBtn.addEventListener('click', () => this.toggleEditMode());
         this.editGordataBtn.addEventListener('click', () => this.toggleEditMode());
         
-        // Save button
-        this.saveGordataBtn.addEventListener('click', () => {
-            this.saveConfig();
-            this.toggleEditMode();
-        });
-        
         // Reset button
         this.resetGordataBtn.addEventListener('click', () => {
             if (confirm('Reset grid to default layout? This will remove all widgets and reset rows/columns.')) {
@@ -662,8 +653,8 @@ class GordataManager {
             }
         });
         
-        // Combine sockets button
-        this.combineSocketsBtn.addEventListener('click', () => {
+        // Floating combine button
+        this.floatingCombineSocketsBtn.addEventListener('click', () => {
             this.combineSockets();
         });
         
@@ -724,55 +715,21 @@ class GordataManager {
     
     addRow(height = 200) {
         this.config.rows.push({ height });
-        this.renderRowControls();
         this.renderGrid();
+        this.saveConfig();
     }
     
     removeRow(index) {
         if (this.config.rows.length <= 1) return; // Keep at least 1 row
         this.config.rows.splice(index, 1);
-        this.renderRowControls();
         this.renderGrid();
+        this.saveConfig();
     }
     
     updateRowHeight(index, height) {
         this.config.rows[index].height = height;
         this.renderGrid();
-    }
-    
-    renderRowControls() {
-        this.rowControls.innerHTML = '';
-        
-        this.config.rows.forEach((row, index) => {
-            const control = document.createElement('div');
-            control.className = 'row-control';
-            
-            control.innerHTML = `
-                <label>Row ${index + 1}</label>
-                <input type="range" min="100" max="500" value="${row.height}" 
-                    data-row="${index}" class="row-height-slider">
-                <span class="height-value">${row.height}px</span>
-                ${this.config.rows.length > 1 ? 
-                    `<button class="remove-row" data-row="${index}">x</button>` : 
-                    ''}
-            `;
-            
-            const slider = control.querySelector('.row-height-slider');
-            const valueDisplay = control.querySelector('.height-value');
-            
-            slider.addEventListener('input', (e) => {
-                const newHeight = parseInt(e.target.value);
-                valueDisplay.textContent = `${newHeight}px`;
-                this.updateRowHeight(index, newHeight);
-            });
-            
-            const removeBtn = control.querySelector('.remove-row');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', () => this.removeRow(index));
-            }
-            
-            this.rowControls.appendChild(control);
-        });
+        this.saveConfig();
     }
     
     renderGrid() {
@@ -794,6 +751,63 @@ class GordataManager {
                 }
             }
         }
+        
+        // Add row resize handles in edit mode
+        if (this.editMode) {
+            this.renderRowHandles();
+        }
+    }
+    
+    renderRowHandles() {
+        // Find the gordata grid container parent
+        const gridParent = this.gordataGrid.parentElement;
+        
+        // Remove any existing handles
+        gridParent.querySelectorAll('.row-resize-handle').forEach(h => h.remove());
+        
+        // Calculate cumulative heights to position handles
+        let cumulativeHeight = 0;
+        const gridRect = this.gordataGrid.getBoundingClientRect();
+        
+        this.config.rows.forEach((row, index) => {
+            if (index < this.config.rows.length - 1) {
+                cumulativeHeight += row.height;
+                
+                const handle = document.createElement('div');
+                handle.className = 'row-resize-handle';
+                handle.innerHTML = `
+                    <span class="row-resize-label">Row ${index + 1}</span>
+                    <span class="row-resize-icon">⋯</span>
+                    <button class="row-delete-btn" title="Delete row">×</button>
+                `;
+                handle.style.top = `${cumulativeHeight}px`;
+                
+                // Click to edit height
+                const icon = handle.querySelector('.row-resize-icon');
+                icon.addEventListener('click', () => {
+                    const currentHeight = this.config.rows[index].height;
+                    const newHeight = prompt(`Row ${index + 1} height (px):`, currentHeight);
+                    if (newHeight && !isNaN(newHeight) && parseInt(newHeight) >= 100) {
+                        this.updateRowHeight(index, parseInt(newHeight));
+                    }
+                });
+                
+                // Delete button
+                const deleteBtn = handle.querySelector('.row-delete-btn');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.config.rows.length > 1) {
+                        if (confirm(`Delete row ${index + 1}?`)) {
+                            this.removeRow(index);
+                        }
+                    } else {
+                        alert('Cannot delete the last row');
+                    }
+                });
+                
+                gridParent.appendChild(handle);
+            }
+        });
     }
     
     createSocket(row, col) {
@@ -827,13 +841,14 @@ class GordataManager {
             
             // For combined empty sockets, show special placeholder
             if (widgetData.isEmpty) {
+                const splitButtonsHTML = this.renderSplitButtons(widgetData.span);
                 socket.innerHTML = `
                     <div class="socket-coordinates">R${row + 1}C${col + 1} (${widgetData.span.rows}x${widgetData.span.cols})</div>
                     <div class="socket-placeholder">
                         <div class="socket-placeholder-icon">+</div>
                         <div class="socket-placeholder-text">Add Widget (Combined ${widgetData.span.rows}x${widgetData.span.cols})</div>
                     </div>
-                    <button class="socket-split-btn" onclick="window.app.gordataManager.splitSocket('${socketKey}')">Split</button>
+                    ${splitButtonsHTML}
                 `;
                 
                 socket.addEventListener('click', (e) => {
@@ -842,7 +857,10 @@ class GordataManager {
                     this.handleSocketClick(socket, row, col);
                 });
             } else {
-                socket.innerHTML = this.renderWidget(widgetData, socketKey);
+                // Regular widget with possible span
+                const widgetHTML = this.renderWidget(widgetData, socketKey);
+                const splitButtonsHTML = widgetData.span ? this.renderSplitButtons(widgetData.span) : '';
+                socket.innerHTML = widgetHTML + splitButtonsHTML;
             }
         } else {
             socket.innerHTML = `
@@ -881,6 +899,38 @@ class GordataManager {
         return false;
     }
     
+    renderSplitButtons(span) {
+        let buttonsHTML = '';
+        
+        // Vertical split buttons (between columns)
+        for (let c = 1; c < span.cols; c++) {
+            const leftPercent = (c / span.cols) * 100;
+            buttonsHTML += `
+                <button class="gridline-split-btn vertical" 
+                    style="left: ${leftPercent}%;" 
+                    onclick="window.app.gordataManager.splitSocket(event.target.closest('.grid-socket').dataset.row + '-' + event.target.closest('.grid-socket').dataset.col); event.stopPropagation();"
+                    title="Split here">
+                    ⊗
+                </button>
+            `;
+        }
+        
+        // Horizontal split buttons (between rows)
+        for (let r = 1; r < span.rows; r++) {
+            const topPercent = (r / span.rows) * 100;
+            buttonsHTML += `
+                <button class="gridline-split-btn horizontal" 
+                    style="top: ${topPercent}%;" 
+                    onclick="window.app.gordataManager.splitSocket(event.target.closest('.grid-socket').dataset.row + '-' + event.target.closest('.grid-socket').dataset.col); event.stopPropagation();"
+                    title="Split here">
+                    ⊗
+                </button>
+            `;
+        }
+        
+        return buttonsHTML;
+    }
+    
     handleSocketClick(socket, row, col) {
         const socketKey = `${row}-${col}`;
         
@@ -916,7 +966,7 @@ class GordataManager {
             this.toggleEditModeBtn.textContent = 'Edit Layout';
             this.editGordataBtn.textContent = 'Edit Layout';
             this.selectedSockets.clear();
-            this.combineControlGroup.style.display = 'none';
+            this.floatingCombineBtn.classList.add('hidden');
         }
         
         this.renderGrid();
@@ -946,7 +996,6 @@ class GordataManager {
         // Save and render
         this.saveConfig();
         this.renderGrid();
-        this.renderRowControls();
         
         soundManager.play('accepted');
     }
@@ -959,20 +1008,20 @@ class GordataManager {
         const count = this.selectedSockets.size;
         
         if (count === 0) {
-            this.combineControlGroup.style.display = 'none';
+            this.floatingCombineBtn.classList.add('hidden');
         } else {
-            this.combineControlGroup.style.display = 'block';
-            this.selectionInfo.textContent = `${count} socket${count !== 1 ? 's' : ''} selected`;
+            this.floatingCombineBtn.classList.remove('hidden');
+            this.floatingSelectionInfo.textContent = `${count} selected`;
             
             // Check if selection is valid
             const isValid = this.validateSelection();
-            this.combineSocketsBtn.disabled = !isValid || count < 2;
+            this.floatingCombineSocketsBtn.disabled = !isValid || count < 2;
             
             if (count >= 2 && !isValid) {
-                this.selectionInfo.textContent = `${count} sockets selected - must form rectangle`;
-                this.selectionInfo.style.color = '#dc2626';
+                this.floatingSelectionInfo.textContent = `${count} selected - must form rectangle`;
+                this.floatingSelectionInfo.style.color = '#dc2626';
             } else {
-                this.selectionInfo.style.color = '#64748b';
+                this.floatingSelectionInfo.style.color = '#64748b';
             }
         }
     }

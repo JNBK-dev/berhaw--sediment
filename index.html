@@ -942,71 +942,17 @@
             <div class="gordata-content">
                 <!-- Grid Controls (Edit Mode) -->
                 <div id="gordataControls" class="gordata-controls">
-                    <div class="control-group">
-                        <label>Rows:</label>
-                        <div class="row-controls" id="rowControls">
-                            <div class="row-control">
-                                <label>Row 1</label>
-                                <input type="range" min="100" max="500" value="142" data-row="0" class="row-height-slider">
-                                <span class="height-value">142px</span>
-                                <button class="remove-row" data-row="0">x</button>
-                            </div>
-                            <div class="row-control">
-                                <label>Row 2</label>
-                                <input type="range" min="100" max="500" value="145" data-row="1" class="row-height-slider">
-                                <span class="height-value">145px</span>
-                                <button class="remove-row" data-row="1">x</button>
-                            </div>
-                            <div class="row-control">
-                                <label>Row 3</label>
-                                <input type="range" min="100" max="500" value="244" data-row="2" class="row-height-slider">
-                                <span class="height-value">244px</span>
-                                <button class="remove-row" data-row="2">x</button>
-                            </div>
-                            <div class="row-control">
-                                <label>Row 4</label>
-                                <input type="range" min="100" max="500" value="200" data-row="3" class="row-height-slider">
-                                <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="3">x</button>
-                            </div>
-                            <div class="row-control">
-                                <label>Row 5</label>
-                                <input type="range" min="100" max="500" value="200" data-row="4" class="row-height-slider">
-                                <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="4">x</button>
-                            </div>
-                            <div class="row-control">
-                                <label>Row 6</label>
-                                <input type="range" min="100" max="500" value="200" data-row="5" class="row-height-slider">
-                                <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="5">x</button>
-                            </div>
-                            <div class="row-control">
-                                <label>Row 7</label>
-                                <input type="range" min="100" max="500" value="200" data-row="6" class="row-height-slider">
-                                <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="6">x</button>
-                            </div>
-                            <div class="row-control">
-                                <label>Row 8</label>
-                                <input type="range" min="100" max="500" value="200" data-row="7" class="row-height-slider">
-                                <span class="height-value">200px</span>
-                                <button class="remove-row" data-row="7">x</button>
-                            </div>
-                        </div>
+                    <div class="control-toolbar">
                         <button class="btn-secondary" id="addRowBtn">+ Add Row</button>
-                    </div>
-
-                    <div class="control-group">
-                        <button class="btn-secondary" id="toggleEditModeBtn">Edit Layout</button>
-                        <button class="btn-create" id="saveGordataBtn">Save Layout</button>
                         <button class="btn-secondary" id="resetGordataBtn">Reset Grid</button>
+                        <button class="btn-secondary" id="toggleEditModeBtn">Edit Layout</button>
                     </div>
-                    
-                    <div class="control-group" id="combineControlGroup" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 2px solid #e2e8f0;">
-                        <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;" id="selectionInfo">0 sockets selected</div>
-                        <button class="btn-create" id="combineSocketsBtn" style="width: 100%;">Combine Selected</button>
-                    </div>
+                </div>
+                
+                <!-- Floating Combine Button -->
+                <div id="floatingCombineBtn" class="floating-combine-btn hidden">
+                    <div class="floating-combine-info" id="floatingSelectionInfo">0 selected</div>
+                    <button class="btn-create" id="floatingCombineSocketsBtn">Combine</button>
                 </div>
 
                 <!-- Grid Container -->
