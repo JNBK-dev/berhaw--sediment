@@ -579,6 +579,7 @@ class GordataManager {
         
         this.editMode = false;
         this.selectedSockets = new Set();
+        this.initialized = false;
         
         this._initDOM();
         this._loadConfig();
@@ -588,7 +589,6 @@ class GordataManager {
         this.gordataGrid = document.getElementById('gordataGrid');
         this.gordataControls = document.getElementById('gordataControls');
         this.rowControls = document.getElementById('rowControls');
-        this.columnBtns = document.querySelectorAll('.column-btn');
         this.addRowBtn = document.getElementById('addRowBtn');
         this.toggleEditModeBtn = document.getElementById('toggleEditModeBtn');
         this.saveGordataBtn = document.getElementById('saveGordataBtn');
@@ -614,6 +614,8 @@ class GordataManager {
         if (saved) {
             try {
                 this.config = JSON.parse(saved);
+                // Always lock to 3 columns
+                this.config.columns = 3;
             } catch (e) {
                 console.error('Failed to load Gordata config:', e);
             }
@@ -626,20 +628,15 @@ class GordataManager {
     }
     
     initialize() {
-        this._bindEvents();
+        if (!this.initialized) {
+            this._bindEvents();
+            this.initialized = true;
+        }
         this.renderGrid();
         this.renderRowControls();
     }
     
     _bindEvents() {
-        // Column buttons
-        this.columnBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const cols = parseInt(btn.dataset.cols);
-                this.setColumns(cols);
-            });
-        });
-        
         // Add row button
         this.addRowBtn.addEventListener('click', () => this.addRow());
         
@@ -681,21 +678,6 @@ class GordataManager {
         this.cancelWidgetPickerBtn.addEventListener('click', () => {
             this.closeWidgetPicker();
         });
-    }
-    
-    setColumns(count) {
-        this.config.columns = count;
-        
-        // Update active button
-        this.columnBtns.forEach(btn => {
-            if (parseInt(btn.dataset.cols) === count) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        
-        this.renderGrid();
     }
     
     addRow(height = 200) {
@@ -865,15 +847,6 @@ class GordataManager {
         this.saveConfig();
         this.renderGrid();
         this.renderRowControls();
-        
-        // Update column buttons
-        this.columnBtns.forEach(btn => {
-            if (parseInt(btn.dataset.cols) === 3) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
         
         soundManager.play('accepted');
     }
@@ -1070,9 +1043,11 @@ class GordataManager {
     }
     
     renderObjectTypeWidget(widgetData, socketKey) {
-        // Use stored title instead of fetching from Firebase
-        return `
-            <div class="socket-widget">
+        const widgetId = `widget-${socketKey}`;
+        
+        // Render widget structure with placeholder
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
                 <div class="socket-widget-header">
                     <span class="socket-widget-title">${widgetData.title}</span>
                     <div class="socket-widget-actions">
@@ -1080,9 +1055,12 @@ class GordataManager {
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
-                <div class="socket-widget-content" style="font-size: 13px; color: #64748b;">
-                    Object Type
-                    <div style="margin-top: 8px;">
+                <div class="socket-widget-content">
+                    <div class="widget-stat">
+                        <span class="widget-stat-value" id="${widgetId}-count">...</span>
+                        <span class="widget-stat-label">instances</span>
+                    </div>
+                    <div style="margin-top: 12px;">
                         <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
                             onclick="window.app.openObjectType('${widgetData.id}')">
                             View Instances
@@ -1091,39 +1069,130 @@ class GordataManager {
                 </div>
             </div>
         `;
+        
+        // Fetch live instance count
+        this.updateObjectTypeCount(widgetData.id, widgetId);
+        
+        return html;
+    }
+    
+    async updateObjectTypeCount(typeId, widgetId) {
+        try {
+            const userId = window.app.currentUser ? window.app.currentUser.id : null;
+            if (!userId) return;
+            
+            const snapshot = await db.ref('objects')
+                .orderByChild('typeId')
+                .equalTo(typeId)
+                .once('value');
+            
+            let count = 0;
+            snapshot.forEach((childSnap) => {
+                const obj = childSnap.val();
+                if (obj.authorId === userId) {
+                    count++;
+                }
+            });
+            
+            const countElement = document.getElementById(`${widgetId}-count`);
+            if (countElement) {
+                countElement.textContent = count;
+            }
+        } catch (error) {
+            console.error('Error fetching instance count:', error);
+            const countElement = document.getElementById(`${widgetId}-count`);
+            if (countElement) {
+                countElement.textContent = '?';
+            }
+        }
     }
     
     renderDocumentWidget(widgetData, socketKey) {
-        // Use stored title instead of fetching from Firebase
-        return `
-            <div class="socket-widget">
+        const widgetId = `widget-${socketKey}`;
+        
+        // Render widget structure with placeholder
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
                 <div class="socket-widget-header">
                     <span class="socket-widget-title">${widgetData.title || 'Untitled'}</span>
                     <div class="socket-widget-actions">
-                        <button class="socket-action-btn" onclick="window.app.openDocument('${widgetData.id}')" title="Open">Edit</button>
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
-                <div class="socket-widget-content" style="font-size: 12px; color: #64748b; line-height: 1.5;">
-                    Document
+                <div class="socket-widget-content">
+                    <div class="widget-preview" id="${widgetId}-preview" style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 12px; min-height: 40px;">
+                        Loading preview...
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-secondary" style="flex: 1; font-size: 12px; padding: 8px;" 
+                            onclick="window.app.openDocument('${widgetData.id}', true)">
+                            Read
+                        </button>
+                        <button class="btn-create" style="flex: 1; font-size: 12px; padding: 8px;" 
+                            onclick="window.app.openDocument('${widgetData.id}', false)">
+                            Edit
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
+        
+        // Fetch document preview
+        this.updateDocumentPreview(widgetData.id, widgetId);
+        
+        return html;
+    }
+    
+    async updateDocumentPreview(docId, widgetId) {
+        try {
+            const snapshot = await db.ref(`documents/${docId}`).once('value');
+            
+            if (!snapshot.exists()) {
+                const previewElement = document.getElementById(`${widgetId}-preview`);
+                if (previewElement) {
+                    previewElement.textContent = 'Document not found';
+                    previewElement.style.fontStyle = 'italic';
+                }
+                return;
+            }
+            
+            const doc = snapshot.val();
+            const content = doc.content || '';
+            const preview = content.length > 100 ? content.substring(0, 100) + '...' : content || 'No content yet';
+            
+            const previewElement = document.getElementById(`${widgetId}-preview`);
+            if (previewElement) {
+                previewElement.textContent = preview;
+            }
+        } catch (error) {
+            console.error('Error fetching document preview:', error);
+            const previewElement = document.getElementById(`${widgetId}-preview`);
+            if (previewElement) {
+                previewElement.textContent = 'Error loading preview';
+                previewElement.style.fontStyle = 'italic';
+            }
+        }
     }
     
     renderRoomWidget(widgetData, socketKey) {
-        // Use stored title instead of fetching from Firebase
-        return `
-            <div class="socket-widget">
+        const widgetId = `widget-${socketKey}`;
+        
+        // Render widget structure with placeholder
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
                 <div class="socket-widget-header">
                     <span class="socket-widget-title">${widgetData.title || widgetData.id}</span>
                     <div class="socket-widget-actions">
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
-                <div class="socket-widget-content" style="font-size: 13px;">
-                    <div style="color: #64748b; margin-bottom: 8px;">
-                        Room
+                <div class="socket-widget-content">
+                    <div class="widget-stat">
+                        <span class="widget-stat-value" id="${widgetId}-count">...</span>
+                        <span class="widget-stat-label">players</span>
+                    </div>
+                    <div id="${widgetId}-players" style="font-size: 11px; color: #64748b; margin: 8px 0; min-height: 20px;">
+                        Loading...
                     </div>
                     <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
                         onclick="window.app.joinRoom('${widgetData.id}')">
@@ -1132,6 +1201,59 @@ class GordataManager {
                 </div>
             </div>
         `;
+        
+        // Fetch live room data
+        this.updateRoomData(widgetData.id, widgetId);
+        
+        return html;
+    }
+    
+    async updateRoomData(roomId, widgetId) {
+        try {
+            const snapshot = await db.ref(`rooms/${roomId}`).once('value');
+            
+            if (!snapshot.exists()) {
+                const countElement = document.getElementById(`${widgetId}-count`);
+                const playersElement = document.getElementById(`${widgetId}-players`);
+                if (countElement) countElement.textContent = '0';
+                if (playersElement) {
+                    playersElement.textContent = 'Room not found';
+                    playersElement.style.fontStyle = 'italic';
+                }
+                return;
+            }
+            
+            const room = snapshot.val();
+            const players = room.players || {};
+            const playerCount = Object.keys(players).length;
+            const playerNames = Object.values(players).map(p => p.name || 'Unknown').join(', ');
+            
+            const countElement = document.getElementById(`${widgetId}-count`);
+            const playersElement = document.getElementById(`${widgetId}-players`);
+            
+            if (countElement) {
+                countElement.textContent = playerCount;
+            }
+            
+            if (playersElement) {
+                if (playerCount === 0) {
+                    playersElement.textContent = 'No players yet';
+                    playersElement.style.fontStyle = 'italic';
+                } else {
+                    playersElement.textContent = playerNames;
+                    playersElement.style.fontStyle = 'normal';
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching room data:', error);
+            const countElement = document.getElementById(`${widgetId}-count`);
+            const playersElement = document.getElementById(`${widgetId}-players`);
+            if (countElement) countElement.textContent = '?';
+            if (playersElement) {
+                playersElement.textContent = 'Error loading data';
+                playersElement.style.fontStyle = 'italic';
+            }
+        }
     }
 }
 
@@ -4676,16 +4798,14 @@ class App {
         this.dataVisualizationView.classList.add("hidden");
         this.gordataView.classList.remove("hidden");
         
-        // Ensure edit mode is off when entering Gordata
-        if (this.gordataManager.editMode) {
-            this.gordataManager.editMode = false;
-            this.gordataManager.gordataControls.classList.remove('active');
-            this.gordataManager.toggleEditModeBtn.textContent = 'Edit Layout';
-            this.gordataManager.editGordataBtn.textContent = 'Edit Layout';
-            this.gordataManager.selectedSockets.clear();
-        }
+        // Force edit mode off and synchronize UI state
+        this.gordataManager.editMode = false;
+        this.gordataManager.gordataControls.classList.remove('active');
+        this.gordataManager.toggleEditModeBtn.textContent = 'Edit Layout';
+        this.gordataManager.editGordataBtn.textContent = 'Edit Layout';
+        this.gordataManager.selectedSockets.clear();
         
-        // Initialize Gordata if not already done
+        // Initialize Gordata (renders grid and controls)
         this.gordataManager.initialize();
         
         // Update top navigation
