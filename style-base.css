@@ -675,6 +675,8 @@ button:active {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    background: #f9fcff; /* Visual separation */
+    padding: 20px 40px 40px 40px; /* Unified padding */
 }
 
 .builder-section {

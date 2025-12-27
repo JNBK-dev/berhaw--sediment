@@ -684,7 +684,6 @@ class App {
         this.docContent = document.getElementById("docContent");
         this.readerTitle = document.getElementById("readerTitle");
         this.readerContent = document.getElementById("readerContent");
-        this.editorStatus = document.getElementById("editorStatus");
         this.backToHomeBtn = document.getElementById("backToHomeBtn");
         this.saveDocBtn = document.getElementById("saveDocBtn");
         this.deleteDocBtn = document.getElementById("deleteDocBtn");
@@ -1608,13 +1607,17 @@ class App {
             this.editMode.classList.add("hidden");
             this.readerMode.classList.remove("hidden");
             this.modeToggleBtn.textContent = "Edit Mode";
-            this.editorStatus.classList.add("hidden");
+            this.deleteDocBtn.classList.add("hidden");
+            this.deleteDocBtnReader.classList.remove("hidden");
+            this.saveDocBtn.classList.add("hidden");
             this.renderReaderMode();
         } else {
             this.editMode.classList.remove("hidden");
             this.readerMode.classList.add("hidden");
             this.modeToggleBtn.textContent = "Reader Mode";
-            this.editorStatus.classList.remove("hidden");
+            this.deleteDocBtn.classList.remove("hidden");
+            this.deleteDocBtnReader.classList.add("hidden");
+            this.saveDocBtn.classList.remove("hidden");
         }
     }
 
@@ -1683,13 +1686,7 @@ class App {
             }
 
             soundManager.play('accepted');
-            this.editorStatus.textContent = "Saved!";
-            this.editorStatus.style.color = "#10b981";
-            
-            setTimeout(() => {
-                this.editorStatus.textContent = "Editing...";
-                this.editorStatus.style.color = "#64748b";
-            }, 2000);
+            this.showToast("Document saved!", "success");
         } catch (err) {
             console.error("Failed to save document:", err);
             this.showToast("Failed to save document", "error");
@@ -1713,13 +1710,7 @@ class App {
             });
 
             soundManager.play('reclick');
-            this.editorStatus.textContent = "Auto-saved";
-            this.editorStatus.style.color = "#10b981";
-            
-            setTimeout(() => {
-                this.editorStatus.textContent = "Editing...";
-                this.editorStatus.style.color = "#64748b";
-            }, 1500);
+            // Auto-save is silent - sound is enough feedback
         } catch (err) {
             console.error("Auto-save failed:", err);
         }
