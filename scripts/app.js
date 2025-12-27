@@ -848,45 +848,70 @@ class GordataManager {
         this.currentSocketPosition = null;
     }
     
-    populateWidgetPicker() {
-        // Get reference to app instance (will be passed during initialization)
+    async populateWidgetPicker() {
+        // Get reference to app instance
         if (!window.app) return;
         
         const app = window.app;
+        const userId = app.currentUser ? app.currentUser.id : null;
+        if (!userId) return;
         
         // Populate object types
-        this.widgetObjectTypesList.innerHTML = '';
-        if (app.objectTypes && Object.keys(app.objectTypes).length > 0) {
-            Object.entries(app.objectTypes).forEach(([typeId, type]) => {
-                const item = document.createElement('div');
-                item.className = 'widget-item';
-                item.innerHTML = `
-                    <div class="widget-item-icon">[Type]</div>
-                    <div class="widget-item-info">
-                        <div class="widget-item-title">${type.name}</div>
-                        <div class="widget-item-desc">Object Type</div>
-                    </div>
-                `;
-                item.onclick = () => this.addWidget({
-                    type: 'objectType',
-                    id: typeId,
-                    title: type.name
+        this.widgetObjectTypesList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Loading...</div>';
+        
+        try {
+            const typesSnap = await db.ref('objectTypes')
+                .orderByChild('authorId')
+                .equalTo(userId)
+                .once('value');
+            
+            this.widgetObjectTypesList.innerHTML = '';
+            
+            if (typesSnap.exists()) {
+                typesSnap.forEach((childSnap) => {
+                    const typeId = childSnap.key;
+                    const type = childSnap.val();
+                    
+                    const item = document.createElement('div');
+                    item.className = 'widget-item';
+                    item.innerHTML = `
+                        <div class="widget-item-icon">[Type]</div>
+                        <div class="widget-item-info">
+                            <div class="widget-item-title">${type.name}</div>
+                            <div class="widget-item-desc">Object Type</div>
+                        </div>
+                    `;
+                    item.onclick = () => this.addWidget({
+                        type: 'objectType',
+                        id: typeId,
+                        title: type.name
+                    });
+                    this.widgetObjectTypesList.appendChild(item);
                 });
-                this.widgetObjectTypesList.appendChild(item);
-            });
-        } else {
-            this.widgetObjectTypesList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No object types yet</div>';
+            } else {
+                this.widgetObjectTypesList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No object types yet</div>';
+            }
+        } catch (error) {
+            console.error('Error loading object types:', error);
+            this.widgetObjectTypesList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Error loading</div>';
         }
         
         // Populate documents
-        this.widgetDocumentsList.innerHTML = '';
-        if (app.documents && Object.keys(app.documents).length > 0) {
-            const userDocs = Object.entries(app.documents).filter(([id, doc]) => 
-                doc.authorId === app.currentUser.id
-            );
+        this.widgetDocumentsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Loading...</div>';
+        
+        try {
+            const docsSnap = await db.ref('documents')
+                .orderByChild('authorId')
+                .equalTo(userId)
+                .once('value');
             
-            if (userDocs.length > 0) {
-                userDocs.forEach(([docId, doc]) => {
+            this.widgetDocumentsList.innerHTML = '';
+            
+            if (docsSnap.exists()) {
+                docsSnap.forEach((childSnap) => {
+                    const docId = childSnap.key;
+                    const doc = childSnap.val();
+                    
                     const item = document.createElement('div');
                     item.className = 'widget-item';
                     item.innerHTML = `
@@ -906,33 +931,47 @@ class GordataManager {
             } else {
                 this.widgetDocumentsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No documents yet</div>';
             }
-        } else {
-            this.widgetDocumentsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No documents yet</div>';
+        } catch (error) {
+            console.error('Error loading documents:', error);
+            this.widgetDocumentsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Error loading</div>';
         }
         
         // Populate rooms
-        this.widgetRoomsList.innerHTML = '';
-        if (app.rooms && Object.keys(app.rooms).length > 0) {
-            Object.entries(app.rooms).forEach(([roomId, room]) => {
-                const item = document.createElement('div');
-                item.className = 'widget-item';
-                const playerCount = room.players ? Object.keys(room.players).length : 0;
-                item.innerHTML = `
-                    <div class="widget-item-icon">[Room]</div>
-                    <div class="widget-item-info">
-                        <div class="widget-item-title">${room.name || roomId}</div>
-                        <div class="widget-item-desc">${playerCount} player${playerCount !== 1 ? 's' : ''}</div>
-                    </div>
-                `;
-                item.onclick = () => this.addWidget({
-                    type: 'room',
-                    id: roomId,
-                    title: room.name || roomId
+        this.widgetRoomsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Loading...</div>';
+        
+        try {
+            const roomsSnap = await db.ref('rooms').once('value');
+            
+            this.widgetRoomsList.innerHTML = '';
+            
+            if (roomsSnap.exists()) {
+                roomsSnap.forEach((childSnap) => {
+                    const roomId = childSnap.key;
+                    const room = childSnap.val();
+                    const playerCount = room.players ? Object.keys(room.players).length : 0;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'widget-item';
+                    item.innerHTML = `
+                        <div class="widget-item-icon">[Room]</div>
+                        <div class="widget-item-info">
+                            <div class="widget-item-title">${room.name || roomId}</div>
+                            <div class="widget-item-desc">${playerCount} player${playerCount !== 1 ? 's' : ''}</div>
+                        </div>
+                    `;
+                    item.onclick = () => this.addWidget({
+                        type: 'room',
+                        id: roomId,
+                        title: room.name || roomId
+                    });
+                    this.widgetRoomsList.appendChild(item);
                 });
-                this.widgetRoomsList.appendChild(item);
-            });
-        } else {
-            this.widgetRoomsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No rooms yet</div>';
+            } else {
+                this.widgetRoomsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">No rooms yet</div>';
+            }
+        } catch (error) {
+            console.error('Error loading rooms:', error);
+            this.widgetRoomsList.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Error loading</div>';
         }
     }
     
@@ -985,36 +1024,18 @@ class GordataManager {
     }
     
     renderObjectTypeWidget(widgetData, socketKey) {
-        const app = window.app;
-        const type = app.objectTypes[widgetData.id];
-        
-        if (!type) {
-            return `
-                <div class="socket-widget">
-                    <div class="socket-widget-header">
-                        <span class="socket-widget-title">Object Type Not Found</span>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Get instances of this type
-        const instances = app.instances ? Object.entries(app.instances).filter(([id, inst]) => 
-            inst.typeId === widgetData.id
-        ) : [];
-        
+        // Use stored title instead of fetching from Firebase
         return `
             <div class="socket-widget">
                 <div class="socket-widget-header">
-                    <span class="socket-widget-title">${type.name}</span>
+                    <span class="socket-widget-title">${widgetData.title}</span>
                     <div class="socket-widget-actions">
                         <button class="socket-action-btn" onclick="window.app.openObjectType('${widgetData.id}')" title="View all">View</button>
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
                 <div class="socket-widget-content" style="font-size: 13px; color: #64748b;">
-                    ${instances.length} instance${instances.length !== 1 ? 's' : ''}
+                    Object Type
                     <div style="margin-top: 8px;">
                         <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
                             onclick="window.app.openObjectType('${widgetData.id}')">
@@ -1060,34 +1081,18 @@ class GordataManager {
     }
     
     renderRoomWidget(widgetData, socketKey) {
-        const app = window.app;
-        const room = app.rooms[widgetData.id];
-        
-        if (!room) {
-            return `
-                <div class="socket-widget">
-                    <div class="socket-widget-header">
-                        <span class="socket-widget-title">Room Not Found</span>
-                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">x</button>
-                    </div>
-                </div>
-            `;
-        }
-        
-        const playerCount = room.players ? Object.keys(room.players).length : 0;
-        const playerNames = room.players ? Object.values(room.players).map(p => p.name).join(', ') : 'No players';
-        
+        // Use stored title instead of fetching from Firebase
         return `
             <div class="socket-widget">
                 <div class="socket-widget-header">
-                    <span class="socket-widget-title">${room.name || widgetData.id}</span>
+                    <span class="socket-widget-title">${widgetData.title || widgetData.id}</span>
                     <div class="socket-widget-actions">
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
                 <div class="socket-widget-content" style="font-size: 13px;">
                     <div style="color: #64748b; margin-bottom: 8px;">
-                        ${playerCount} player${playerCount !== 1 ? 's' : ''}: ${playerNames}
+                        Room
                     </div>
                     <button class="btn-create" style="width: 100%; font-size: 12px; padding: 8px;" 
                         onclick="window.app.joinRoom('${widgetData.id}')">
