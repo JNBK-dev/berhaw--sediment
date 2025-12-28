@@ -925,63 +925,6 @@ class GordataManager {
                 }
             }
         }
-        
-        // Add row resize handles in edit mode
-        if (this.editMode) {
-            this.renderRowHandles();
-        }
-    }
-    
-    renderRowHandles() {
-        // Find the gordata grid container parent
-        const gridParent = this.gordataGrid.parentElement;
-        
-        // Remove any existing handles
-        gridParent.querySelectorAll('.row-resize-handle').forEach(h => h.remove());
-        
-        // Calculate cumulative heights to position handles
-        let cumulativeHeight = 0;
-        const gridRect = this.gordataGrid.getBoundingClientRect();
-        
-        this.config.rows.forEach((row, index) => {
-            if (index < this.config.rows.length - 1) {
-                cumulativeHeight += row.height;
-                
-                const handle = document.createElement('div');
-                handle.className = 'row-resize-handle';
-                handle.innerHTML = `
-                    <span class="row-resize-label">Row ${index + 1}</span>
-                    <span class="row-resize-icon">⋯</span>
-                    <button class="row-delete-btn" title="Delete row">×</button>
-                `;
-                handle.style.top = `${cumulativeHeight}px`;
-                
-                // Click to edit height
-                const icon = handle.querySelector('.row-resize-icon');
-                icon.addEventListener('click', () => {
-                    const currentHeight = this.config.rows[index].height;
-                    const newHeight = prompt(`Row ${index + 1} height (px):`, currentHeight);
-                    if (newHeight && !isNaN(newHeight) && parseInt(newHeight) >= 100) {
-                        this.updateRowHeight(index, parseInt(newHeight));
-                    }
-                });
-                
-                // Delete button
-                const deleteBtn = handle.querySelector('.row-delete-btn');
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (this.config.rows.length > 1) {
-                        if (confirm(`Delete row ${index + 1}?`)) {
-                            this.removeRow(index);
-                        }
-                    } else {
-                        alert('Cannot delete the last row');
-                    }
-                });
-                
-                gridParent.appendChild(handle);
-            }
-        });
     }
     
     createSocket(row, col) {
@@ -1015,26 +958,33 @@ class GordataManager {
             
             // For combined empty sockets, show special placeholder
             if (widgetData.isEmpty) {
-                const splitButtonsHTML = this.renderSplitButtons(widgetData.span);
+                let actionsHTML = '';
+                if (this.editMode) {
+                    actionsHTML = `
+                        <button class="socket-action-btn socket-uncombine-btn" onclick="window.app.gordataManager.uncombineSocket('${socketKey}'); event.stopPropagation();">
+                            Uncombine to 1×1s
+                        </button>
+                    `;
+                }
+                
                 socket.innerHTML = `
                     <div class="socket-coordinates">R${row + 1}C${col + 1} (${widgetData.span.rows}x${widgetData.span.cols})</div>
                     <div class="socket-placeholder">
                         <div class="socket-placeholder-icon">+</div>
                         <div class="socket-placeholder-text">Add Widget (Combined ${widgetData.span.rows}x${widgetData.span.cols})</div>
                     </div>
-                    ${splitButtonsHTML}
+                    ${actionsHTML}
                 `;
                 
                 socket.addEventListener('click', (e) => {
-                    // Don't trigger if clicking split button
-                    if (e.target.classList.contains('socket-split-btn')) return;
+                    // Don't trigger if clicking uncombine button
+                    if (e.target.classList.contains('socket-uncombine-btn')) return;
                     this.handleSocketClick(socket, row, col);
                 });
             } else {
                 // Regular widget with possible span
                 const widgetHTML = this.renderWidget(widgetData, socketKey);
-                const splitButtonsHTML = widgetData.span ? this.renderSplitButtons(widgetData.span) : '';
-                socket.innerHTML = widgetHTML + splitButtonsHTML;
+                socket.innerHTML = widgetHTML;
             }
         } else {
             socket.innerHTML = `
@@ -1073,37 +1023,6 @@ class GordataManager {
         return false;
     }
     
-    renderSplitButtons(span) {
-        let buttonsHTML = '';
-        
-        // Vertical split buttons (between columns)
-        for (let c = 1; c < span.cols; c++) {
-            const leftPercent = (c / span.cols) * 100;
-            buttonsHTML += `
-                <button class="gridline-split-btn vertical" 
-                    style="left: ${leftPercent}%;" 
-                    onclick="window.app.gordataManager.splitSocket(event.target.closest('.grid-socket').dataset.row + '-' + event.target.closest('.grid-socket').dataset.col); event.stopPropagation();"
-                    title="Split here">
-                    ⊗
-                </button>
-            `;
-        }
-        
-        // Horizontal split buttons (between rows)
-        for (let r = 1; r < span.rows; r++) {
-            const topPercent = (r / span.rows) * 100;
-            buttonsHTML += `
-                <button class="gridline-split-btn horizontal" 
-                    style="top: ${topPercent}%;" 
-                    onclick="window.app.gordataManager.splitSocket(event.target.closest('.grid-socket').dataset.row + '-' + event.target.closest('.grid-socket').dataset.col); event.stopPropagation();"
-                    title="Split here">
-                    ⊗
-                </button>
-            `;
-        }
-        
-        return buttonsHTML;
-    }
     
     handleSocketClick(socket, row, col) {
         const socketKey = `${row}-${col}`;
@@ -1288,23 +1207,6 @@ class GordataManager {
         console.log(`Combined ${rowSpan}x${colSpan} socket area at ${primaryKey}`);
     }
     
-    splitSocket(socketKey) {
-        const widgetData = this.config.sockets[socketKey];
-        
-        if (!widgetData || !widgetData.span) {
-            return;
-        }
-        
-        // Remove the combined socket
-        delete this.config.sockets[socketKey];
-        
-        // Save and re-render
-        this.saveConfig();
-        this.renderGrid();
-        
-        soundManager.play('reclick');
-        console.log(`Split socket at ${socketKey}`);
-    }
     
     // ============================================
     // WIDGET MANAGEMENT
@@ -1532,7 +1434,37 @@ class GordataManager {
     }
     
     removeWidget(socketKey) {
+        const widgetData = this.config.sockets[socketKey];
+        
+        // Preserve span for combined sockets, mark as empty
+        if (widgetData && widgetData.span) {
+            this.config.sockets[socketKey] = {
+                isEmpty: true,
+                span: widgetData.span
+            };
+        } else {
+            // Regular 1×1 socket, delete entirely
+            delete this.config.sockets[socketKey];
+        }
+        
+        this.renderGrid();
+        this.saveConfig();
+        
+        soundManager.play('reclick');
+    }
+    
+    uncombineSocket(socketKey) {
+        const widgetData = this.config.sockets[socketKey];
+        
+        if (!widgetData || !widgetData.span) {
+            console.warn('Socket is not combined:', socketKey);
+            return;
+        }
+        
+        // Delete the combined socket entry
+        // Individual 1×1s don't need entries (they're rendered by default)
         delete this.config.sockets[socketKey];
+        
         this.renderGrid();
         this.saveConfig();
         
