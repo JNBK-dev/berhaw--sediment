@@ -880,11 +880,63 @@ class GordataManager {
                         type: 'activityChart',
                         title: '7-Day Activity'
                     });
+                } else if (widgetType === 'quickCapture') {
+                    console.log('Configuring Quick Capture widget');
+                    this.configureQuickCaptureWidget();
                 } else {
                     console.log('Widget type not implemented yet:', widgetType);
                 }
             });
         });
+    }
+    
+    async configureQuickCaptureWidget() {
+        // Get user's object types for selection
+        const app = window.app;
+        if (!app || !app.currentUser) return;
+        
+        try {
+            const typesSnap = await db.ref('objectTypes')
+                .orderByChild('authorId')
+                .equalTo(app.currentUser.id)
+                .once('value');
+            
+            if (!typesSnap.exists()) {
+                app.showToast('Create an object type first!', 'error');
+                return;
+            }
+            
+            // Build selection prompt
+            const types = [];
+            typesSnap.forEach(snap => {
+                types.push({
+                    id: snap.key,
+                    name: snap.val().name
+                });
+            });
+            
+            // Simple prompt for MVP (will enhance later)
+            const typeList = types.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
+            const selection = prompt(`Select object type for Quick Capture:\n\n${typeList}\n\nEnter number:`);
+            
+            if (!selection) return; // Cancelled
+            
+            const index = parseInt(selection) - 1;
+            if (index >= 0 && index < types.length) {
+                const selectedType = types[index];
+                this.addWidget({
+                    type: 'quickCapture',
+                    title: `Quick Capture: ${selectedType.name}`,
+                    objectTypeId: selectedType.id,
+                    objectTypeName: selectedType.name
+                });
+            } else {
+                app.showToast('Invalid selection', 'error');
+            }
+        } catch (error) {
+            console.error('Error configuring Quick Capture:', error);
+            app.showToast('Error loading object types', 'error');
+        }
     }
     
     addRow(height = 200) {
@@ -1490,6 +1542,8 @@ class GordataManager {
                 return this.renderActivityChartWidget(widgetData, socketKey);
             case 'savedVisualization':
                 return this.renderSavedVisualizationWidget(widgetData, socketKey);
+            case 'quickCapture':
+                return this.renderQuickCaptureWidget(widgetData, socketKey);
             default:
                 return `
                     <div class="socket-widget">
@@ -2540,6 +2594,251 @@ class GordataManager {
                 ctx.textAlign = 'center';
                 ctx.fillText('Error loading chart', canvas.width / 2, canvas.height / 2);
             }
+        }
+    }
+    
+    // ============================================
+    // QUICK CAPTURE WIDGET
+    // ============================================
+    
+    renderQuickCaptureWidget(widgetData, socketKey) {
+        const widgetId = `widget-${socketKey}`;
+        const formId = `qc-form-${socketKey}`;
+        const counterId = `qc-counter-${socketKey}`;
+        
+        const html = `
+            <div class="socket-widget" id="${widgetId}">
+                <div class="socket-widget-header">
+                    <span class="socket-widget-title">${widgetData.title || 'Quick Capture'}</span>
+                    <div class="socket-widget-actions">
+                        <span id="${counterId}" class="qc-counter">Loading...</span>
+                        <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
+                    </div>
+                </div>
+                <div class="socket-widget-content" style="padding: 20px;">
+                    <form id="${formId}" class="qc-form">
+                        <div class="qc-loading">Loading fields...</div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Load and render the form
+        setTimeout(() => {
+            this.loadQuickCaptureForm(formId, counterId, widgetData.objectTypeId, socketKey);
+        }, 100);
+        
+        return html;
+    }
+    
+    async loadQuickCaptureForm(formId, counterId, objectTypeId, socketKey) {
+        try {
+            const app = window.app;
+            if (!app || !app.currentUser) return;
+            
+            // Fetch object type
+            const typeSnap = await db.ref(`objectTypes/${objectTypeId}`).once('value');
+            if (!typeSnap.exists()) {
+                document.getElementById(formId).innerHTML = '<div class="qc-error">Object type not found</div>';
+                return;
+            }
+            
+            const objectType = typeSnap.val();
+            
+            // Get first 4 fields (sorted by order)
+            const fieldsArray = Object.entries(objectType.fields || {}).map(([id, field]) => ({
+                id,
+                ...field
+            }));
+            fieldsArray.sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+            const quickFields = fieldsArray.slice(0, 4); // First 4 fields only!
+            
+            if (quickFields.length === 0) {
+                document.getElementById(formId).innerHTML = '<div class="qc-error">No fields in this object type</div>';
+                return;
+            }
+            
+            // Render form fields
+            let formHTML = '';
+            quickFields.forEach(field => {
+                formHTML += this.renderQuickCaptureField(field);
+            });
+            
+            formHTML += `
+                <button type="submit" class="qc-submit-btn">
+                    ⚡ Add Entry
+                </button>
+            `;
+            
+            const formElement = document.getElementById(formId);
+            formElement.innerHTML = formHTML;
+            formElement.className = 'qc-form';
+            
+            // Bind submit event
+            formElement.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.submitQuickCapture(formId, objectTypeId, objectType.name, quickFields, counterId);
+            });
+            
+            // Focus first field
+            const firstInput = formElement.querySelector('input, select, textarea');
+            if (firstInput) firstInput.focus();
+            
+            // Update counter
+            this.updateQuickCaptureCounter(counterId, objectTypeId);
+            
+        } catch (error) {
+            console.error('Error loading Quick Capture form:', error);
+            document.getElementById(formId).innerHTML = '<div class="qc-error">Error loading form</div>';
+        }
+    }
+    
+    renderQuickCaptureField(field) {
+        let fieldHTML = `<div class="qc-field">`;
+        fieldHTML += `<label class="qc-label">${field.name}</label>`;
+        
+        if (field.type === 'text') {
+            fieldHTML += `<input type="text" class="qc-input" data-field-id="${field.id}" placeholder="Enter ${field.name.toLowerCase()}...">`;
+        } else if (field.type === 'number') {
+            fieldHTML += `<input type="number" class="qc-input" data-field-id="${field.id}" placeholder="0">`;
+        } else if (field.type === 'date') {
+            // Auto-fill with today's date!
+            const today = new Date().toISOString().split('T')[0];
+            fieldHTML += `<input type="date" class="qc-input" data-field-id="${field.id}" value="${today}">`;
+        } else if (field.type === 'boolean') {
+            fieldHTML += `
+                <label class="qc-checkbox-label">
+                    <input type="checkbox" class="qc-checkbox" data-field-id="${field.id}">
+                    <span>Yes</span>
+                </label>
+            `;
+        } else if (field.type === 'dropdown') {
+            fieldHTML += `<select class="qc-input" data-field-id="${field.id}">`;
+            fieldHTML += `<option value="">Select...</option>`;
+            (field.options || []).forEach(opt => {
+                fieldHTML += `<option value="${opt}">${opt}</option>`;
+            });
+            fieldHTML += `</select>`;
+        } else {
+            fieldHTML += `<input type="text" class="qc-input" data-field-id="${field.id}" placeholder="${field.type}">`;
+        }
+        
+        fieldHTML += `</div>`;
+        return fieldHTML;
+    }
+    
+    async submitQuickCapture(formId, objectTypeId, objectTypeName, fields, counterId) {
+        const app = window.app;
+        if (!app || !app.currentUser) return;
+        
+        const formElement = document.getElementById(formId);
+        const data = {};
+        
+        // Collect form data
+        fields.forEach(field => {
+            const input = formElement.querySelector(`[data-field-id="${field.id}"]`);
+            if (!input) return;
+            
+            if (field.type === 'boolean') {
+                data[field.id] = input.checked;
+            } else if (field.type === 'number') {
+                data[field.id] = input.value ? parseFloat(input.value) : 0;
+            } else {
+                data[field.id] = input.value || '';
+            }
+        });
+        
+        try {
+            // Create instance in Firebase
+            const newInstance = {
+                typeId: objectTypeId,
+                typeName: objectTypeName,
+                authorId: app.currentUser.id,
+                data: data,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            
+            await db.ref('objects').push(newInstance);
+            
+            // Success! Play sound
+            soundManager.play('accepted');
+            
+            // Clear form (except date fields - keep today's date!)
+            fields.forEach(field => {
+                const input = formElement.querySelector(`[data-field-id="${field.id}"]`);
+                if (!input) return;
+                
+                if (field.type === 'boolean') {
+                    input.checked = false;
+                } else if (field.type !== 'date') {  // Keep date as today!
+                    input.value = '';
+                }
+            });
+            
+            // Focus first field again
+            const firstInput = formElement.querySelector('input, select, textarea');
+            if (firstInput) firstInput.focus();
+            
+            // Update counter
+            this.updateQuickCaptureCounter(counterId, objectTypeId);
+            
+            // Brief success animation
+            const submitBtn = formElement.querySelector('.qc-submit-btn');
+            if (submitBtn) {
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = '✓ Added!';
+                submitBtn.style.background = '#10b981';
+                setTimeout(() => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.style.background = '';
+                }, 800);
+            }
+            
+        } catch (error) {
+            console.error('Error submitting Quick Capture:', error);
+            app.showToast('Error saving entry', 'error');
+        }
+    }
+    
+    async updateQuickCaptureCounter(counterId, objectTypeId) {
+        const app = window.app;
+        if (!app || !app.currentUser) return;
+        
+        try {
+            // Get today's start and end timestamps
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const todayEnd = todayStart + (24 * 60 * 60 * 1000);
+            
+            // Query instances created today
+            const instancesSnap = await db.ref('objects')
+                .orderByChild('typeId')
+                .equalTo(objectTypeId)
+                .once('value');
+            
+            let todayCount = 0;
+            instancesSnap.forEach(snap => {
+                const instance = snap.val();
+                if (instance.authorId === app.currentUser.id && 
+                    instance.createdAt >= todayStart && 
+                    instance.createdAt < todayEnd) {
+                    todayCount++;
+                }
+            });
+            
+            const counterElement = document.getElementById(counterId);
+            if (counterElement) {
+                counterElement.textContent = `${todayCount} today`;
+                counterElement.className = 'qc-counter';
+                if (todayCount > 0) {
+                    counterElement.classList.add('has-entries');
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error updating counter:', error);
         }
     }
 }

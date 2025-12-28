@@ -3668,3 +3668,118 @@ input:checked + .toggle-slider:before {
     color: #64748b;
 }
 
+/* ============================================
+   QUICK CAPTURE WIDGET
+   ============================================ */
+
+.qc-counter {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    padding: 4px 10px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    margin-right: 8px;
+    transition: all 0.3s;
+}
+
+.qc-counter.has-entries {
+    background: #dbeafe;
+    color: #3b82f6;
+}
+
+.qc-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.qc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.qc-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.qc-input {
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+    background: white;
+}
+
+.qc-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: #f8fafc;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.qc-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 8px 0;
+}
+
+.qc-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.qc-checkbox-label span {
+    font-size: 14px;
+    color: #64748b;
+    user-select: none;
+}
+
+.qc-submit-btn {
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.qc-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.qc-submit-btn:active {
+    transform: translateY(0);
+}
+
+.qc-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.qc-error {
+    text-align: center;
+    padding: 40px 20px;
+    color: #dc2626;
+    font-size: 14px;
+    background: #fee2e2;
+    border-radius: 10px;
+}
+
