@@ -3086,15 +3086,25 @@ class CommandPalette {
     
     _getCurrentContext() {
         // Determine current view/context
+        // Add null checks for views that might not be initialized yet
+        if (!this.app.homeView) return 'home';
+        
         if (!this.app.homeView.classList.contains('hidden')) {
-            if (!this.app.gordataView.classList.contains('hidden')) {
+            if (this.app.gordataView && !this.app.gordataView.classList.contains('hidden')) {
                 return 'gordata';
-            } else if (!this.app.toolkitView.classList.contains('hidden')) {
+            } else if (this.app.objectInstancesView && !this.app.objectInstancesView.classList.contains('hidden')) {
                 return 'toolkit';
-            } else if (!this.app.writeView.classList.contains('hidden')) {
+            } else if (this.app.writeView && !this.app.writeView.classList.contains('hidden')) {
                 return 'write';
             }
+            return 'home';
         }
+        
+        // Check other top-level views
+        if (this.app.profileView && !this.app.profileView.classList.contains('hidden')) {
+            return 'profile';
+        }
+        
         return 'home';
     }
     
@@ -3224,7 +3234,7 @@ class CommandPalette {
     
     _goToGordata() {
         if (this.app.currentUser) {
-            this.app.openGordata();
+            this.app.showGordataView();
             this._showToast('Opening Gordata');
         } else {
             this._showToast('Please log in first', 'error');
