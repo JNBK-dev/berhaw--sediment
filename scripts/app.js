@@ -2944,10 +2944,10 @@ class CommandPalette {
         miniPalette.className = 'command-palette-mini hidden';
         miniPalette.innerHTML = `
             <div class="command-palette-shell">
-                <img src="command-palette-shell.svg" alt="Shell" />
+                <img src="icons/command-palette-shell.svg" alt="Shell" />
             </div>
             <div class="command-palette-plus">
-                <img src="command-palette-plus.svg" alt="Plus" />
+                <img src="icons/command-palette-plus.svg" alt="Plus" />
             </div>
             <div class="command-palette-key">O</div>
         `;
@@ -2963,7 +2963,7 @@ class CommandPalette {
             <div class="command-palette-content">
                 <div class="command-palette-header">
                     <div class="command-palette-shell-small">
-                        <img src="command-palette-shell.svg" alt="Shell" />
+                        <img src="icons/command-palette-shell.svg" alt="Shell" />
                     </div>
                     <input 
                         type="text" 
