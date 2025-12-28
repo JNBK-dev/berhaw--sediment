@@ -2309,6 +2309,9 @@ class GordataManager {
                 <div class="socket-widget-header">
                     <span class="socket-widget-title">${widgetData.title || 'Visualization'}</span>
                     <div class="socket-widget-actions">
+                        <button class="socket-action-btn socket-refresh-btn" onclick="window.app.gordataManager.updateSavedVisualization('${chartId}', '${widgetId}', '${widgetData.vizId}'); event.stopPropagation();" title="Refresh data">
+                            ↻
+                        </button>
                         <button class="socket-action-btn" onclick="window.app.gordataManager.removeWidget('${socketKey}')">Remove</button>
                     </div>
                 </div>
@@ -2796,6 +2799,9 @@ class GordataManager {
                 }, 800);
             }
             
+            // 🎯 Refresh visualizations showing this object type!
+            this.refreshVisualizationsForType(objectTypeId);
+            
         } catch (error) {
             console.error('Error submitting Quick Capture:', error);
             app.showToast('Error saving entry', 'error');
@@ -2840,6 +2846,33 @@ class GordataManager {
         } catch (error) {
             console.error('Error updating counter:', error);
         }
+    }
+    
+    refreshVisualizationsForType(objectTypeId) {
+        // Find all savedVisualization widgets showing this object type
+        // and refresh them!
+        
+        Object.entries(this.config.sockets).forEach(([socketKey, widgetData]) => {
+            if (!widgetData || widgetData.isEmpty) return;
+            
+            // Check if this is a saved visualization widget
+            if (widgetData.type === 'savedVisualization') {
+                // Get the visualization from library
+                const viz = window.app.vizLibrary.get(widgetData.vizId);
+                
+                if (viz && viz.objectTypeId === objectTypeId) {
+                    // This visualization shows the same object type!
+                    // Trigger its refresh
+                    const chartId = `chart-${socketKey}`;
+                    const widgetId = `widget-${socketKey}`;
+                    
+                    console.log(`🔄 Refreshing visualization "${viz.name}" after Quick Capture save`);
+                    
+                    // Call the update method to re-render the chart
+                    this.updateSavedVisualization(chartId, widgetId, widgetData.vizId);
+                }
+            }
+        });
     }
 }
 

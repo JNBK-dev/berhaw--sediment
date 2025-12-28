@@ -3470,6 +3470,30 @@ input:checked + .toggle-slider:before {
     color: #475569;
 }
 
+.socket-refresh-btn {
+    font-size: 14px !important;
+    font-weight: 700;
+    padding: 4px 10px !important;
+}
+
+.socket-refresh-btn:hover {
+    background: #dbeafe !important;
+    color: #3b82f6 !important;
+}
+
+.socket-refresh-btn:active {
+    animation: refresh-spin 0.5s ease-in-out;
+}
+
+@keyframes refresh-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .socket-widget-content {
     flex: 1;
     overflow: auto;
