@@ -3851,6 +3851,13 @@ input:checked + .toggle-slider:before {
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+
+.command-palette-shell img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .command-palette-plus {
@@ -3859,6 +3866,12 @@ input:checked + .toggle-slider:before {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.command-palette-plus img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .command-palette-key {
@@ -3954,6 +3967,13 @@ input:checked + .toggle-slider:before {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+.command-palette-shell-small img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .command-palette-search {
