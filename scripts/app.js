@@ -2878,6 +2878,313 @@ class GordataManager {
 
 
 // ============================================
+// KEYBOARD SHORTCUT MANAGER
+// ============================================
+
+class KeyboardShortcutManager {
+    constructor(app) {
+        this.app = app;
+        this.shortcuts = {};
+        this.helpOverlay = null;
+        
+        this._initializeShortcuts();
+        this._bindGlobalListener();
+        this._createHelpOverlay();
+    }
+    
+    _initializeShortcuts() {
+        // Quick Capture shortcuts
+        this.register('cmd+k', () => this._focusQuickCapture(), 'Focus Quick Capture');
+        this.register('ctrl+k', () => this._focusQuickCapture(), 'Focus Quick Capture');
+        
+        this.register('cmd+enter', () => this._submitQuickCapture(), 'Submit Quick Capture');
+        this.register('ctrl+enter', () => this._submitQuickCapture(), 'Submit Quick Capture');
+        
+        this.register('escape', () => this._clearQuickCapture(), 'Clear Quick Capture form');
+        
+        // Navigation shortcuts
+        this.register('cmd+p', () => this._goToProfile(), 'Go to your Profile');
+        this.register('ctrl+p', () => this._goToProfile(), 'Go to your Profile');
+        
+        this.register('cmd+g', () => this._goToGordata(), 'Go to Gordata');
+        this.register('ctrl+g', () => this._goToGordata(), 'Go to Gordata');
+        
+        this.register('cmd+t', () => this._goToToolkit(), 'Go to Toolkit');
+        this.register('ctrl+t', () => this._goToToolkit(), 'Go to Toolkit');
+        
+        // Action shortcuts
+        this.register('cmd+r', (e) => this._refreshVisualizations(e), 'Refresh visualizations');
+        this.register('ctrl+r', (e) => this._refreshVisualizations(e), 'Refresh visualizations');
+        
+        this.register('cmd+e', () => this._toggleEditMode(), 'Toggle Edit Layout Mode');
+        this.register('ctrl+e', () => this._toggleEditMode(), 'Toggle Edit Layout Mode');
+        
+        // Help overlay
+        this.register('cmd+/', () => this._toggleHelp(), 'Show keyboard shortcuts');
+        this.register('ctrl+/', () => this._toggleHelp(), 'Show keyboard shortcuts');
+    }
+    
+    register(shortcut, handler, description) {
+        this.shortcuts[shortcut.toLowerCase()] = {
+            handler,
+            description
+        };
+    }
+    
+    _bindGlobalListener() {
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger shortcuts when typing in certain elements
+            const activeElement = document.activeElement;
+            const isTyping = activeElement.tagName === 'INPUT' || 
+                            activeElement.tagName === 'TEXTAREA' ||
+                            activeElement.isContentEditable;
+            
+            // Build shortcut string
+            let shortcut = '';
+            if (e.metaKey || e.ctrlKey) {
+                shortcut += e.metaKey ? 'cmd+' : 'ctrl+';
+            }
+            if (e.shiftKey && e.key !== 'Shift') {
+                shortcut += 'shift+';
+            }
+            
+            // Add the key
+            const key = e.key.toLowerCase();
+            if (key !== 'meta' && key !== 'control' && key !== 'shift' && key !== 'alt') {
+                shortcut += key;
+            }
+            
+            // Check if we have this shortcut registered
+            const registeredShortcut = this.shortcuts[shortcut];
+            
+            if (registeredShortcut) {
+                // Special handling: Allow Cmd/Ctrl+Enter from input fields (for Quick Capture)
+                if (shortcut.includes('enter') && isTyping) {
+                    e.preventDefault();
+                    registeredShortcut.handler(e);
+                    return;
+                }
+                
+                // Special handling: Allow Escape from input fields
+                if (key === 'escape' && isTyping) {
+                    e.preventDefault();
+                    registeredShortcut.handler(e);
+                    return;
+                }
+                
+                // For other shortcuts, don't trigger if typing
+                if (isTyping) {
+                    return;
+                }
+                
+                e.preventDefault();
+                registeredShortcut.handler(e);
+            }
+        });
+    }
+    
+    _focusQuickCapture() {
+        // Find the first Quick Capture widget
+        const quickCaptureForm = document.querySelector('.qc-form input, .qc-form select, .qc-form textarea');
+        
+        if (quickCaptureForm) {
+            quickCaptureForm.focus();
+            this._showToast('Quick Capture focused', 'info');
+            this._highlightElement(quickCaptureForm.closest('.socket-widget'));
+        } else {
+            this._showToast('No Quick Capture widget found', 'error');
+        }
+    }
+    
+    _submitQuickCapture() {
+        // Find the first Quick Capture form
+        const quickCaptureForm = document.querySelector('.qc-form');
+        
+        if (quickCaptureForm) {
+            // Trigger form submission
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            quickCaptureForm.dispatchEvent(submitEvent);
+        } else {
+            this._showToast('No Quick Capture widget found', 'error');
+        }
+    }
+    
+    _clearQuickCapture() {
+        // Find all Quick Capture forms and clear them
+        const quickCaptureForms = document.querySelectorAll('.qc-form');
+        
+        if (quickCaptureForms.length > 0) {
+            quickCaptureForms.forEach(form => {
+                const inputs = form.querySelectorAll('input:not([type="date"]), textarea, select');
+                inputs.forEach(input => {
+                    if (input.type === 'checkbox') {
+                        input.checked = false;
+                    } else {
+                        input.value = '';
+                    }
+                });
+                
+                // Focus first field
+                const firstField = form.querySelector('input, select, textarea');
+                if (firstField) firstField.focus();
+            });
+            
+            this._showToast('Form cleared', 'info');
+        }
+    }
+    
+    _goToProfile() {
+        if (this.app.currentUser) {
+            this.app.openProfile(this.app.currentUser.id);
+            this._showToast('Opening your profile', 'success');
+        } else {
+            this._showToast('Please log in first', 'error');
+        }
+    }
+    
+    _goToGordata() {
+        if (this.app.currentUser) {
+            this.app.openGordata();
+            this._showToast('Opening Gordata', 'success');
+        } else {
+            this._showToast('Please log in first', 'error');
+        }
+    }
+    
+    _goToToolkit() {
+        if (this.app.currentUser) {
+            this.app.switchTab('toolkit');
+            this._showToast('Opening Toolkit', 'success');
+        } else {
+            this._showToast('Please log in first', 'error');
+        }
+    }
+    
+    _refreshVisualizations(e) {
+        // Prevent browser's default refresh
+        e.preventDefault();
+        
+        // Find all visualization widgets and refresh them
+        const vizWidgets = document.querySelectorAll('[id^="chart-"]');
+        
+        if (vizWidgets.length > 0) {
+            vizWidgets.forEach(canvas => {
+                const chartId = canvas.id;
+                const socketKey = chartId.replace('chart-', '');
+                const widgetData = this.app.gordataManager.config.sockets[socketKey];
+                
+                if (widgetData && widgetData.type === 'savedVisualization') {
+                    const widgetId = `widget-${socketKey}`;
+                    this.app.gordataManager.updateSavedVisualization(chartId, widgetId, widgetData.vizId);
+                }
+            });
+            
+            this._showToast(`Refreshed ${vizWidgets.length} visualization(s)`, 'success');
+        } else {
+            this._showToast('No visualizations to refresh', 'info');
+        }
+    }
+    
+    _toggleEditMode() {
+        if (this.app.gordataManager) {
+            this.app.gordataManager.toggleEditMode();
+            const isEditMode = this.app.gordataManager.editMode;
+            this._showToast(isEditMode ? 'Edit mode ON' : 'Edit mode OFF', 'info');
+        }
+    }
+    
+    _toggleHelp() {
+        if (this.helpOverlay.classList.contains('hidden')) {
+            this.helpOverlay.classList.remove('hidden');
+        } else {
+            this.helpOverlay.classList.add('hidden');
+        }
+    }
+    
+    _createHelpOverlay() {
+        // Create help overlay HTML
+        const overlay = document.createElement('div');
+        overlay.id = 'keyboardShortcutsHelp';
+        overlay.className = 'keyboard-help-overlay hidden';
+        
+        // Group shortcuts by category
+        const categories = {
+            'Quick Capture': ['cmd+k', 'cmd+enter', 'escape'],
+            'Navigation': ['cmd+p', 'cmd+g', 'cmd+t'],
+            'Actions': ['cmd+r', 'cmd+e'],
+            'Help': ['cmd+/']
+        };
+        
+        let html = `
+            <div class="keyboard-help-content">
+                <div class="keyboard-help-header">
+                    <h2>⌨️ Keyboard Shortcuts</h2>
+                    <button class="keyboard-help-close" onclick="window.app.keyboardManager._toggleHelp()">×</button>
+                </div>
+                <div class="keyboard-help-body">
+        `;
+        
+        Object.entries(categories).forEach(([category, shortcutKeys]) => {
+            html += `<div class="keyboard-help-section">`;
+            html += `<h3>${category}</h3>`;
+            html += `<div class="keyboard-help-shortcuts">`;
+            
+            shortcutKeys.forEach(key => {
+                const shortcut = this.shortcuts[key];
+                if (shortcut) {
+                    const displayKey = key.replace('cmd+', '⌘ ').replace('ctrl+', 'Ctrl + ').toUpperCase();
+                    html += `
+                        <div class="keyboard-help-item">
+                            <div class="keyboard-help-keys">${displayKey}</div>
+                            <div class="keyboard-help-desc">${shortcut.description}</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            html += `</div></div>`;
+        });
+        
+        html += `
+                </div>
+                <div class="keyboard-help-footer">
+                    Press <span class="keyboard-help-key">⌘ /</span> to close
+                </div>
+            </div>
+        `;
+        
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+        this.helpOverlay = overlay;
+        
+        // Click outside to close
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                this._toggleHelp();
+            }
+        });
+    }
+    
+    _showToast(message, type = 'info') {
+        if (this.app.showToast) {
+            this.app.showToast(message, type);
+        }
+    }
+    
+    _highlightElement(element) {
+        if (!element) return;
+        
+        element.style.transition = 'all 0.3s';
+        element.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
+        
+        setTimeout(() => {
+            element.style.boxShadow = '';
+        }, 600);
+    }
+}
+
+
+// ============================================
 // APP CLASS
 // ============================================
 
@@ -3173,6 +3480,9 @@ class App {
 
         // Initialize Gordata Manager (customizable dashboard)
         this.gordataManager = new GordataManager();
+
+        // Initialize Keyboard Shortcuts Manager
+        this.keyboardManager = new KeyboardShortcutManager(this);
 
         // Bind events
         this.loginBtn.onclick = () => this.handleLogin();
