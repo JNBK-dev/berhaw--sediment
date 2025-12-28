@@ -2878,165 +2878,351 @@ class GordataManager {
 
 
 // ============================================
-// KEYBOARD SHORTCUT MANAGER
+// COMMAND PALETTE
 // ============================================
 
-class KeyboardShortcutManager {
+class CommandPalette {
     constructor(app) {
         this.app = app;
-        this.shortcuts = {};
-        this.helpOverlay = null;
+        this.isOpen = false;
+        this.mode = 'mini'; // 'mini' or 'full'
+        this.commands = [];
+        this.filteredCommands = [];
+        this.selectedIndex = 0;
         
-        this._initializeShortcuts();
+        this._initializeCommands();
+        this._createPaletteUI();
         this._bindGlobalListener();
-        this._createHelpOverlay();
     }
     
-    _initializeShortcuts() {
-        // Quick Capture shortcuts
-        this.register('cmd+k', () => this._focusQuickCapture(), 'Focus Quick Capture');
-        this.register('ctrl+k', () => this._focusQuickCapture(), 'Focus Quick Capture');
-        
-        this.register('cmd+enter', () => this._submitQuickCapture(), 'Submit Quick Capture');
-        this.register('ctrl+enter', () => this._submitQuickCapture(), 'Submit Quick Capture');
-        
-        this.register('escape', () => this._clearQuickCapture(), 'Clear Quick Capture form');
-        
-        // Navigation shortcuts
-        this.register('cmd+p', () => this._goToProfile(), 'Go to your Profile');
-        this.register('ctrl+p', () => this._goToProfile(), 'Go to your Profile');
-        
-        this.register('cmd+g', () => this._goToGordata(), 'Go to Gordata');
-        this.register('ctrl+g', () => this._goToGordata(), 'Go to Gordata');
-        
-        this.register('cmd+t', () => this._goToToolkit(), 'Go to Toolkit');
-        this.register('ctrl+t', () => this._goToToolkit(), 'Go to Toolkit');
-        
-        // Action shortcuts
-        this.register('cmd+r', (e) => this._refreshVisualizations(e), 'Refresh visualizations');
-        this.register('ctrl+r', (e) => this._refreshVisualizations(e), 'Refresh visualizations');
-        
-        this.register('cmd+e', () => this._toggleEditMode(), 'Toggle Edit Layout Mode');
-        this.register('ctrl+e', () => this._toggleEditMode(), 'Toggle Edit Layout Mode');
-        
-        // Help overlay
-        this.register('cmd+/', () => this._toggleHelp(), 'Show keyboard shortcuts');
-        this.register('ctrl+/', () => this._toggleHelp(), 'Show keyboard shortcuts');
+    _initializeCommands() {
+        // Register all commands with their keys, actions, and contexts
+        this.commands = [
+            {
+                key: 'k',
+                label: 'Focus Quick Capture',
+                action: () => this._focusQuickCapture(),
+                contexts: ['all']
+            },
+            {
+                key: 'e',
+                label: 'Toggle Edit Layout Mode',
+                action: () => this._toggleEditMode(),
+                contexts: ['gordata']
+            },
+            {
+                key: 'p',
+                label: 'Go to Profile',
+                action: () => this._goToProfile(),
+                contexts: ['all']
+            },
+            {
+                key: 'g',
+                label: 'Go to Gordata',
+                action: () => this._goToGordata(),
+                contexts: ['all']
+            },
+            {
+                key: 't',
+                label: 'Go to Toolkit',
+                action: () => this._goToToolkit(),
+                contexts: ['all']
+            },
+            {
+                key: 'r',
+                label: 'Refresh Visualizations',
+                action: () => this._refreshVisualizations(),
+                contexts: ['gordata']
+            }
+        ];
     }
     
-    register(shortcut, handler, description) {
-        this.shortcuts[shortcut.toLowerCase()] = {
-            handler,
-            description
-        };
+    _createPaletteUI() {
+        // Create mini mode palette
+        const miniPalette = document.createElement('div');
+        miniPalette.id = 'commandPaletteMini';
+        miniPalette.className = 'command-palette-mini hidden';
+        miniPalette.innerHTML = `
+            <div class="command-palette-shell">
+                <svg width="48" height="48" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M285.779,168.422C285.961,168.739 286.158,169.053 286.374,169.365C289.917,174.497 289.935,178.448 289.124,181.233C288.027,185.002 285.039,187.074 283.753,187.814C281.883,189.223 269.017,199.046 260.61,208.904C257.273,212.817 254.526,216.602 254.14,219.81C251.575,241.138 245.85,253.437 241.764,259.429C239.477,262.782 237.404,264.471 236.314,265.053C234.74,265.892 230.9,266.894 225.765,267.705C215.227,269.369 198.639,270.736 187.563,270.736C176.488,270.736 159.935,269.369 149.419,267.705C144.293,266.893 140.46,265.892 138.886,265.053C137.796,264.471 135.723,262.782 133.436,259.429C129.35,253.437 123.625,241.138 121.06,219.81C120.674,216.602 117.927,212.817 114.59,208.904C106.18,199.043 93.308,189.216 91.449,187.815C90.157,187.071 87.172,184.999 86.076,181.233C85.265,178.448 85.283,174.497 88.826,169.365C89.042,169.053 89.239,168.739 89.421,168.422C89.49,168.279 89.567,168.139 89.652,168.003C91.079,165.302 91.448,162.462 92.379,159.419C94.43,152.713 98.126,144.936 113.778,135.607C124.841,129.014 128.682,122.987 132.786,117.969C137.646,112.028 142.728,107.159 156.9,103.947C170.567,100.85 174.824,99.992 177.519,100.304C179.017,100.478 180.192,100.902 181.716,101.622C182.955,102.208 184.585,103.059 187.601,104.081C190.616,103.058 192.245,102.208 193.484,101.622C195.008,100.902 196.183,100.478 197.681,100.304C200.376,99.992 204.633,100.85 218.3,103.947C232.472,107.159 237.554,112.028 242.414,117.969C246.518,122.987 250.359,129.014 261.422,135.607C277.074,144.936 280.77,152.713 282.821,159.419C283.752,162.462 284.121,165.302 285.548,168.003C285.633,168.139 285.71,168.279 285.779,168.422Z" transform="scale(0.6) translate(-140, -140)" fill="#7ECD46"/>
+                </svg>
+            </div>
+            <div class="command-palette-plus">
+                <svg width="28" height="28" viewBox="0 0 84 84" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M207.013,210.767L194.716,210.767C192.248,210.767 190.244,207.183 190.244,202.767L190.244,194.767C190.244,190.352 192.248,186.767 194.716,186.767L207.013,186.767L207.013,164.767C207.013,160.352 209.016,156.767 211.484,156.767L215.956,156.767C218.424,156.767 220.427,160.352 220.427,164.767L220.427,186.767L232.724,186.767C235.192,186.767 237.195,190.352 237.195,194.767L237.195,202.767C237.195,207.183 235.192,210.767 232.724,210.767L220.427,210.767L220.427,232.767C220.427,237.183 218.424,240.767 215.956,240.767L211.484,240.767C209.016,240.767 207.013,237.183 207.013,232.767L207.013,210.767Z" transform="scale(0.21) translate(-2095, -185)" fill="#F1FFB6"/>
+                </svg>
+            </div>
+            <div class="command-palette-key">O</div>
+        `;
+        document.body.appendChild(miniPalette);
+        this.miniPalette = miniPalette;
+        
+        // Create full mode palette
+        const fullPalette = document.createElement('div');
+        fullPalette.id = 'commandPaletteFull';
+        fullPalette.className = 'command-palette-full hidden';
+        fullPalette.innerHTML = `
+            <div class="command-palette-overlay"></div>
+            <div class="command-palette-content">
+                <div class="command-palette-header">
+                    <div class="command-palette-shell-small">
+                        <svg width="32" height="32" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M285.779,168.422C285.961,168.739 286.158,169.053 286.374,169.365C289.917,174.497 289.935,178.448 289.124,181.233C288.027,185.002 285.039,187.074 283.753,187.814C281.883,189.223 269.017,199.046 260.61,208.904C257.273,212.817 254.526,216.602 254.14,219.81C251.575,241.138 245.85,253.437 241.764,259.429C239.477,262.782 237.404,264.471 236.314,265.053C234.74,265.892 230.9,266.894 225.765,267.705C215.227,269.369 198.639,270.736 187.563,270.736C176.488,270.736 159.935,269.369 149.419,267.705C144.293,266.893 140.46,265.892 138.886,265.053C137.796,264.471 135.723,262.782 133.436,259.429C129.35,253.437 123.625,241.138 121.06,219.81C120.674,216.602 117.927,212.817 114.59,208.904C106.18,199.043 93.308,189.216 91.449,187.815C90.157,187.071 87.172,184.999 86.076,181.233C85.265,178.448 85.283,174.497 88.826,169.365C89.042,169.053 89.239,168.739 89.421,168.422C89.49,168.279 89.567,168.139 89.652,168.003C91.079,165.302 91.448,162.462 92.379,159.419C94.43,152.713 98.126,144.936 113.778,135.607C124.841,129.014 128.682,122.987 132.786,117.969C137.646,112.028 142.728,107.159 156.9,103.947C170.567,100.85 174.824,99.992 177.519,100.304C179.017,100.478 180.192,100.902 181.716,101.622C182.955,102.208 184.585,103.059 187.601,104.081C190.616,103.058 192.245,102.208 193.484,101.622C195.008,100.902 196.183,100.478 197.681,100.304C200.376,99.992 204.633,100.85 218.3,103.947C232.472,107.159 237.554,112.028 242.414,117.969C246.518,122.987 250.359,129.014 261.422,135.607C277.074,144.936 280.77,152.713 282.821,159.419C283.752,162.462 284.121,165.302 285.548,168.003C285.633,168.139 285.71,168.279 285.779,168.422Z" transform="scale(0.5) translate(-170, -170)" fill="#7ECD46"/>
+                        </svg>
+                    </div>
+                    <input 
+                        type="text" 
+                        class="command-palette-search" 
+                        placeholder="Search commands..."
+                        autocomplete="off"
+                    />
+                    <button class="command-palette-close">×</button>
+                </div>
+                <div class="command-palette-list"></div>
+                <div class="command-palette-footer">
+                    <span>Press <kbd>Esc</kbd> to close</span>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(fullPalette);
+        this.fullPalette = fullPalette;
+        
+        // Bind events for full mode
+        const searchInput = fullPalette.querySelector('.command-palette-search');
+        const closeBtn = fullPalette.querySelector('.command-palette-close');
+        const overlay = fullPalette.querySelector('.command-palette-overlay');
+        
+        searchInput.addEventListener('input', (e) => this._handleSearch(e.target.value));
+        closeBtn.addEventListener('click', () => this.close());
+        overlay.addEventListener('click', () => this.close());
     }
     
     _bindGlobalListener() {
         document.addEventListener('keydown', (e) => {
-            // Don't trigger shortcuts when typing in certain elements
-            const activeElement = document.activeElement;
-            const isTyping = activeElement.tagName === 'INPUT' || 
-                            activeElement.tagName === 'TEXTAREA' ||
-                            activeElement.isContentEditable;
-            
-            // Build shortcut string
-            let shortcut = '';
-            if (e.metaKey || e.ctrlKey) {
-                shortcut += e.metaKey ? 'cmd+' : 'ctrl+';
-            }
-            if (e.shiftKey && e.key !== 'Shift') {
-                shortcut += 'shift+';
-            }
-            
-            // Add the key
-            const key = e.key.toLowerCase();
-            if (key !== 'meta' && key !== 'control' && key !== 'shift' && key !== 'alt') {
-                shortcut += key;
-            }
-            
-            // Check if we have this shortcut registered
-            const registeredShortcut = this.shortcuts[shortcut];
-            
-            if (registeredShortcut) {
-                // Special handling: Allow Cmd/Ctrl+Enter from input fields (for Quick Capture)
-                if (shortcut.includes('enter') && isTyping) {
-                    e.preventDefault();
-                    registeredShortcut.handler(e);
-                    return;
-                }
-                
-                // Special handling: Allow Escape from input fields
-                if (key === 'escape' && isTyping) {
-                    e.preventDefault();
-                    registeredShortcut.handler(e);
-                    return;
-                }
-                
-                // For other shortcuts, don't trigger if typing
-                if (isTyping) {
-                    return;
-                }
-                
+            // Cmd/Ctrl + K to toggle palette
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
-                registeredShortcut.handler(e);
+                this.toggle();
+                return;
+            }
+            
+            // If palette is open
+            if (this.isOpen) {
+                if (this.mode === 'mini') {
+                    this._handleMiniModeKey(e);
+                } else {
+                    this._handleFullModeKey(e);
+                }
+            }
+            
+            // Cmd/Ctrl + Enter in Quick Capture forms
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                const quickCaptureForm = document.querySelector('.qc-form');
+                if (quickCaptureForm && document.activeElement.closest('.qc-form')) {
+                    e.preventDefault();
+                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                    quickCaptureForm.dispatchEvent(submitEvent);
+                }
             }
         });
     }
     
-    _focusQuickCapture() {
-        // Find the first Quick Capture widget
-        const quickCaptureForm = document.querySelector('.qc-form input, .qc-form select, .qc-form textarea');
+    _handleMiniModeKey(e) {
+        const key = e.key.toLowerCase();
         
+        // Escape closes palette
+        if (key === 'escape') {
+            e.preventDefault();
+            this.close();
+            return;
+        }
+        
+        // / expands to full mode
+        if (key === '/') {
+            e.preventDefault();
+            this._expandToFull();
+            return;
+        }
+        
+        // Check if key matches a command
+        const command = this._getContextualCommands().find(cmd => cmd.key === key);
+        if (command) {
+            e.preventDefault();
+            this._executeCommand(command);
+        }
+    }
+    
+    _handleFullModeKey(e) {
+        const key = e.key.toLowerCase();
+        
+        // Escape closes palette
+        if (key === 'escape') {
+            e.preventDefault();
+            this.close();
+            return;
+        }
+        
+        // Arrow keys navigate
+        if (key === 'arrowdown') {
+            e.preventDefault();
+            this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredCommands.length - 1);
+            this._updateFullModeSelection();
+        } else if (key === 'arrowup') {
+            e.preventDefault();
+            this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+            this._updateFullModeSelection();
+        } else if (key === 'enter') {
+            e.preventDefault();
+            if (this.filteredCommands[this.selectedIndex]) {
+                this._executeCommand(this.filteredCommands[this.selectedIndex]);
+            }
+        }
+    }
+    
+    _getContextualCommands() {
+        // Get current context
+        const currentContext = this._getCurrentContext();
+        
+        // Filter commands by context
+        return this.commands.filter(cmd => 
+            cmd.contexts.includes('all') || cmd.contexts.includes(currentContext)
+        );
+    }
+    
+    _getCurrentContext() {
+        // Determine current view/context
+        if (!this.app.homeView.classList.contains('hidden')) {
+            if (!this.app.gordataView.classList.contains('hidden')) {
+                return 'gordata';
+            } else if (!this.app.toolkitView.classList.contains('hidden')) {
+                return 'toolkit';
+            } else if (!this.app.writeView.classList.contains('hidden')) {
+                return 'write';
+            }
+        }
+        return 'home';
+    }
+    
+    toggle() {
+        if (this.isOpen) {
+            this.close();
+        } else {
+            this.open();
+        }
+    }
+    
+    open() {
+        this.isOpen = true;
+        this.mode = 'mini';
+        this.miniPalette.classList.remove('hidden');
+        soundManager.play('click');
+    }
+    
+    close() {
+        this.isOpen = false;
+        this.mode = 'mini';
+        this.miniPalette.classList.add('hidden');
+        this.fullPalette.classList.add('hidden');
+    }
+    
+    _expandToFull() {
+        this.mode = 'full';
+        this.miniPalette.classList.add('hidden');
+        this.fullPalette.classList.remove('hidden');
+        
+        // Populate command list
+        this.filteredCommands = this._getContextualCommands();
+        this.selectedIndex = 0;
+        this._renderFullModeCommands();
+        
+        // Focus search input
+        const searchInput = this.fullPalette.querySelector('.command-palette-search');
+        searchInput.focus();
+        searchInput.value = '';
+    }
+    
+    _handleSearch(query) {
+        const contextualCommands = this._getContextualCommands();
+        
+        if (!query.trim()) {
+            this.filteredCommands = contextualCommands;
+        } else {
+            const lowerQuery = query.toLowerCase();
+            this.filteredCommands = contextualCommands.filter(cmd =>
+                cmd.label.toLowerCase().includes(lowerQuery) ||
+                cmd.key.toLowerCase().includes(lowerQuery)
+            );
+        }
+        
+        this.selectedIndex = 0;
+        this._renderFullModeCommands();
+    }
+    
+    _renderFullModeCommands() {
+        const listContainer = this.fullPalette.querySelector('.command-palette-list');
+        
+        if (this.filteredCommands.length === 0) {
+            listContainer.innerHTML = '<div class="command-palette-empty">No commands found</div>';
+            return;
+        }
+        
+        listContainer.innerHTML = this.filteredCommands.map((cmd, index) => `
+            <div class="command-palette-item ${index === this.selectedIndex ? 'selected' : ''}" data-index="${index}">
+                <div class="command-palette-item-key">${cmd.key.toUpperCase()}</div>
+                <div class="command-palette-item-label">${cmd.label}</div>
+            </div>
+        `).join('');
+        
+        // Bind click events
+        listContainer.querySelectorAll('.command-palette-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const index = parseInt(item.dataset.index);
+                this._executeCommand(this.filteredCommands[index]);
+            });
+        });
+    }
+    
+    _updateFullModeSelection() {
+        const items = this.fullPalette.querySelectorAll('.command-palette-item');
+        items.forEach((item, index) => {
+            if (index === this.selectedIndex) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+    
+    _executeCommand(command) {
+        command.action();
+        this.close();
+    }
+    
+    // Command actions
+    _focusQuickCapture() {
+        const quickCaptureForm = document.querySelector('.qc-form input, .qc-form select, .qc-form textarea');
         if (quickCaptureForm) {
             quickCaptureForm.focus();
-            this._showToast('Quick Capture focused', 'info');
-            this._highlightElement(quickCaptureForm.closest('.socket-widget'));
+            this._showToast('Quick Capture focused');
         } else {
             this._showToast('No Quick Capture widget found', 'error');
         }
     }
     
-    _submitQuickCapture() {
-        // Find the first Quick Capture form
-        const quickCaptureForm = document.querySelector('.qc-form');
-        
-        if (quickCaptureForm) {
-            // Trigger form submission
-            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-            quickCaptureForm.dispatchEvent(submitEvent);
-        } else {
-            this._showToast('No Quick Capture widget found', 'error');
-        }
-    }
-    
-    _clearQuickCapture() {
-        // Find all Quick Capture forms and clear them
-        const quickCaptureForms = document.querySelectorAll('.qc-form');
-        
-        if (quickCaptureForms.length > 0) {
-            quickCaptureForms.forEach(form => {
-                const inputs = form.querySelectorAll('input:not([type="date"]), textarea, select');
-                inputs.forEach(input => {
-                    if (input.type === 'checkbox') {
-                        input.checked = false;
-                    } else {
-                        input.value = '';
-                    }
-                });
-                
-                // Focus first field
-                const firstField = form.querySelector('input, select, textarea');
-                if (firstField) firstField.focus();
-            });
-            
-            this._showToast('Form cleared', 'info');
+    _toggleEditMode() {
+        if (this.app.gordataManager) {
+            this.app.gordataManager.toggleEditMode();
+            const isEditMode = this.app.gordataManager.editMode;
+            this._showToast(isEditMode ? 'Edit mode ON' : 'Edit mode OFF');
         }
     }
     
     _goToProfile() {
         if (this.app.currentUser) {
             this.app.openProfile(this.app.currentUser.id);
-            this._showToast('Opening your profile', 'success');
+            this._showToast('Opening your profile');
         } else {
             this._showToast('Please log in first', 'error');
         }
@@ -3045,7 +3231,7 @@ class KeyboardShortcutManager {
     _goToGordata() {
         if (this.app.currentUser) {
             this.app.openGordata();
-            this._showToast('Opening Gordata', 'success');
+            this._showToast('Opening Gordata');
         } else {
             this._showToast('Please log in first', 'error');
         }
@@ -3054,17 +3240,13 @@ class KeyboardShortcutManager {
     _goToToolkit() {
         if (this.app.currentUser) {
             this.app.switchTab('toolkit');
-            this._showToast('Opening Toolkit', 'success');
+            this._showToast('Opening Toolkit');
         } else {
             this._showToast('Please log in first', 'error');
         }
     }
     
-    _refreshVisualizations(e) {
-        // Prevent browser's default refresh
-        e.preventDefault();
-        
-        // Find all visualization widgets and refresh them
+    _refreshVisualizations() {
         const vizWidgets = document.querySelectorAll('[id^="chart-"]');
         
         if (vizWidgets.length > 0) {
@@ -3079,107 +3261,16 @@ class KeyboardShortcutManager {
                 }
             });
             
-            this._showToast(`Refreshed ${vizWidgets.length} visualization(s)`, 'success');
+            this._showToast(`Refreshed ${vizWidgets.length} visualization(s)`);
         } else {
             this._showToast('No visualizations to refresh', 'info');
         }
     }
     
-    _toggleEditMode() {
-        if (this.app.gordataManager) {
-            this.app.gordataManager.toggleEditMode();
-            const isEditMode = this.app.gordataManager.editMode;
-            this._showToast(isEditMode ? 'Edit mode ON' : 'Edit mode OFF', 'info');
-        }
-    }
-    
-    _toggleHelp() {
-        if (this.helpOverlay.classList.contains('hidden')) {
-            this.helpOverlay.classList.remove('hidden');
-        } else {
-            this.helpOverlay.classList.add('hidden');
-        }
-    }
-    
-    _createHelpOverlay() {
-        // Create help overlay HTML
-        const overlay = document.createElement('div');
-        overlay.id = 'keyboardShortcutsHelp';
-        overlay.className = 'keyboard-help-overlay hidden';
-        
-        // Group shortcuts by category
-        const categories = {
-            'Quick Capture': ['cmd+k', 'cmd+enter', 'escape'],
-            'Navigation': ['cmd+p', 'cmd+g', 'cmd+t'],
-            'Actions': ['cmd+r', 'cmd+e'],
-            'Help': ['cmd+/']
-        };
-        
-        let html = `
-            <div class="keyboard-help-content">
-                <div class="keyboard-help-header">
-                    <h2>⌨️ Keyboard Shortcuts</h2>
-                    <button class="keyboard-help-close" onclick="window.app.keyboardManager._toggleHelp()">×</button>
-                </div>
-                <div class="keyboard-help-body">
-        `;
-        
-        Object.entries(categories).forEach(([category, shortcutKeys]) => {
-            html += `<div class="keyboard-help-section">`;
-            html += `<h3>${category}</h3>`;
-            html += `<div class="keyboard-help-shortcuts">`;
-            
-            shortcutKeys.forEach(key => {
-                const shortcut = this.shortcuts[key];
-                if (shortcut) {
-                    const displayKey = key.replace('cmd+', '⌘ ').replace('ctrl+', 'Ctrl + ').toUpperCase();
-                    html += `
-                        <div class="keyboard-help-item">
-                            <div class="keyboard-help-keys">${displayKey}</div>
-                            <div class="keyboard-help-desc">${shortcut.description}</div>
-                        </div>
-                    `;
-                }
-            });
-            
-            html += `</div></div>`;
-        });
-        
-        html += `
-                </div>
-                <div class="keyboard-help-footer">
-                    Press <span class="keyboard-help-key">⌘ /</span> to close
-                </div>
-            </div>
-        `;
-        
-        overlay.innerHTML = html;
-        document.body.appendChild(overlay);
-        this.helpOverlay = overlay;
-        
-        // Click outside to close
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                this._toggleHelp();
-            }
-        });
-    }
-    
-    _showToast(message, type = 'info') {
+    _showToast(message, type = 'success') {
         if (this.app.showToast) {
             this.app.showToast(message, type);
         }
-    }
-    
-    _highlightElement(element) {
-        if (!element) return;
-        
-        element.style.transition = 'all 0.3s';
-        element.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
-        
-        setTimeout(() => {
-            element.style.boxShadow = '';
-        }, 600);
     }
 }
 
@@ -3481,8 +3572,8 @@ class App {
         // Initialize Gordata Manager (customizable dashboard)
         this.gordataManager = new GordataManager();
 
-        // Initialize Keyboard Shortcuts Manager
-        this.keyboardManager = new KeyboardShortcutManager(this);
+        // Initialize Command Palette
+        this.commandPalette = new CommandPalette(this);
 
         // Bind events
         this.loginBtn.onclick = () => this.handleLogin();
