@@ -3089,20 +3089,23 @@ class CommandPalette {
         // Add null checks for views that might not be initialized yet
         if (!this.app.homeView) return 'home';
         
+        // Check top-level views first (these hide homeView when active)
+        if (this.app.gordataView && !this.app.gordataView.classList.contains('hidden')) {
+            return 'gordata';
+        }
+        
+        if (this.app.profileView && !this.app.profileView.classList.contains('hidden')) {
+            return 'profile';
+        }
+        
+        // Check if we're in homeView with sub-tabs
         if (!this.app.homeView.classList.contains('hidden')) {
-            if (this.app.gordataView && !this.app.gordataView.classList.contains('hidden')) {
-                return 'gordata';
-            } else if (this.app.objectInstancesView && !this.app.objectInstancesView.classList.contains('hidden')) {
+            if (this.app.objectInstancesView && !this.app.objectInstancesView.classList.contains('hidden')) {
                 return 'toolkit';
             } else if (this.app.writeView && !this.app.writeView.classList.contains('hidden')) {
                 return 'write';
             }
             return 'home';
-        }
-        
-        // Check other top-level views
-        if (this.app.profileView && !this.app.profileView.classList.contains('hidden')) {
-            return 'profile';
         }
         
         return 'home';
