@@ -1264,34 +1264,54 @@
             </div>
         </div>
 
-        <!-- Top-Level Navigation Pill -->
-        <nav id="topNavigation" class="top-navigation">
-            <div class="nav-pills-row">
-                <button class="nav-pill" data-nav="home">
-                    <span class="nav-pill-icon"></span>
-                    <span class="nav-pill-label">Home</span>
-                </button>
-                <button class="nav-pill active" data-nav="gordata">
-                    <span class="nav-pill-icon"></span>
-                    <span class="nav-pill-label">Gordata</span>
-                </button>
-                <button class="nav-pill" data-nav="toolkit">
-                    <span class="nav-pill-icon"></span>
-                    <span class="nav-pill-label">Toolkit</span>
-                </button>
-                <button class="nav-pill" data-nav="activity">
-                    <span class="nav-pill-icon"></span>
-                    <span class="nav-pill-label">Activity</span>
-                </button>
-                <button class="nav-pill nav-pill-settings" data-nav="profile">
-                    <span class="nav-pill-icon"></span>
-                    <span class="nav-pill-label">Profile</span>
+        <!-- Unified Navigation Bar -->
+        <nav id="unifiedNavigation" class="unified-nav hidden">
+            <!-- Top Row: Mode Toggle + Gear -->
+            <div class="unified-nav-top-row">
+                <div class="unified-nav-mode-toggle">
+                    <div class="unified-nav-mode-notch" id="modeNotch"></div>
+                    <button class="unified-nav-mode-option active" id="goModeBtn">Go</button>
+                    <button class="unified-nav-mode-option" id="doModeBtn">Do</button>
+                </div>
+                <button class="unified-nav-gear" id="gearBtn">
+                    <img src="icons/berhaw--icon--gear.svg" alt="Settings">
                 </button>
             </div>
-            <div class="nav-user-info">
-                <span class="nav-user-name" id="navUserName">Fluketcher</span>
+
+            <!-- Content Area -->
+            <div class="unified-nav-content">
+                <!-- GO MODE: Space Slider + Views -->
+                <div class="unified-nav-go-content active" id="goContent">
+                    <!-- Space Slider -->
+                    <div class="unified-nav-space-slider">
+                        <div class="unified-nav-space-notch" id="spaceNotch"></div>
+                        <button class="unified-nav-space-option active" id="gordataSpaceBtn">Gordata</button>
+                        <button class="unified-nav-space-option" id="neurotaSpaceBtn">Neurota</button>
+                        <button class="unified-nav-space-option" id="lumbataSpaceBtn">Lumbata</button>
+                    </div>
+
+                    <!-- Views List (dynamically populated) -->
+                    <div class="unified-nav-views-list" id="viewsList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- DO MODE: Actions -->
+                <div class="unified-nav-do-content" id="doContent">
+                    <!-- Action buttons (dynamically populated) -->
+                </div>
             </div>
         </nav>
+
+        <!-- Gear Menu Overlay -->
+        <div class="gear-overlay" id="gearOverlay">
+            <div class="gear-menu">
+                <button class="gear-menu-item" id="gearProfileBtn">Your Profile</button>
+                <div class="gear-menu-divider"></div>
+                <button class="gear-menu-item" id="gearSettingsBtn">Settings</button>
+                <button class="gear-menu-item" id="gearLogoutBtn">Log Out</button>
+            </div>
+        </div>
 
     </div>
 

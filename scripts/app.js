@@ -3283,6 +3283,353 @@ class CommandPalette {
 
 
 // ============================================
+// UNIFIED NAVIGATION CLASS
+// ============================================
+
+class UnifiedNav {
+    constructor(app) {
+        this.app = app;
+        this.currentMode = 'go'; // 'go' or 'do'
+        this.currentSpace = 'gordata'; // 'gordata', 'neurota', 'lumbata'
+        
+        // Space configurations
+        this.spaces = {
+            gordata: {
+                name: 'Gordata',
+                displayName: 'Gordata',
+                defaultView: 'dashboard',
+                showMethod: 'showGordataView',
+                views: [],
+                actions: [
+                    { 
+                        icon: 'icons/icon-refresh.svg', 
+                        label: 'Refresh', 
+                        handler: () => {
+                            if (this.app.gordataManager) {
+                                this.app.gordataManager.refreshAllVisualizations();
+                            }
+                        }
+                    },
+                    { 
+                        icon: null, 
+                        label: 'Edit Layout', 
+                        handler: () => {
+                            if (this.app.gordataManager) {
+                                this.app.gordataManager.toggleEditMode();
+                            }
+                        }, 
+                        primary: true 
+                    }
+                ]
+            },
+            neurota: {
+                name: 'Neurota',
+                displayName: 'Neurota',
+                defaultView: 'objectTypes',
+                showMethod: 'showNeurotaSpace',
+                views: [],
+                actions: [
+                    { 
+                        icon: 'icons/berhaw--icon--plus-circle.svg', 
+                        label: 'Create Type', 
+                        handler: () => this.app.createObjectType(), 
+                        primary: true 
+                    }
+                ]
+            },
+            lumbata: {
+                name: 'Lumbata',
+                displayName: 'Lumbata',
+                defaultView: 'desk',
+                showMethod: 'showLumbataSpace',
+                views: [],
+                actions: []
+            }
+        };
+        
+        // History per Space
+        this.history = {
+            gordata: [],
+            neurota: [],
+            lumbata: []
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        // Get DOM elements
+        this.container = document.getElementById('unifiedNavigation');
+        if (!this.container) {
+            console.error('UnifiedNav: container not found');
+            return;
+        }
+        
+        // Mode toggle elements
+        this.goModeBtn = document.getElementById('goModeBtn');
+        this.doModeBtn = document.getElementById('doModeBtn');
+        this.modeNotch = document.getElementById('modeNotch');
+        
+        // Space elements
+        this.gordataSpaceBtn = document.getElementById('gordataSpaceBtn');
+        this.neurotaSpaceBtn = document.getElementById('neurotaSpaceBtn');
+        this.lumbataSpaceBtn = document.getElementById('lumbataSpaceBtn');
+        this.spaceNotch = document.getElementById('spaceNotch');
+        
+        // Content areas
+        this.goContent = document.getElementById('goContent');
+        this.doContent = document.getElementById('doContent');
+        this.viewsList = document.getElementById('viewsList');
+        
+        // Gear menu
+        this.gearBtn = document.getElementById('gearBtn');
+        this.gearOverlay = document.getElementById('gearOverlay');
+        this.gearProfileBtn = document.getElementById('gearProfileBtn');
+        this.gearSettingsBtn = document.getElementById('gearSettingsBtn');
+        this.gearLogoutBtn = document.getElementById('gearLogoutBtn');
+        
+        // Bind event listeners
+        this.bindEvents();
+        
+        // Initialize notch positions
+        this.initializeNotches();
+        
+        // Render initial state
+        this.render();
+    }
+    
+    bindEvents() {
+        // Mode toggle
+        if (this.goModeBtn) {
+            this.goModeBtn.onclick = () => this.switchMode('go');
+        }
+        if (this.doModeBtn) {
+            this.doModeBtn.onclick = () => this.switchMode('do');
+        }
+        
+        // Space navigation
+        if (this.gordataSpaceBtn) {
+            this.gordataSpaceBtn.onclick = () => this.switchSpace('gordata');
+        }
+        if (this.neurotaSpaceBtn) {
+            this.neurotaSpaceBtn.onclick = () => this.switchSpace('neurota');
+        }
+        if (this.lumbataSpaceBtn) {
+            this.lumbataSpaceBtn.onclick = () => this.switchSpace('lumbata');
+        }
+        
+        // Gear menu
+        if (this.gearBtn) {
+            this.gearBtn.onclick = () => this.toggleGearMenu();
+        }
+        if (this.gearOverlay) {
+            this.gearOverlay.onclick = (e) => {
+                if (e.target === this.gearOverlay) {
+                    this.closeGearMenu();
+                }
+            };
+        }
+        if (this.gearProfileBtn) {
+            this.gearProfileBtn.onclick = () => {
+                this.closeGearMenu();
+                if (this.app.currentUser) {
+                    this.app.openProfile(this.app.currentUser.id);
+                }
+            };
+        }
+        if (this.gearSettingsBtn) {
+            this.gearSettingsBtn.onclick = () => {
+                this.closeGearMenu();
+                this.app.showHomeView();
+                this.app.switchTab('settings');
+            };
+        }
+        if (this.gearLogoutBtn) {
+            this.gearLogoutBtn.onclick = () => {
+                this.closeGearMenu();
+                this.app.handleLogout();
+            };
+        }
+    }
+    
+    initializeNotches() {
+        // Set initial mode notch width
+        if (this.goModeBtn && this.modeNotch) {
+            this.modeNotch.style.width = this.goModeBtn.offsetWidth + 'px';
+        }
+        
+        // Set initial space notch width
+        if (this.gordataSpaceBtn && this.spaceNotch) {
+            this.spaceNotch.style.width = this.gordataSpaceBtn.offsetWidth + 'px';
+        }
+    }
+    
+    switchMode(mode) {
+        this.currentMode = mode;
+        
+        if (mode === 'go') {
+            // Activate Go
+            this.goModeBtn.classList.add('active');
+            this.doModeBtn.classList.remove('active');
+            
+            // Move mode notch
+            this.modeNotch.style.width = this.goModeBtn.offsetWidth + 'px';
+            this.modeNotch.style.transform = 'translateX(0)';
+            
+            // Show go content, hide do content
+            this.goContent.classList.add('active');
+            this.doContent.classList.remove('active');
+        } else {
+            // Activate Do
+            this.doModeBtn.classList.add('active');
+            this.goModeBtn.classList.remove('active');
+            
+            // Move mode notch
+            this.modeNotch.style.width = this.doModeBtn.offsetWidth + 'px';
+            this.modeNotch.style.transform = `translateX(${this.goModeBtn.offsetWidth + 4}px)`;
+            
+            // Show do content, hide go content
+            this.goContent.classList.remove('active');
+            this.doContent.classList.add('active');
+        }
+        
+        this.render();
+    }
+    
+    switchSpace(spaceName) {
+        if (!this.spaces[spaceName]) {
+            console.error(`Space ${spaceName} not found`);
+            return;
+        }
+        
+        this.currentSpace = spaceName;
+        const space = this.spaces[spaceName];
+        
+        // Update active space button
+        [this.gordataSpaceBtn, this.neurotaSpaceBtn, this.lumbataSpaceBtn].forEach(btn => {
+            if (btn) btn.classList.remove('active');
+        });
+        
+        const activeBtn = this[`${spaceName}SpaceBtn`];
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            
+            // Move space notch
+            const spaceSlider = activeBtn.parentElement;
+            const buttons = Array.from(spaceSlider.querySelectorAll('.unified-nav-space-option'));
+            const btnIndex = buttons.indexOf(activeBtn);
+            const btnWidth = activeBtn.offsetWidth;
+            
+            this.spaceNotch.style.width = btnWidth + 'px';
+            this.spaceNotch.style.transform = `translateX(${btnIndex * (btnWidth + 6)}px)`;
+        }
+        
+        // Always reset to 'go' mode when switching spaces
+        this.switchMode('go');
+        
+        // Call the app method to show this space
+        const showMethod = space.showMethod;
+        if (this.app[showMethod]) {
+            this.app[showMethod]();
+        }
+        
+        // Render updated content
+        this.render();
+    }
+    
+    render() {
+        // Render views list (for Go mode)
+        this.renderViews();
+        
+        // Render actions (for Do mode)
+        this.renderActions();
+    }
+    
+    renderViews() {
+        if (!this.viewsList) return;
+        
+        const space = this.spaces[this.currentSpace];
+        
+        // For now, views list is empty (we'll add later)
+        // Just show a placeholder or nothing
+        this.viewsList.innerHTML = '';
+    }
+    
+    renderActions() {
+        if (!this.doContent) return;
+        
+        const space = this.spaces[this.currentSpace];
+        
+        // Clear existing actions
+        this.doContent.innerHTML = '';
+        
+        // Render action buttons
+        if (space.actions && space.actions.length > 0) {
+            space.actions.forEach(action => {
+                const btn = document.createElement('button');
+                btn.className = 'unified-nav-action-btn';
+                if (action.primary) {
+                    btn.classList.add('primary');
+                }
+                
+                // Add icon if present
+                if (action.icon) {
+                    const img = document.createElement('img');
+                    img.src = action.icon;
+                    img.alt = action.label;
+                    btn.appendChild(img);
+                }
+                
+                // Add label
+                const label = document.createElement('span');
+                label.textContent = action.label;
+                btn.appendChild(label);
+                
+                // Add click handler
+                btn.onclick = action.handler;
+                
+                this.doContent.appendChild(btn);
+            });
+        } else {
+            // No actions available
+            const message = document.createElement('span');
+            message.className = 'unified-nav-no-actions';
+            message.textContent = 'No actions available';
+            this.doContent.appendChild(message);
+        }
+    }
+    
+    toggleGearMenu() {
+        if (this.gearOverlay.classList.contains('visible')) {
+            this.closeGearMenu();
+        } else {
+            this.openGearMenu();
+        }
+    }
+    
+    openGearMenu() {
+        this.gearOverlay.classList.add('visible');
+    }
+    
+    closeGearMenu() {
+        this.gearOverlay.classList.remove('visible');
+    }
+    
+    show() {
+        if (this.container) {
+            this.container.classList.remove('hidden');
+        }
+    }
+    
+    hide() {
+        if (this.container) {
+            this.container.classList.add('hidden');
+        }
+    }
+}
+
+
+// ============================================
 // APP CLASS
 // ============================================
 
@@ -3524,10 +3871,8 @@ class App {
         this.leaveGameBtn = document.getElementById("leaveGameBtn");
         this.scoreboard = document.getElementById("scoreboard");
 
-        // Top-level navigation elements
-        this.topNavigation = document.getElementById("topNavigation");
-        this.navUserName = document.getElementById("navUserName");
-        this.navPills = document.querySelectorAll(".nav-pill");
+        // Note: Top navigation is now handled by UnifiedNav class
+        // Old topNavigation DOM elements removed
 
         this.currentUser = null;
         this.currentRoomCode = null;
@@ -3582,6 +3927,9 @@ class App {
         // Initialize Command Palette
         this.commandPalette = new CommandPalette(this);
 
+        // Initialize Unified Navigation
+        this.unifiedNav = new UnifiedNav(this);
+
         // Bind events
         this.loginBtn.onclick = () => this.handleLogin();
         this.quickPlayBtn.onclick = () => this.handleQuickPlay();
@@ -3594,13 +3942,7 @@ class App {
         this.peopleTab.onclick = () => this.switchTab('people');
         this.settingsTab.onclick = () => this.switchTab('settings');
         
-        // Top-level navigation
-        this.navPills.forEach(pill => {
-            pill.onclick = () => {
-                const navTarget = pill.dataset.nav;
-                this.handleTopNavigation(navTarget);
-            };
-        });
+        // Note: Top-level navigation now handled by UnifiedNav class
         
         // Profile navigation
         this.backFromProfileBtn.onclick = () => this.closeProfile();
@@ -4045,60 +4387,58 @@ class App {
     }
 
     // ============================================
-    // TOP-LEVEL NAVIGATION
+    // TOP-LEVEL NAVIGATION (Legacy - kept for compatibility)
     // ============================================
 
     handleTopNavigation(navTarget) {
+        // This method is kept for compatibility but navigation is now handled by UnifiedNav
         soundManager.play('click');
         
         switch(navTarget) {
             case 'home':
                 this.showHomeView();
-                this.updateTopNavigation('home');
                 break;
             case 'gordata':
-                this.showGordataView();
-                this.updateTopNavigation('gordata');
+                if (this.unifiedNav) {
+                    this.unifiedNav.switchSpace('gordata');
+                } else {
+                    this.showGordataView();
+                }
                 break;
             case 'toolkit':
-                this.showHomeView();
-                this.switchTab('toolkit');
-                this.updateTopNavigation('home');
+                if (this.unifiedNav) {
+                    this.unifiedNav.switchSpace('neurota');
+                } else {
+                    this.showHomeView();
+                    this.switchTab('toolkit');
+                }
                 break;
             case 'activity':
-                // Placeholder - will navigate to activity hub when implemented
-                this.showToast("Activity hub coming soon!", "info");
+                if (this.unifiedNav) {
+                    this.unifiedNav.switchSpace('lumbata');
+                } else {
+                    this.showToast("Activity hub coming soon!", "info");
+                }
                 break;
             case 'profile':
                 this.openProfile(this.currentUser.id);
-                this.updateTopNavigation('profile');
                 break;
         }
     }
 
     updateTopNavigation(activeNav) {
-        // Update active state on nav pills
-        this.navPills.forEach(pill => {
-            if (pill.dataset.nav === activeNav) {
-                pill.classList.add('active');
-            } else {
-                pill.classList.remove('active');
-            }
-        });
-        
-        // Update user name
-        if (this.currentUser) {
-            this.navUserName.textContent = this.currentUser.name;
+        // Navigation updates now handled by UnifiedNav class
+        // This method is kept for compatibility but does nothing
+        if (this.unifiedNav) {
+            this.unifiedNav.show();
         }
-        
-        // Show navigation (it starts hidden for auth view)
-        this.topNavigation.classList.remove('hidden');
     }
 
     hideTopNavigation() {
-        this.topNavigation.classList.add('hidden');
-        // Remove all active states
-        this.navPills.forEach(pill => pill.classList.remove('active'));
+        // Navigation hiding now handled by UnifiedNav class
+        if (this.unifiedNav) {
+            this.unifiedNav.hide();
+        }
     }
 
     async createRoom() {
@@ -6935,6 +7275,59 @@ class App {
 
     closeGordata() {
         this.showHomeView();
+    }
+
+    // ===== NEUROTA SPACE METHODS =====
+
+    showNeurotaSpace() {
+        // Hide all other views
+        this.authView.classList.add("hidden");
+        this.homeView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        
+        // Show home view with toolkit tab
+        this.homeView.classList.remove("hidden");
+        this.switchTab('toolkit');
+        
+        soundManager.play('bite');
+    }
+
+    // ===== LUMBATA SPACE METHODS =====
+
+    showLumbataSpace() {
+        // Hide all other views
+        this.authView.classList.add("hidden");
+        this.editorView.classList.add("hidden");
+        this.profileView.classList.add("hidden");
+        this.activityMenuView.classList.add("hidden");
+        this.chatView.classList.add("hidden");
+        this.diceView.classList.add("hidden");
+        this.collabDocView.classList.add("hidden");
+        this.gameView.classList.add("hidden");
+        this.gordataView.classList.add("hidden");
+        this.objectTypeBuilderView.classList.add("hidden");
+        this.objectInstancesView.classList.add("hidden");
+        this.objectInstanceEditorView.classList.add("hidden");
+        this.dataVisualizationView.classList.add("hidden");
+        
+        // Show home view - Lumbata will be the "desk" concept
+        // For now, just show home view
+        this.homeView.classList.remove("hidden");
+        
+        // TODO: Implement Lumbata "desk" interface
+        // This is a placeholder - the desk will be a special canvas-like space
+        
+        soundManager.play('bite');
     }
 
     // ===== ACTIVITY & ROOM METHODS =====

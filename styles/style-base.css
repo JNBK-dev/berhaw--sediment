@@ -4111,4 +4111,315 @@ input:checked + .toggle-slider:before {
     cursor: not-allowed;
 }
 
+/* ============================================
+   UNIFIED NAVIGATION
+   ============================================ */
+
+/* Main Container */
+.unified-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #f8fafc;
+    border-top: 2px solid #e2e8f0;
+    padding: 20px 24px;
+    z-index: 900;
+}
+
+.unified-nav.hidden {
+    display: none;
+}
+
+/* Top Row: Mode Toggle + Gear */
+.unified-nav-top-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+/* Mode Toggle (Go/Do) */
+.unified-nav-mode-toggle {
+    position: relative;
+    background: #e2e8f0;
+    border-radius: 12px;
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.unified-nav-mode-option {
+    position: relative;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.3s;
+    border: none;
+    background: transparent;
+    z-index: 2;
+}
+
+.unified-nav-mode-option.active {
+    color: #1e293b;
+}
+
+.unified-nav-mode-notch {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    height: calc(100% - 8px);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1;
+}
+
+/* Gear Button */
+.unified-nav-gear {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-left: auto;
+    padding: 0;
+}
+
+.unified-nav-gear:hover {
+    background: #cbd5e1;
+    transform: rotate(45deg);
+}
+
+.unified-nav-gear img {
+    width: 20px;
+    height: 20px;
+}
+
+/* Content Area */
+.unified-nav-content {
+    min-height: 60px;
+}
+
+/* GO MODE Content */
+.unified-nav-go-content {
+    display: none;
+}
+
+.unified-nav-go-content.active {
+    display: block;
+}
+
+/* Space Slider */
+.unified-nav-space-slider {
+    position: relative;
+    background: #e2e8f0;
+    border-radius: 16px;
+    padding: 6px;
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.unified-nav-space-option {
+    position: relative;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.3s;
+    border: none;
+    background: transparent;
+    z-index: 2;
+    flex: 1;
+    text-align: center;
+}
+
+.unified-nav-space-option.active {
+    color: #1e293b;
+}
+
+.unified-nav-space-notch {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    height: calc(100% - 12px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1;
+}
+
+/* Views List */
+.unified-nav-views-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.unified-nav-view-pill {
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.unified-nav-view-pill:hover {
+    background: #bfdbfe;
+    transform: translateY(-2px);
+}
+
+.unified-nav-view-pill.active {
+    background: #3b82f6;
+    color: white;
+}
+
+/* DO MODE Content */
+.unified-nav-do-content {
+    display: none;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.unified-nav-do-content.active {
+    display: flex;
+}
+
+/* Action Buttons */
+.unified-nav-action-btn {
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: none;
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.unified-nav-action-btn:hover {
+    background: #bfdbfe;
+    transform: translateY(-2px);
+}
+
+.unified-nav-action-btn.primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.unified-nav-action-btn.primary:hover {
+    background: #2563eb;
+}
+
+.unified-nav-action-btn img {
+    width: 16px;
+    height: 16px;
+}
+
+.unified-nav-no-actions {
+    color: #94a3b8;
+    font-size: 14px;
+    font-style: italic;
+}
+
+/* Gear Menu Overlay */
+.gear-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.gear-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.gear-menu {
+    background: white;
+    border-radius: 16px;
+    padding: 8px;
+    min-width: 200px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.2s;
+}
+
+.gear-overlay.visible .gear-menu {
+    transform: scale(1);
+}
+
+.gear-menu-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #475569;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+}
+
+.gear-menu-item:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.gear-menu-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 4px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .unified-nav {
+        padding: 16px;
+    }
+    
+    .unified-nav-space-option {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .unified-nav-action-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}
 
