@@ -41,7 +41,7 @@ body {
 }
 
 .card {
-    background: #f9fcff; /* Soft blue background extends to edges */
+    background: #F0FAFF; /* View and View Header color */
     border-radius: 20px;
     padding: 0; /* Remove padding, apply to children instead */
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
@@ -76,7 +76,7 @@ body {
     padding: 32px 32px 16px 32px;
     flex-shrink: 0; /* Never shrink */
     border-bottom: 2px solid #f1f5f9;
-    background: white;
+    background: #F0FAFF;
     border-radius: 20px 20px 0 0;
 }
 
@@ -3333,8 +3333,8 @@ input:checked + .toggle-slider:before {
 
 /* Grid socket - the placeholder for widgets */
 .grid-socket {
-    background: white;
-    border: 2px dashed #cbd5e1;
+    background: #F9FDFF; /* Grid Socket color */
+    border: 2px dashed #D3F0FF; /* Grid Socket Border color */
     border-radius: 12px;
     display: flex;
     flex-direction: column;
@@ -3354,13 +3354,13 @@ input:checked + .toggle-slider:before {
 
 .grid-socket.has-widget {
     border-style: solid;
-    border-color: #e2e8f0;
+    border-color: #D3F0FF; /* Grid Socket Border color */
     cursor: default;
 }
 
 .grid-socket.has-widget:hover {
-    border-color: #cbd5e1;
-    background: white;
+    border-color: #b8e3ff;
+    background: #F9FDFF; /* Grid Socket color */
 }
 
 .grid-socket.edit-mode {
@@ -4117,14 +4117,13 @@ input:checked + .toggle-slider:before {
 
 /* Main Container */
 .unified-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #f8fafc;
-    border-top: 2px solid #e2e8f0;
+    position: relative;
+    background: #ECF7FF;
+    border-top: 2px solid #D3F0FF;
     padding: 20px 24px;
     z-index: 900;
+    border-radius: 0 0 24px 24px;
+    margin-top: -2px; /* Overlap with card above */
 }
 
 .unified-nav.hidden {
@@ -4142,7 +4141,7 @@ input:checked + .toggle-slider:before {
 /* Mode Toggle (Go/Do) */
 .unified-nav-mode-toggle {
     position: relative;
-    background: #e2e8f0;
+    background: #D3F0FF;
     border-radius: 12px;
     padding: 4px;
     display: flex;
@@ -4180,30 +4179,34 @@ input:checked + .toggle-slider:before {
     z-index: 1;
 }
 
-/* Gear Button */
+/* Gear Button - Only icon rotates */
 .unified-nav-gear {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: #e2e8f0;
+    background: #D3F0FF;
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: background 0.2s;
     margin-left: auto;
     padding: 0;
 }
 
 .unified-nav-gear:hover {
-    background: #cbd5e1;
-    transform: rotate(45deg);
+    background: #b8e3ff;
 }
 
 .unified-nav-gear img {
     width: 20px;
     height: 20px;
+    transition: transform 0.2s;
+}
+
+.unified-nav-gear:hover img {
+    transform: rotate(45deg);
 }
 
 /* Content Area */
@@ -4223,7 +4226,7 @@ input:checked + .toggle-slider:before {
 /* Space Slider */
 .unified-nav-space-slider {
     position: relative;
-    background: #e2e8f0;
+    background: #D3F0FF;
     border-radius: 16px;
     padding: 6px;
     display: flex;

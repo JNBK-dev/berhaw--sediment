@@ -3450,6 +3450,34 @@ class UnifiedNav {
                 this.app.handleLogout();
             };
         }
+        
+        // Window resize listener to reposition notches
+        window.addEventListener('resize', () => this.handleResize());
+    }
+    
+    handleResize() {
+        // Recalculate and reposition notches on window resize
+        this.initializeNotches();
+        
+        // Reposition space notch if a space is active
+        if (this.currentSpace && this[`${this.currentSpace}SpaceBtn`]) {
+            const activeBtn = this[`${this.currentSpace}SpaceBtn`];
+            const spaceSlider = activeBtn.parentElement;
+            const buttons = Array.from(spaceSlider.querySelectorAll('.unified-nav-space-option'));
+            const btnIndex = buttons.indexOf(activeBtn);
+            const btnWidth = activeBtn.offsetWidth;
+            
+            if (this.spaceNotch) {
+                this.spaceNotch.style.width = btnWidth + 'px';
+                this.spaceNotch.style.transform = `translateX(${btnIndex * (btnWidth + 6)}px)`;
+            }
+        }
+        
+        // Reposition mode notch
+        if (this.currentMode === 'do' && this.doModeBtn && this.modeNotch) {
+            this.modeNotch.style.width = this.doModeBtn.offsetWidth + 'px';
+            this.modeNotch.style.transform = `translateX(${this.goModeBtn.offsetWidth + 4}px)`;
+        }
     }
     
     initializeNotches() {
